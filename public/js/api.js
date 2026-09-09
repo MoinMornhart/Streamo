@@ -307,6 +307,40 @@ export const api = {
       request(`/api/collections/${id}/add-to-library`, { method: 'POST', body: { status } }),
   },
 
+  // --- Freunde  -> src/routes/friends.js ----------------------------------
+  friends: {
+    /** Freunde, offene Anfragen und die Zahl ungelesener Empfehlungen */
+    list: () => request('/api/friends'),
+
+    /** Anfrage stellen – gesucht wird per Anmeldename oder E-Mail */
+    request: (username) =>
+      request('/api/friends/request', { method: 'POST', body: { username } }),
+    /** Eine eingegangene Anfrage annehmen */
+    accept: (id) => request(`/api/friends/${id}/accept`, { method: 'POST' }),
+    /** Ablehnen oder eine Freundschaft beenden – derselbe Vorgang */
+    remove: (id) => request(`/api/friends/${id}`, { method: 'DELETE' }),
+
+    /** Die Bibliothek eines Freundes (ohne dessen persönliche Notizen) */
+    library: (id) => request(`/api/friends/${id}/library`),
+    /** "Was können wir zusammen schauen?" – der Kern der Freundesliste */
+    together: (id) => request(`/api/friends/${id}/together`),
+
+    /** Einem Freund einen Titel empfehlen */
+    recommend: (id, tmdbId, mediaType, message) =>
+      request(`/api/friends/${id}/recommend`, {
+        method: 'POST',
+        body: { tmdbId, mediaType, message },
+      }),
+
+    /** Die Empfehlungen, die ich bekommen habe */
+    recommendations: () => request('/api/friends/recommendations'),
+    /** Als gelesen markieren; ohne id: alle */
+    markRead: (id) =>
+      request('/api/friends/recommendations/read', { method: 'POST', body: { id } }),
+    dismissRecommendation: (id) =>
+      request(`/api/friends/recommendations/${id}`, { method: 'DELETE' }),
+  },
+
   // --- Erfolge  -> src/routes/achievements.js -----------------------------
   achievements: {
     /** Alle Erfolge mit Zustand und Fortschritt */

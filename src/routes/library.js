@@ -32,6 +32,8 @@ import { getRuntimeSettings } from '../tmdb.js';
 // Ein neuer Bibliothekseintrag oder ein Statuswechsel kann einen Erfolg
 // freischalten – etwa "erste Serie vollständig gesehen".
 import { checkAchievements } from '../achievements.js';
+// Fuer die Gruppierung nach Filmreihen (?group=collections).
+import { findCollectionForShow } from '../collections.js';
 import {
   ensureShow,
   findShow,
@@ -212,9 +214,71 @@ router.get('/', (req, res) => {
 
   const entries = rows.map((row) => buildEntry(row, { userId: req.user.id, region, subscribed }));
 
+  // -------------------------------------------------------------------------
+  // Gruppierung nach Filmreihen
+  // -------------------------------------------------------------------------
+  // Mit ?group=collections werden Titel, die zu derselben Reihe gehören, zu
+  // einer Kachel zusammengefasst. Wer acht Marvel-Filme auf der Liste hat,
+  // sieht dann eine Gruppe statt acht einzelner Poster.
+  //
+  // Titel ohne Reihe bleiben einzeln – sie zwanghaft irgendwo einzusortieren
+  // würde die Übersicht eher verschlechtern.
+  if (req.query.group === 'collections') {
+    const groups = new Map();
+    const singles = [];
+
+    for (const entry of entries) {
+      // Zu welcher Reihe gehört der Titel? Die Zuordnung steht in `shows`
+      // und stammt aus dem TMDB-Feld belongs_to_collection.
+      const collection = findCollectionForShow(entry.showId, req.user.id);
+
+      if (!collection) {
+        singles.push(entry);
+        continue;
+      }
+
+      if (!groups.has(collection.id)) {
+        groups.set(collection.id, {
+          collectionId: collection.id,
+          name: collection.name,
+          // Wie viele Teile hat die Reihe insgesamt? Interessant ist ja
+          // gerade, wie viele davon einem noch fehlen.
+          totalParts: collection.total,
+          items: [],
+        });
+      }
+
+      groups.get(collection.id).items.push(entry);
+    }
+
+    const groupList = [...groups.values()]
+      .map((group) => ({
+        ...group,
+        // Innerhalb der Gruppe nach der Reihenfolge der Reihe sortieren,
+        // nicht nach dem Zeitpunkt des Hinzufügens.
+        items: group.items.sort((a, b) => (a.year ?? '').localeCompare(b.year ?? '')),
+        ownedParts: group.items.length,
+        watchedParts: group.items.filter((item) => item.status === 'completed').length,
+        // Das Poster der Reihe: das des ersten Teils, den man besitzt.
+        posterPath: group.items[0]?.posterPath ?? null,
+      }))
+      // Größere Gruppen zuerst – sie sind die interessanteren.
+      .sort((a, b) => b.ownedParts - a.ownedParts || a.name.localeCompare(b.name));
+
+    return res.json({
+      region,
+      total: entries.length,
+      grouped: true,
+      groups: groupList,
+      // Alles, was zu keiner Reihe gehört.
+      singles,
+    });
+  }
+
   res.json({
     region,
     total: entries.length,
+    grouped: false,
     entries,
   });
 });

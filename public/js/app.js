@@ -171,6 +171,12 @@ route('/achievements', view(() => import('./views/achievements.js')));
 route('/collections', view(() => import('./views/collections.js')));
 // Eine einzelne Filmreihe: /collections/12
 route('/collections/:id', view(() => import('./views/collections.js')));
+route('/friends', view(() => import('./views/friends.js')));
+// /friends/recommendations und /friends/12 teilen sich dieselbe Route -
+// die Ansicht unterscheidet anhand des Werts.
+route('/friends/:id', view(() => import('./views/friends.js')));
+// /friends/12/library
+route('/friends/:id/:sub', view(() => import('./views/friends.js')));
 route('/settings', view(() => import('./views/settings.js')));
 // Detailseite: /show/tv/1399 – mediaType und tmdbId landen in params.
 route('/show/:mediaType/:tmdbId', view(() => import('./views/detail.js')));

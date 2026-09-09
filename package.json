@@ -23,7 +23,8 @@
     "test:template": "bash tests/template-choice.test.sh",
     "test:achievements": "node tests/achievements.test.mjs",
     "test:collections": "node tests/collections.test.mjs",
-    "test:all": "npm test && npm run test:migration && npm run test:achievements && npm run test:collections && npm run test:template && npm run test:update"
+    "test:friends": "node tests/friends.test.mjs",
+    "test:all": "npm test && npm run test:migration && npm run test:achievements && npm run test:collections && npm run test:friends && npm run test:template && npm run test:update"
   },
   "dependencies": {
     "@simplewebauthn/server": "^14.0.1",

@@ -585,6 +585,70 @@ const MIGRATIONS = [
          ON collections(share_token) WHERE share_token IS NOT NULL`,
     );
   },
+
+  // -------------------------------------------------------------------------
+  // Version 6 -> Freunde
+  // -------------------------------------------------------------------------
+  // Freundschaften und Empfehlungen zwischen Konten derselben Instanz.
+  //
+  // Wozu? Damit man sieht, was Freunde schauen, und vor allem: was man
+  // ZUSAMMEN sehen kann. Die interessante Frage bei einem gemeinsamen Abend
+  // ist ja nicht "was läuft", sondern "was läuft bei einem Dienst, den einer
+  // von uns beiden hat, und interessiert uns beide".
+  () => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS friendships (
+        -- Wer hat angefragt?
+        user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        -- Und wen?
+        friend_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+
+        -- pending  – angefragt, noch nicht beantwortet
+        -- accepted – beide sind befreundet
+        -- Abgelehnte Anfragen werden gelöscht statt gespeichert: Eine Ablehnung
+        -- muss man nicht aufbewahren, und sie soll eine erneute Anfrage später
+        -- nicht blockieren.
+        status      TEXT NOT NULL DEFAULT 'pending'
+                    CHECK (status IN ('pending','accepted')),
+
+        created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+        accepted_at TEXT,
+
+        -- Eine Beziehung wird EINMAL gespeichert, in der Richtung der Anfrage.
+        -- Beim Lesen wird deshalb immer in beide Richtungen gesucht – siehe
+        -- src/friends.js. Der umgekehrte Weg (zwei Zeilen je Freundschaft)
+        -- wäre einfacher zu lesen, aber schwerer konsistent zu halten.
+        PRIMARY KEY (user_id, friend_id),
+
+        -- Niemand ist mit sich selbst befreundet.
+        CHECK (user_id != friend_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_friendships_friend ON friendships(friend_id, status);
+
+      -- Einen Titel weiterempfehlen: "Das musst du sehen."
+      CREATE TABLE IF NOT EXISTS recommendations (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        from_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        to_user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        show_id      INTEGER NOT NULL REFERENCES shows(id) ON DELETE CASCADE,
+
+        -- Ein paar Worte dazu, warum. Genau das macht eine Empfehlung aus.
+        message      TEXT,
+
+        -- Wurde sie schon gelesen? Steuert den Zähler in der Kopfzeile.
+        seen         INTEGER NOT NULL DEFAULT 0,
+        created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+
+        -- Denselben Titel nicht zweimal an dieselbe Person – eine erneute
+        -- Empfehlung frischt die vorhandene auf, statt sie zu verdoppeln.
+        UNIQUE (from_user_id, to_user_id, show_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_recommendations_to
+        ON recommendations(to_user_id, seen);
+    `);
+  },
 ];
 
 /**

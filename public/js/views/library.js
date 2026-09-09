@@ -40,6 +40,8 @@ export async function render_(container, _params, query) {
     genre: query.get('genre') || '',
     q: query.get('q') || '',
     sort: query.get('sort') || 'added',
+    // "collections" fasst Titel derselben Filmreihe zu einer Kachel zusammen.
+    group: query.get('group') || '',
   };
 
   /**
@@ -139,6 +141,15 @@ export async function render_(container, _params, query) {
       onClick: () => setFilter({ onlyMine: filters.onlyMine === '1' ? '' : '1' }),
     }),
 
+    // Einzeln oder nach Filmreihen gruppiert. Wer acht Marvel-Filme auf der
+    // Liste hat, sieht gruppiert eine Kachel statt acht.
+    el('button.chip' + (filters.group === 'collections' ? '.active' : ''), {
+      text: '🎬 Nach Reihen',
+      title: 'Titel derselben Filmreihe zu einer Gruppe zusammenfassen',
+      onClick: () =>
+        setFilter({ group: filters.group === 'collections' ? '' : 'collections' }),
+    }),
+
     el('button.chip' + (filters.favorite === '1' ? '.active' : ''), {
       text: '♥ Favoriten',
       onClick: () => setFilter({ favorite: filters.favorite === '1' ? '' : '1' }),
@@ -165,7 +176,9 @@ export async function render_(container, _params, query) {
   // Leerzustände – unterschiedlich, je nachdem ob die Bibliothek leer ist
   // oder nur der Filter nichts übrig lässt.
   // ------------------------------------------------------------------------
-  if (data.entries.length === 0) {
+  // In der gruppierten Ansicht heißen die Felder anders – der Leerzustand
+  // gilt aber für beide gleichermaßen.
+  if (data.total === 0) {
     const isFiltered = Object.entries(filters).some(([k, v]) => v && k !== 'sort');
 
     render(
@@ -244,6 +257,96 @@ export async function render_(container, _params, query) {
         },
       }),
     ]);
+
+  // -------------------------------------------------------------------------
+  // Gruppierte Darstellung
+  // -------------------------------------------------------------------------
+  // Jede Filmreihe bekommt einen eigenen Abschnitt mit Überschrift; alles,
+  // was zu keiner Reihe gehört, steht darunter. So bleibt die Reihenfolge
+  // innerhalb einer Reihe sichtbar, was bei einer Reihe ja der Punkt ist.
+  if (data.grouped) {
+    const sections = [];
+
+    for (const group of data.groups) {
+      sections.push(
+        el('section', { style: { marginBottom: '30px' } }, [
+          el(
+            'div',
+            {
+              style: {
+                display: 'flex',
+                alignItems: 'baseline',
+                gap: '11px',
+                marginBottom: '12px',
+                flexWrap: 'wrap',
+              },
+            },
+            [
+              el('h2', { style: { margin: 0 }, text: group.name }),
+              el('span.muted.small', {
+                text:
+                  `${group.ownedParts} von ${group.totalParts} Teilen` +
+                  (group.watchedParts > 0 ? ` · ${group.watchedParts} gesehen` : ''),
+              }),
+              // Führt zur Reihe selbst – dort stehen auch die Teile, die man
+              // noch nicht hat.
+              el('a', {
+                href: `/collections/${group.collectionId}`,
+                'data-link': '',
+                class: 'small',
+                text: 'Zur Reihe →',
+              }),
+            ],
+          ),
+          el(
+            'div.grid',
+            {},
+            group.items.map((entry) => posterCard(entry, { action: actions(entry) })),
+          ),
+        ]),
+      );
+    }
+
+    // Alles ohne Reihe.
+    if (data.singles.length > 0) {
+      sections.push(
+        el('section', {}, [
+          el('h2', {
+            style: { marginBottom: '12px' },
+            text: data.groups.length > 0 ? 'Einzelne Titel' : 'Deine Titel',
+          }),
+          el(
+            'div.grid',
+            {},
+            data.singles.map((entry) => posterCard(entry, { action: actions(entry) })),
+          ),
+        ]),
+      );
+    }
+
+    render(
+      container,
+      el('div.view-header', {}, [
+        el('div', {}, [
+          el('h1', { text: 'Meine Bibliothek', style: { marginBottom: '2px' } }),
+          el('p.muted', {
+            style: { margin: 0 },
+            text: `${data.total} Einträge · ${data.groups.length} ${data.groups.length === 1 ? 'Filmreihe' : 'Filmreihen'} · ${data.singles.length} einzeln`,
+          }),
+        ]),
+        el('a.btn.btn-ghost.btn-sm', {
+          href: api.library.exportUrl,
+          text: '↓ Exportieren',
+          title: 'Bibliothek als JSON sichern',
+        }),
+      ]),
+      statusChips,
+      filterBar,
+      ...sections,
+    );
+
+    return;
+  }
 
   const grid = el(
     'div.grid',
