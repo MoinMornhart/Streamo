@@ -25,10 +25,13 @@
 
 import express from 'express';
 import { requireAuth } from '../auth.js';
+import config from '../config.js';
 import { getRuntimeSettings } from '../tmdb.js';
 import * as tmdb from '../tmdb.js';
 import { ensureShow, findShowById } from '../store.js';
 import { run } from '../db.js';
+// Eine ganze Reihe auf die Liste zu setzen kann einen Erfolg ausloesen.
+import { checkAchievements } from '../achievements.js';
 
 import {
   listCollections,
@@ -40,10 +43,34 @@ import {
   addItem,
   removeItem,
   reorderItems,
+  shareCollection,
+  unshareCollection,
 } from '../collections.js';
 
 const router = express.Router();
 router.use(requireAuth);
+
+/**
+ * Baut den vollständigen Link zu einer geteilten Reihe.
+ *
+ * Die Adresse kommt aus der Anfrage, denn nur die kennt sie wirklich: Hinter
+ * einem Reverse Proxy weiß Streamo selbst nicht, unter welchem Namen es von
+ * außen erreichbar ist. Ohne TRUST_PROXY werden die Weiterleitungs-Kopfzeilen
+ * ignoriert – sie ließen sich sonst fälschen.
+ *
+ * @param {import('express').Request} req
+ * @param {string} token
+ * @returns {string} z. B. "https://streamo.example.de/s/AbC123…"
+ */
+function buildShareUrl(req, token) {
+  const forwardedProto = config.trustProxy ? req.headers['x-forwarded-proto'] : null;
+  const protocol = String(forwardedProto || req.protocol || 'http').split(',')[0].trim();
+
+  const forwardedHost = config.trustProxy ? req.headers['x-forwarded-host'] : null;
+  const host = String(forwardedHost || req.headers.host || '').split(',')[0].trim();
+
+  return `${protocol}://${host}/s/${token}`;
+}
 
 /**
  * GET /api/collections
@@ -261,6 +288,118 @@ router.delete('/:id/items/:showId', (req, res) => {
   if (!removed) return res.status(404).json({ error: 'Der Titel ist nicht in dieser Reihe.' });
 
   res.json({ ok: true });
+});
+
+/**
+ * POST /api/collections/:id/share
+ *
+ * Gibt eine Reihe über einen Link frei – zum Weiterschicken per WhatsApp oder
+ * sonstwie. Body: { renew?: boolean }
+ *
+ * Mit renew:true entsteht ein neuer Token; alle bisher verschickten Links
+ * führen danach ins Leere. Das ist der Weg, eine versehentliche Weitergabe
+ * rückgängig zu machen, ohne die Reihe ganz zu sperren.
+ *
+ * Nur eigene Reihen: Eine offizielle TMDB-Reihe zu "teilen" hätte keinen
+ * Sinn – die kennt der Empfänger ohnehin.
+ */
+router.post('/:id/share', (req, res) => {
+  const collection = getEditableCollection(Number(req.params.id), req.user.id);
+
+  if (!collection) {
+    return res.status(404).json({
+      error: 'Nur deine eigenen Reihen lassen sich teilen.',
+    });
+  }
+
+  const token = shareCollection(collection.id, req.body?.renew === true);
+
+  res.json({
+    ok: true,
+    token,
+    // Der vollständige Link wird hier gebaut, damit das Frontend nicht raten
+    // muss, unter welcher Adresse Streamo erreichbar ist – hinter einem
+    // Reverse Proxy weiß das nur der Server.
+    url: buildShareUrl(req, token),
+  });
+});
+
+/**
+ * DELETE /api/collections/:id/share
+ * Nimmt die Freigabe zurück. Verschickte Links führen danach ins Leere.
+ */
+router.delete('/:id/share', (req, res) => {
+  const collection = getEditableCollection(Number(req.params.id), req.user.id);
+
+  if (!collection) {
+    return res.status(404).json({ error: 'Diese Reihe gehört dir nicht.' });
+  }
+
+  unshareCollection(collection.id);
+
+  res.json({ ok: true });
+});
+
+/**
+ * POST /api/collections/:id/add-to-library
+ *
+ * Nimmt alle Teile einer Reihe auf einmal in die Bibliothek auf.
+ * Body: { status? } – Vorgabe "watchlist"
+ *
+ * Der naheliegende Schritt, nachdem man eine Reihe entdeckt hat: Man will
+ * sie sehen, also soll sie auf die Liste. Einzeln durchzuklicken wäre bei
+ * einer sechsteiligen Reihe mühsam.
+ *
+ * Bereits vorhandene Einträge bleiben unangetastet – wer Teil 1 schon als
+ * "gesehen" markiert hat, soll ihn nicht auf "will ich sehen" zurückgesetzt
+ * bekommen.
+ */
+router.post('/:id/add-to-library', (req, res) => {
+  const { region } = getRuntimeSettings(req.user);
+
+  const collection = getCollection(Number(req.params.id), {
+    userId: req.user.id,
+    region,
+  });
+
+  if (!collection) return res.status(404).json({ error: 'Diese Filmreihe gibt es nicht.' });
+
+  const status = ['watchlist', 'watching', 'completed', 'paused', 'dropped'].includes(
+    req.body?.status,
+  )
+    ? req.body.status
+    : 'watchlist';
+
+  let added = 0;
+  let alreadyThere = 0;
+
+  for (const item of collection.items) {
+    if (item.inLibrary) {
+      alreadyThere++;
+      continue;
+    }
+
+    // Die Metadaten liegen bereits vor – die Filme kamen ja mit der Reihe in
+    // den Cache. Ein TMDB-Aufruf ist hier also nicht nötig.
+    run(
+      `INSERT INTO library (user_id, show_id, status)
+       VALUES (?,?,?)
+       ON CONFLICT(user_id, show_id) DO NOTHING`,
+      req.user.id,
+      item.showId,
+      status,
+    );
+
+    added++;
+  }
+
+  res.json({
+    ok: true,
+    added,
+    alreadyThere,
+    // Eine ganze Reihe auf einmal kann einen Erfolg auslösen ("Sammler").
+    unlocked: checkAchievements(req.user.id),
+  });
 });
 
 /**

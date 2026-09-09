@@ -556,6 +556,35 @@ const MIGRATIONS = [
          ON shows(collection_tmdb_id) WHERE collection_tmdb_id IS NOT NULL`,
     );
   },
+
+  // -------------------------------------------------------------------------
+  // Version 5 -> Reihen teilen
+  // -------------------------------------------------------------------------
+  // Eine eigene Reihe lässt sich über einen Link weitergeben – etwa per
+  // WhatsApp: "Das solltest du vorher gesehen haben". Wer den Link hat, sieht
+  // die Liste, ohne ein Konto zu brauchen.
+  //
+  // Der Token ist ein zufälliger, nicht erratbarer Wert. Solange er NULL ist,
+  // ist die Reihe privat; das Teilen lässt sich jederzeit widerrufen, indem
+  // er wieder auf NULL gesetzt wird. Ein neuer Link entwertet den alten.
+  () => {
+    const columns = db.prepare('PRAGMA table_info(collections)').all();
+
+    if (!columns.some((c) => c.name === 'share_token')) {
+      db.exec('ALTER TABLE collections ADD COLUMN share_token TEXT');
+    }
+
+    if (!columns.some((c) => c.name === 'shared_at')) {
+      db.exec('ALTER TABLE collections ADD COLUMN shared_at TEXT');
+    }
+
+    // Teilweise eindeutig: Beliebig viele Reihen dürfen ungeteilt sein (NULL),
+    // aber ein vergebener Token gehört zu genau einer Reihe.
+    db.exec(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_collections_share
+         ON collections(share_token) WHERE share_token IS NOT NULL`,
+    );
+  },
 ];
 
 /**

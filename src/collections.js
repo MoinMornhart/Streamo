@@ -26,6 +26,7 @@
  * ---------------------------------------------------------------------------
  */
 
+import crypto from 'node:crypto';
 import { all, get, run, transaction } from './db.js';
 import * as tmdb from './tmdb.js';
 import { upsertShow, findShow, buildAvailabilityView, getSubscribedProviderIds } from './store.js';
@@ -381,6 +382,104 @@ export function getEditableCollection(collectionId, userId) {
   );
 
   return collection ?? null;
+}
+
+// --------------------------------------------------------------------------
+// Teilen
+// --------------------------------------------------------------------------
+
+/**
+ * Gibt eine Reihe frei und liefert den Freigabe-Token.
+ *
+ * Wer den Link hat, sieht die Liste – ohne Konto, ohne Anmeldung. Deshalb ist
+ * der Token 24 zufällige Bytes: nicht erratbar, auch nicht durch systematisches
+ * Probieren.
+ *
+ * Ein bereits vergebener Token bleibt bestehen, damit ein einmal verschickter
+ * Link nicht plötzlich ins Leere führt, nur weil jemand erneut auf "Teilen"
+ * gedrückt hat.
+ *
+ * @param {number} collectionId
+ * @param {boolean} [renew] true erzeugt einen neuen Token und entwertet damit
+ *   alle bisher verschickten Links
+ * @returns {string} der Token
+ */
+export function shareCollection(collectionId, renew = false) {
+  const existing = get('SELECT share_token FROM collections WHERE id = ?', collectionId);
+
+  if (existing?.share_token && !renew) return existing.share_token;
+
+  // base64url, damit der Token ohne Umkodierung in eine Adresse passt.
+  const token = crypto.randomBytes(24).toString('base64url');
+
+  run(
+    "UPDATE collections SET share_token = ?, shared_at = datetime('now') WHERE id = ?",
+    token,
+    collectionId,
+  );
+
+  return token;
+}
+
+/**
+ * Widerruft die Freigabe. Verschickte Links führen danach ins Leere.
+ * @param {number} collectionId
+ */
+export function unshareCollection(collectionId) {
+  run(
+    'UPDATE collections SET share_token = NULL, shared_at = NULL WHERE id = ?',
+    collectionId,
+  );
+}
+
+/**
+ * Lädt eine geteilte Reihe über ihren Token – ohne Anmeldung.
+ *
+ * Bewusst sparsam: Es kommen nur die Titel, ihre Reihenfolge und die Notizen
+ * zurück. KEINE Angaben darüber, was der Ersteller gesehen hat, welche Abos er
+ * besitzt oder wie er heißt. Wer einen Link weitergibt, teilt eine Liste –
+ * nicht seinen Sehverlauf.
+ *
+ * @param {string} token
+ * @returns {object|null}
+ */
+export function getSharedCollection(token) {
+  if (!token) return null;
+
+  const collection = get('SELECT * FROM collections WHERE share_token = ?', String(token));
+  if (!collection) return null;
+
+  const rows = all(
+    `SELECT ci.position, ci.note,
+            s.tmdb_id, s.media_type, s.title, s.overview,
+            s.poster_path, s.first_air_date, s.runtime, s.vote_average
+       FROM collection_items ci
+       JOIN shows s ON s.id = ci.show_id
+      WHERE ci.collection_id = ?
+      ORDER BY ci.position, s.first_air_date`,
+    collection.id,
+  );
+
+  return {
+    name: collection.name,
+    description: collection.description,
+    posterPath: collection.poster_path,
+    backdropPath: collection.backdrop_path,
+    sharedAt: collection.shared_at,
+    items: rows.map((row) => ({
+      position: row.position,
+      note: row.note,
+      tmdbId: row.tmdb_id,
+      mediaType: row.media_type,
+      title: row.title,
+      overview: row.overview,
+      posterPath: row.poster_path,
+      year: row.first_air_date?.slice(0, 4) || null,
+      runtime: row.runtime,
+      voteAverage: row.vote_average,
+    })),
+    totalRuntime: rows.reduce((sum, row) => sum + (row.runtime || 0), 0),
+  };
 }
 
 /**

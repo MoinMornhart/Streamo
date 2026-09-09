@@ -148,6 +148,20 @@ function view(loader) {
   };
 }
 
+// --------------------------------------------------------------------------
+// Die einzige Adresse, die OHNE Anmeldung funktioniert: eine geteilte Liste.
+//
+// Sie umgeht bewusst die Hülle view(), denn die würde jeden nicht angemeldeten
+// Besucher zur Anmeldemaske schicken. Wer per WhatsApp einen Link bekommt,
+// soll die Liste einfach sehen – ohne Konto, ohne Hürde.
+// --------------------------------------------------------------------------
+route('/s/:token', async (params) => {
+  render(viewRoot(), loading('Liste wird geladen …'));
+
+  const mod = await import('./views/shared.js');
+  await mod.render(viewRoot(), params);
+});
+
 route('/', view(() => import('./views/home.js')));
 route('/search', view(() => import('./views/search.js')));
 route('/library', view(() => import('./views/library.js')));
@@ -222,8 +236,10 @@ async function boot() {
   try {
     const status = await refreshStatus();
 
-    // Frische Installation -> Einrichtungsassistent, unabhängig von der URL.
-    if (status.needsSetup) {
+    // Frische Installation -> Einrichtungsassistent. Mit einer Ausnahme:
+    // Eine geteilte Liste soll auch dann sichtbar sein. Wer einen Link
+    // bekommt, hat mit der Einrichtung dieser Instanz nichts zu tun.
+    if (status.needsSetup && !window.location.pathname.startsWith('/s/')) {
       const mod = await import('./views/auth.js');
       mod.render(viewRoot(), { mode: 'setup', defaults: status.defaults });
       return;

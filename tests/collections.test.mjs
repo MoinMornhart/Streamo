@@ -240,6 +240,46 @@ check(
   null,
 );
 
+console.log('\nTeilen');
+
+const token = collections.shareCollection(custom.id);
+
+check('Ein Token wird vergeben', typeof token === 'string' && token.length > 20, true);
+check(
+  'Erneutes Teilen liefert denselben Link – verschickte Links bleiben gültig',
+  collections.shareCollection(custom.id),
+  token,
+);
+check(
+  'Mit renew entsteht ein neuer, der alte ist damit entwertet',
+  collections.shareCollection(custom.id, true) !== token,
+  true,
+);
+
+const currentToken = get('SELECT share_token FROM collections WHERE id = ?', custom.id).share_token;
+const shared = collections.getSharedCollection(currentToken);
+
+check('Die geteilte Liste ist abrufbar', shared?.name, 'Vorwissen für Spider-Man: Brand New Day');
+check('Mit ihren Titeln', shared?.items.length, 2);
+check('Und den Notizen', Boolean(shared?.items[0].note), true);
+
+// Datenschutz: Wer einen Link weitergibt, teilt eine Liste – nicht seinen
+// Sehverlauf. Diese Felder dürfen in der öffentlichen Antwort nicht auftauchen.
+check('Sie verrät nicht, wem sie gehört', shared?.userId, undefined);
+check('Und nicht, was der Ersteller gesehen hat', shared?.items[0].watched, undefined);
+check('Und nicht, was in seiner Bibliothek steht', shared?.items[0].inLibrary, undefined);
+check('Und nicht, welche Abos er hat', shared?.items[0].availability, undefined);
+
+check('Ein unbekannter Token ergibt nichts', collections.getSharedCollection('erfunden'), null);
+check('Ein leerer Token auch nicht', collections.getSharedCollection(''), null);
+
+collections.unshareCollection(custom.id);
+check(
+  'Nach dem Widerruf führt der Link ins Leere',
+  collections.getSharedCollection(currentToken),
+  null,
+);
+
 console.log('\nLöschen eines Kontos');
 
 run('DELETE FROM users WHERE id = ?', anna);

@@ -246,6 +246,14 @@ export const api = {
     get: () => request('/api/stats'),
   },
 
+  // --- Geteilte Listen  -> src/routes/public.js ---------------------------
+  // Der einzige Bereich, der OHNE Anmeldung funktioniert: Wer per WhatsApp
+  // einen Link bekommt, soll die Liste sehen können, ohne ein Konto anzulegen.
+  shared: {
+    /** Eine geteilte Filmreihe über ihren Token abrufen */
+    get: (token) => request(`/api/public/collections/${encodeURIComponent(token)}`),
+  },
+
   // --- Filmreihen  -> src/routes/collections.js ---------------------------
   collections: {
     /** Alle sichtbaren Reihen: die eigenen und die offiziellen */
@@ -279,6 +287,24 @@ export const api = {
     /** Reihenfolge festlegen – erwartet die vollständige Liste */
     reorder: (id, showIds) =>
       request(`/api/collections/${id}/order`, { method: 'PUT', body: { showIds } }),
+
+    /**
+     * Gibt eine Reihe über einen Link frei – zum Weiterschicken per WhatsApp
+     * oder sonstwie. Liefert Token und fertigen Link zurück.
+     * renew: true erzeugt einen neuen Link und entwertet damit den alten.
+     */
+    share: (id, renew) =>
+      request(`/api/collections/${id}/share`, { method: 'POST', body: { renew } }),
+
+    /** Freigabe zurücknehmen – verschickte Links führen danach ins Leere */
+    unshare: (id) => request(`/api/collections/${id}/share`, { method: 'DELETE' }),
+
+    /**
+     * Alle Teile einer Reihe auf einmal in die Bibliothek aufnehmen.
+     * Bereits vorhandene Einträge bleiben unangetastet.
+     */
+    addToLibrary: (id, status) =>
+      request(`/api/collections/${id}/add-to-library`, { method: 'POST', body: { status } }),
   },
 
   // --- Erfolge  -> src/routes/achievements.js -----------------------------

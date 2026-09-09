@@ -19,7 +19,15 @@
  */
 
 import { api, img } from '../api.js';
-import { el, render, empty, toast, formatRuntime, errorBox } from '../ui.js';
+import {
+  el,
+  render,
+  empty,
+  toast,
+  formatRuntime,
+  errorBox,
+  announceAchievements,
+} from '../ui.js';
 import { navigateTo } from '../router.js';
 
 /**
@@ -321,7 +329,36 @@ async function renderDetail(container, id) {
               }),
         ]),
 
-        // Aktionen – nur bei eigenen Reihen.
+        // Einzeln hinzufügen – für alle Reihen, auch die offiziellen.
+        // Steht getrennt von den Sortier-Knöpfen, weil es eine andere Art von
+        // Aktion ist: Die eine ändert die Reihe, die andere die eigene Liste.
+        el('div', { style: { display: 'flex', flexDirection: 'column', gap: '5px' } }, [
+          item.inLibrary
+            ? el('span.muted.small', {
+                style: { textAlign: 'center', padding: '6px 0', whiteSpace: 'nowrap' },
+                text: item.watched ? '✓ gesehen' : '✓ auf Liste',
+              })
+            : el('button.btn.btn-sm', {
+                text: '+',
+                title: 'In die Bibliothek aufnehmen',
+                style: { minWidth: '34px' },
+                onClick: async (event) => {
+                  event.currentTarget.disabled = true;
+
+                  try {
+                    const result = await api.library.add(item.tmdbId, item.mediaType, 'watchlist');
+                    toast(`„${item.title}" hinzugefügt.`, 'success');
+                    announceAchievements(result.unlocked);
+                    reload();
+                  } catch (error) {
+                    toast(error.message, 'error');
+                    event.currentTarget.disabled = false;
+                  }
+                },
+              }),
+        ]),
+
+        // Sortieren und Entfernen – nur bei eigenen Reihen.
         collection.isCustom &&
           el('div', { style: { display: 'flex', flexDirection: 'column', gap: '5px' } }, [
             el('button.btn.btn-sm.btn-ghost', {
@@ -373,6 +410,50 @@ async function renderDetail(container, id) {
           ]),
       ],
     );
+  };
+
+  /**
+   * Gibt die Reihe frei und bietet an, den Link zu verschicken.
+   *
+   * Auf dem Handy öffnet navigator.share die gewohnte Teilen-Auswahl des
+   * Systems – dort erscheinen WhatsApp, Signal, Telegram, Mail und alles
+   * andere, was installiert ist. Auf dem Rechner gibt es diese Auswahl meist
+   * nicht; dort wird der Link in die Zwischenablage gelegt.
+   *
+   * @param {object} coll Die Reihe
+   */
+  const shareCollection = async (coll) => {
+    try {
+      const { url } = await api.collections.share(coll.id);
+
+      const text =
+        `Diese Liste solltest du dir ansehen: „${coll.name}"` +
+        (coll.items.length > 0 ? ` (${coll.items.length} Titel)` : '');
+
+      // Die Teilen-Auswahl des Systems – der direkte Weg zu WhatsApp und Co.
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: coll.name, text, url });
+          return;
+        } catch (error) {
+          // Abbrechen ist kein Fehler: Wer die Auswahl schließt, wollte
+          // eben doch nicht teilen. Nur bei echten Problemen weitermachen.
+          if (error.name === 'AbortError') return;
+        }
+      }
+
+      // Kein systemeigenes Teilen: Link in die Zwischenablage.
+      try {
+        await navigator.clipboard.writeText(url);
+        toast('Link kopiert – jetzt einfach einfügen und verschicken.', 'success');
+      } catch {
+        // Die Zwischenablage ist nur in sicheren Kontexten erlaubt. Klappt
+        // sie nicht, wird der Link wenigstens zum Herauskopieren angezeigt.
+        window.prompt('Link zum Teilen (kopieren mit Strg+C):', url);
+      }
+    } catch (error) {
+      toast(error.message, 'error');
+    }
   };
 
   /**
@@ -444,9 +525,50 @@ async function renderDetail(container, id) {
         }),
       ]),
 
-      collection.isCustom &&
-        el('div', { style: { display: 'flex', gap: '9px' } }, [
-          el('button.btn.btn-primary', { text: '+ Titel aufnehmen', onClick: addFilm }),
+      el('div', { style: { display: 'flex', gap: '9px', flexWrap: 'wrap' } }, [
+        // Die ganze Reihe auf die Liste setzen – der naheliegende Schritt,
+        // nachdem man sie entdeckt hat. Nur anbieten, wenn überhaupt etwas
+        // fehlt; sonst wäre der Knopf wirkungslos.
+        collection.items.some((item) => !item.inLibrary) &&
+          el('button.btn.btn-primary', {
+            text: `+ Alle ${collection.items.filter((i) => !i.inLibrary).length} zur Bibliothek`,
+            title: 'Nimmt alle noch fehlenden Teile in deine Bibliothek auf',
+            onClick: async (event) => {
+              event.currentTarget.disabled = true;
+              event.currentTarget.textContent = 'Wird hinzugefügt …';
+
+              try {
+                const result = await api.collections.addToLibrary(collection.id);
+
+                toast(
+                  result.added === 0
+                    ? 'Alle Teile waren bereits in deiner Bibliothek.'
+                    : `${result.added} ${result.added === 1 ? 'Teil' : 'Teile'} hinzugefügt.`,
+                  'success',
+                );
+
+                announceAchievements(result.unlocked);
+                reload();
+              } catch (error) {
+                toast(error.message, 'error');
+                reload();
+              }
+            },
+          }),
+
+        collection.isCustom &&
+          el('button.btn.btn-ghost', { text: '+ Titel aufnehmen', onClick: addFilm }),
+
+        // Teilen – nur bei eigenen Reihen. Eine offizielle TMDB-Reihe zu
+        // teilen hätte keinen Sinn, die kennt der Empfänger ohnehin.
+        collection.isCustom &&
+          el('button.btn.btn-ghost', {
+            text: '↗ Teilen',
+            title: 'Einen Link erzeugen, den du weiterschicken kannst',
+            onClick: () => shareCollection(collection),
+          }),
+
+        collection.isCustom &&
           el('button.btn.btn-danger', {
             text: 'Reihe löschen',
             onClick: async () => {
@@ -462,7 +584,7 @@ async function renderDetail(container, id) {
               }
             },
           }),
-        ]),
+      ]),
     ]),
 
     // Beschreibung – bei eigenen Reihen die Stelle für "wofür ist das gut".

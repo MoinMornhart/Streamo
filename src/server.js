@@ -47,6 +47,8 @@ import settingsRoutes from './routes/settings.js';
 import statsRoutes from './routes/stats.js';
 import achievementRoutes from './routes/achievements.js';
 import collectionRoutes from './routes/collections.js';
+// Der einzige Router ohne Anmeldepflicht - fuer geteilte Listen.
+import publicRoutes from './routes/public.js';
 
 const app = express();
 
@@ -121,6 +123,7 @@ app.use('/api/settings', settingsRoutes); // Einstellungen und Abgleich
 app.use('/api/stats', statsRoutes); //     Auswertungen
 app.use('/api/achievements', achievementRoutes); // Erfolge
 app.use('/api/collections', collectionRoutes); // Filmreihen
+app.use('/api/public', publicRoutes); //   Geteilte Listen (ohne Anmeldung)
 
 /**
  * GET /api/health
