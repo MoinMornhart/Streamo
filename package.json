@@ -1,6 +1,6 @@
 {
   "name": "streamo",
-  "version": "1.2.7",
+  "version": "1.2.8",
   "description": "Self-hosted series tracker that links all your streaming subscriptions and always tells you where you can watch.",
   "type": "module",
   "license": "MIT",

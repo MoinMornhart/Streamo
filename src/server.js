@@ -28,6 +28,8 @@
 import express from 'express';
 import path from 'node:path';
 import fs from 'node:fs';
+// Für die Einmalkennung der Content Security Policy – siehe Abschnitt 3.
+import crypto from 'node:crypto';
 import http from 'node:http';
 import https from 'node:https';
 import config from './config.js';
@@ -89,8 +91,49 @@ app.use(attachUser);
 // weitere Abhängigkeit.
 // --------------------------------------------------------------------------
 app.use((req, res, next) => {
+  // ------------------------------------------------------------------------
+  // Einmalkennung für das Inline-Skript in index.html
+  // ------------------------------------------------------------------------
+  // index.html enthält ein kleines Skript im <head>, das die gewählte
+  // Akzentfarbe anwendet, BEVOR etwas gezeichnet wird – sonst blitzt die
+  // Seite kurz violett auf.
+  //
+  // Die CSP unten erlaubt Skripte nur aus dem eigenen Ursprung ('self'), und
+  // das schließt Inline-Skripte ausdrücklich aus. Dieses eine war dadurch
+  // wirkungslos: Der Browser hat es kommentarlos verworfen, das Aufblitzen
+  // blieb. Aufgefallen ist das erst bei einer Durchsicht der Kopfzeilen.
+  //
+  // Die saubere Lösung ist eine Einmalkennung (nonce): Sie steht in der CSP
+  // UND am Skript, ändert sich bei jeder Anfrage und lässt sich deshalb von
+  // niemandem vorhersagen. 'unsafe-inline' wäre die bequeme Alternative –
+  // und würde die CSP für Skripte praktisch abschalten.
+  res.locals.cspNonce = crypto.randomBytes(16).toString('base64');
+
   // Verhindert, dass der Browser den Inhaltstyp "errät" (MIME-Sniffing).
   res.setHeader('X-Content-Type-Options', 'nosniff');
+
+  // ------------------------------------------------------------------------
+  // HSTS – künftige Aufrufe nur noch über HTTPS
+  // ------------------------------------------------------------------------
+  // Ohne diesen Header genügt EIN Aufruf über http://, um die Sitzung im
+  // Klartext zu übertragen; ein Angreifer im selben Netz muss die erste
+  // Verbindung nur abfangen. Mit HSTS merkt sich der Browser die Domain und
+  // wechselt von sich aus auf HTTPS, bevor überhaupt etwas gesendet wird.
+  //
+  // Nur setzen, wenn die Verbindung auch wirklich verschlüsselt ist: Auf
+  // einer reinen HTTP-Installation im Heimnetz würde der Header die Seite
+  // dauerhaft unerreichbar machen.
+  if (config.https || (config.trustProxy && req.headers['x-forwarded-proto'] === 'https')) {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+
+  // Streamo braucht weder Kamera noch Mikrofon noch Standort. Was man nicht
+  // braucht, schaltet man ab – auch für alles, was eingebettet würde.
+  res.setHeader(
+    'Permissions-Policy',
+    'camera=(), microphone=(), geolocation=(), interest-cohort=()',
+  );
+
   // Streamo darf nicht in fremde Seiten eingebettet werden (Clickjacking).
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   // Beim Klick auf externe Anbieter-Links nur die Herkunft übermitteln,
@@ -106,7 +149,14 @@ app.use((req, res, next) => {
       // 'unsafe-inline' für Styles, weil das Frontend Fortschrittsbalken und
       // Hintergrundbilder über style-Attribute setzt.
       "style-src 'self' 'unsafe-inline'",
-      "script-src 'self'",
+      // Die Einmalkennung erlaubt genau das eine Inline-Skript in index.html
+      // und sonst keines. Sie ändert sich bei jeder Anfrage und lässt sich
+      // deshalb nicht vorhersagen.
+      //
+      // 'unsafe-inline' wäre die bequeme Alternative gewesen – und hätte die
+      // CSP für Skripte praktisch abgeschaltet: Jedes eingeschleuste
+      // <script> liefe dann ebenfalls.
+      `script-src 'self' 'nonce-${res.locals.cspNonce}'`,
       "connect-src 'self'",
       "frame-ancestors 'self'",
     ].join('; '),
@@ -221,7 +271,11 @@ function sendIndex(req, res) {
       .readFileSync(path.join(config.publicDir, 'index.html'), 'utf8')
       // Nur eigene Verweise auf CSS und JS bekommen die Kennung – externe
       // Adressen und das eingebettete Favicon bleiben unangetastet.
-      .replace(/(href|src)="(\/(?:css|js)\/[^"]+)"/g, `$1="$2?v=${ASSET_VERSION}"`);
+      .replace(/(href|src)="(\/(?:css|js)\/[^"]+)"/g, `$1="$2?v=${ASSET_VERSION}"`)
+      // Die Einmalkennung an das Inline-Skript hängen. Ohne sie verwirft der
+      // Browser es wegen der eigenen CSP – und zwar kommentarlos, weshalb es
+      // seit der Einführung des Farbschemas wirkungslos war.
+      .replace(/<script>/g, `<script nonce="${res.locals.cspNonce}">`);
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache');
@@ -255,7 +309,13 @@ app.get(/^\/js\/.*\.js$/, (req, res, next) => {
   const relative = decodeURIComponent(req.path).replace(/^\/+/, '');
   const filePath = path.resolve(config.publicDir, relative);
 
-  if (!filePath.startsWith(path.resolve(config.publicDir))) {
+  // Der Trennstrich am Ende ist kein Schönheitsfehler, sondern der Kern der
+  // Prüfung: Ohne ihn würde "/opt/streamo/publicX/geheim.js" die Bedingung
+  // erfüllen, weil es mit "/opt/streamo/public" beginnt. Mit ihm muss der
+  // Pfad wirklich IM Verzeichnis liegen.
+  const wurzel = path.resolve(config.publicDir) + path.sep;
+
+  if (!filePath.startsWith(wurzel)) {
     return res.status(403).end();
   }
 
@@ -330,8 +390,18 @@ app.use((error, req, res, next) => {
     console.error('[error]', req.method, req.originalUrl, error);
   }
 
+  // Bei einem echten Serverfehler NICHT die Originalmeldung ausliefern.
+  //
+  // Die kommt oft direkt von SQLite oder dem Dateisystem und enthält dann
+  // Tabellennamen, SQL-Fragmente oder Pfade wie "/opt/streamo/data/…". Das
+  // hilft niemandem beim Bedienen, aber jedem beim Ausspähen des Aufbaus.
+  // Ins Protokoll gehört die vollständige Meldung – dort steht sie oben
+  // bereits.
+  //
+  // Erwartete Zustände (400–499) behalten ihren Text: "Das Passwort stimmt
+  // nicht" ist genau die Auskunft, die gebraucht wird.
   res.status(status).json({
-    error: error.message || 'Unerwarteter Fehler.',
+    error: status >= 500 ? 'Unerwarteter Fehler. Details stehen im Protokoll des Servers.' : error.message || 'Unerwarteter Fehler.',
     code: error.name === 'TmdbError' ? 'tmdb_error' : undefined,
   });
 });

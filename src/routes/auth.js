@@ -78,6 +78,54 @@ import {
 
 import { run, get } from '../db.js';
 
+// Bremse gegen Durchprobieren. Haengt gezielt an den Endpunkten, an denen
+// Geheimnisse geprueft werden - siehe src/ratelimit.js.
+import { limitFailures } from '../ratelimit.js';
+
+/**
+ * Die Bremse fuer die Anmeldung.
+ *
+ * Zehn Fehlversuche je Viertelstunde und Absender. Grosszuegig genug, dass
+ * niemand mit einem vergessenen Passwort davon merkt, und eng genug, dass
+ * Durchprobieren sinnlos wird: Bei zehn Versuchen pro Viertelstunde dauert
+ * ein Woerterbuchangriff Jahre.
+ *
+ * Erfolgreiche Anmeldungen setzen den Zaehler zurueck.
+ */
+const loginLimit = limitFailures({
+  name: 'login',
+  max: 10,
+  windowMs: 15 * 60_000,
+  message: 'Zu viele Anmeldeversuche. Bitte warte einen Moment.',
+});
+
+/**
+ * Die Bremse fuer den zweiten Faktor.
+ *
+ * Enger als bei der Anmeldung: Ein sechsstelliger Code hat nur eine Million
+ * Moeglichkeiten. src/twofactor.js begrenzt zwar schon die Versuche je
+ * angefangener Anmeldung, aber man kann beliebig viele davon beginnen.
+ */
+const codeLimit = limitFailures({
+  name: 'login2fa',
+  max: 10,
+  windowMs: 15 * 60_000,
+  message: 'Zu viele Code-Versuche. Bitte warte einen Moment.',
+});
+
+/**
+ * Die Bremse fuers Anlegen von Konten.
+ *
+ * Schuetzt zwei Dinge: das Durchprobieren von Einladungscodes und, bei
+ * offener Registrierung, das massenhafte Anlegen von Konten.
+ */
+const registerLimit = limitFailures({
+  name: 'register',
+  max: 10,
+  windowMs: 60 * 60_000,
+  message: 'Zu viele Versuche. Bitte warte eine Weile.',
+});
+
 const router = express.Router();
 
 /**
@@ -201,7 +249,7 @@ router.post('/setup', async (req, res) => {
  * POST /api/auth/login
  * Body: { username, password }
  */
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimit, async (req, res) => {
   const { username, password } = req.body ?? {};
 
   const user = getUserByUsername(username);
@@ -260,7 +308,7 @@ router.post('/login', async (req, res) => {
  * ausdrücklich, damit die Oberfläche darauf hinweisen kann, wie viele noch
  * übrig sind.
  */
-router.post('/login/2fa', (req, res) => {
+router.post('/login/2fa', codeLimit, (req, res) => {
   const { pendingToken, code } = req.body ?? {};
 
   const result = completePendingLogin(pendingToken, code);
@@ -401,7 +449,7 @@ router.post('/logout', (req, res) => {
  * Nur erreichbar, wenn ALLOW_REGISTRATION=true in der .env steht.
  * Body: { username, password, displayName? }
  */
-router.post('/register', async (req, res) => {
+router.post('/register', registerLimit, async (req, res) => {
   // Die E-Mail ist freiwillig und dient nur als zweiter Anmeldename – Streamo
   // verschickt keine Post und braucht keinen Mailserver. Sie hier
   // entgegenzunehmen ist wichtig, weil die Anmeldemaske Benutzername ODER
