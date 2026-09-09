@@ -164,6 +164,221 @@ export async function copyToClipboard(text) {
 }
 
 /**
+ * Öffnet ein Fenster im Stil der Seite.
+ *
+ * Der Baustein hinter allen Dialogen in Streamo. Er ersetzt window.prompt und
+ * window.confirm, denn die zeichnet der Browser: grau, eckig, mit englischen
+ * Knöpfen auf manchen Systemen – und vor allem in einer Gestaltung, die mit
+ * der übrigen Oberfläche nichts zu tun hat. Wer sich eine Akzentfarbe
+ * ausgesucht hat, soll sie auch hier sehen.
+ *
+ * Was der Dialog von sich aus richtig macht:
+ *   - Escape schließt ihn, ein Klick auf den dunklen Hintergrund auch.
+ *   - Der Fokus springt hinein und kehrt danach dorthin zurück, wo er war.
+ *   - Beim Schließen räumt er seinen Tastatur-Merker wieder ab.
+ *
+ * @param {object} options
+ * @param {string} options.title Überschrift
+ * @param {string} [options.subtitle] Erklärender Satz darunter
+ * @param {(close: (value?: any) => void) => (HTMLElement|null)[]} options.body
+ *   Baut den Inhalt. Bekommt die Schließen-Funktion, damit ein eigener Knopf
+ *   den Dialog mit einem Ergebnis beenden kann.
+ * @param {boolean} [options.wide] Breiteres Fenster, z. B. für Trefferlisten
+ * @returns {Promise<any>} das an close() übergebene Ergebnis, sonst null
+ */
+export function modal({ title, subtitle, body, wide = false }) {
+  return new Promise((resolve) => {
+    // Wohin der Fokus zurückkehrt. Ohne das landet er nach dem Schließen am
+    // Seitenanfang und die Tastaturbedienung beginnt von vorn.
+    const previouslyFocused = document.activeElement;
+
+    let settled = false;
+
+    /**
+     * Schließt den Dialog und liefert ein Ergebnis.
+     * @param {any} [value]
+     */
+    const close = (value = null) => {
+      if (settled) return; // z. B. Escape während einer laufenden Aktion
+      settled = true;
+
+      overlay.remove();
+      document.removeEventListener('keydown', onKey);
+
+      if (previouslyFocused?.focus) previouslyFocused.focus();
+
+      resolve(value);
+    };
+
+    const onKey = (event) => {
+      if (event.key === 'Escape') close(null);
+    };
+
+    const box = el(`div.modal-box${wide ? '.wide' : ''}`, {}, [
+      el('h3', { text: title, style: { margin: '0 0 4px' } }),
+      subtitle && el('p.muted', { style: { margin: '0 0 16px', fontSize: '13px' }, text: subtitle }),
+      ...body(close),
+    ]);
+
+    const overlay = el(
+      'div.modal-overlay',
+      {
+        onClick: (event) => {
+          // Nur der Klick auf den Hintergrund selbst schließt – nicht einer,
+          // der aus dem Kasten kommt und nur nach oben durchgereicht wird.
+          if (event.target === overlay) close(null);
+        },
+      },
+      [box],
+    );
+
+    document.addEventListener('keydown', onKey);
+    document.body.append(overlay);
+
+    // Das erste Eingabefeld bekommt den Fokus, sonst der Kasten selbst.
+    const firstField = box.querySelector('input, textarea, select, button');
+    firstField?.focus();
+  });
+}
+
+/**
+ * Fragt nach einem Text – der Ersatz für window.prompt.
+ *
+ * @param {object} options
+ * @param {string} options.title
+ * @param {string} [options.label] Beschriftung über dem Feld
+ * @param {string} [options.hint] Kleingedrucktes darunter
+ * @param {string} [options.value] Vorbelegung
+ * @param {string} [options.placeholder]
+ * @param {string} [options.confirmLabel] Beschriftung des Knopfes
+ * @returns {Promise<string|null>} null, wenn abgebrochen wurde
+ */
+export function askText({
+  title,
+  label,
+  hint,
+  value = '',
+  placeholder = '',
+  confirmLabel = 'Weiter',
+  type = 'text',
+  subtitle,
+}) {
+  return modal({
+    title,
+    subtitle,
+    body: (close) => {
+      const input = el('input', {
+        value,
+        placeholder,
+        type,
+        // Bei einer Passwortabfrage soll der Browser das gespeicherte
+        // Passwort anbieten – hier wird ja das aktuelle verlangt.
+        autocomplete: type === 'password' ? 'current-password' : 'off',
+        style: { width: '100%' },
+        // Enter bestätigt – bei einem einzelnen Feld erwartet man das.
+        onKeyDown: (event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            close(input.value);
+          }
+        },
+      });
+
+      return [
+        el('div.field', {}, [label && el('label', { text: label }), input, hint && el('div.hint', { text: hint })]),
+
+        el('div.modal-actions', {}, [
+          el('button.btn.btn-ghost', { text: 'Abbrechen', onClick: () => close(null) }),
+          el('button.btn.btn-primary', { text: confirmLabel, onClick: () => close(input.value) }),
+        ]),
+      ];
+    },
+  });
+}
+
+/**
+ * Lässt aus einer Liste auswählen.
+ *
+ * Ersetzt die Konstruktion, die vorher an mehreren Stellen stand: eine
+ * nummerierte Liste in einem prompt() und die Bitte, eine Zahl einzutippen.
+ * Das war fehleranfällig (was passiert bei "3a"?) und sah aus wie 1998.
+ *
+ * @template T
+ * @param {object} options
+ * @param {string} options.title
+ * @param {string} [options.subtitle]
+ * @param {T[]} options.items
+ * @param {(item: T) => {title: string, subtitle?: string, image?: string|null}} options.describe
+ *   Wie soll ein Eintrag aussehen?
+ * @returns {Promise<T|null>} der gewählte Eintrag, oder null bei Abbruch
+ */
+export function askChoice({ title, subtitle, items, describe }) {
+  return modal({
+    title,
+    subtitle,
+    wide: true,
+    body: (close) => [
+      el(
+        'div.choice-list',
+        {},
+        items.map((item) => {
+          const info = describe(item);
+
+          return el(
+            'button.choice-hit',
+            { type: 'button', onClick: () => close(item) },
+            [
+              // Ein Bild, wo es eines gibt – bei einer Filmreihe erkennt man
+              // am Poster sofort, ob es die richtige ist.
+              info.image
+                ? el('img', { src: info.image, alt: '', loading: 'lazy' })
+                : el('span.choice-placeholder', { text: info.title.charAt(0).toUpperCase() }),
+
+              el('span', { style: { minWidth: 0 } }, [
+                el('div', { text: info.title }),
+                info.subtitle && el('div.muted.small', { text: info.subtitle }),
+              ]),
+            ],
+          );
+        }),
+      ),
+
+      el('div.modal-actions', {}, [
+        el('button.btn.btn-ghost', { text: 'Abbrechen', onClick: () => close(null) }),
+      ]),
+    ],
+  });
+}
+
+/**
+ * Stellt eine Ja/Nein-Frage – der Ersatz für window.confirm.
+ *
+ * @param {object} options
+ * @param {string} options.title
+ * @param {string} [options.text] Erklärung darunter
+ * @param {string} [options.confirmLabel]
+ * @param {boolean} [options.danger] Roter Bestätigungsknopf bei Löschvorgängen
+ * @returns {Promise<boolean>}
+ */
+export async function askConfirm({ title, text, confirmLabel = 'Ja', danger = false }) {
+  const answer = await modal({
+    title,
+    subtitle: text,
+    body: (close) => [
+      el('div.modal-actions', {}, [
+        el('button.btn.btn-ghost', { text: 'Abbrechen', onClick: () => close(false) }),
+        el(`button.btn.${danger ? 'btn-danger' : 'btn-primary'}`, {
+          text: confirmLabel,
+          onClick: () => close(true),
+        }),
+      ]),
+    ],
+  });
+
+  return answer === true;
+}
+
+/**
  * Öffnet einen Dialog zum Weiterschicken eines Links.
  *
  * Warum überhaupt ein eigener Dialog? Weil die Teilen-Auswahl des Systems
@@ -180,8 +395,7 @@ export async function copyToClipboard(text) {
  * @param {string} options.url   Der zu teilende Link
  * @param {string} options.title Überschrift des Dialogs
  * @param {string} options.text  Begleittext für die Nachricht
- */
-export async function shareSheet({ url, title, text }) {
+ */export async function shareSheet({ url, title, text }) {
   // Wenn das System eine eigene Auswahl mitbringt, ist sie die bessere: Dort
   // stehen alle installierten Apps, nicht nur die drei, die wir kennen.
   if (navigator.share) {
@@ -197,110 +411,88 @@ export async function shareSheet({ url, title, text }) {
 
   const message = `${text} ${url}`;
 
-  /**
-   * Ein Knopf, der zu einem Dienst führt.
-   * @param {string} label Beschriftung samt Symbol
-   * @param {string} href  Zieladresse des Dienstes
-   * @returns {HTMLElement}
-   */
-  const target = (label, href) =>
-    el('a.btn.btn-ghost', {
-      href,
-      target: '_blank',
-      rel: 'noopener noreferrer',
-      text: label,
-      style: { flex: '1 1 130px', textAlign: 'center' },
-      // Nach dem Klick schließt sich der Dialog – die Aufgabe ist erledigt.
-      onClick: () => setTimeout(close, 150),
-    });
+  await modal({
+    title,
+    subtitle: 'Wer den Link hat, sieht die Liste – ohne Konto und ohne Anmeldung.',
+    body: (close) => {
+      /**
+       * Ein Knopf, der zu einem Dienst führt.
+       * @param {string} label Beschriftung
+       * @param {string} href  Zieladresse des Dienstes
+       * @returns {HTMLElement}
+       */
+      const target = (label, href) =>
+        el('a.btn.btn-ghost', {
+          href,
+          target: '_blank',
+          rel: 'noopener noreferrer',
+          text: label,
+          style: { flex: '1 1 130px', textAlign: 'center' },
+          // Nach dem Klick ist die Aufgabe erledigt – Fenster zu.
+          onClick: () => setTimeout(() => close(), 150),
+        });
 
-  // Das Feld mit dem Link. readonly, damit niemand versehentlich hineintippt,
-  // aber markierbar – manche kopieren lieber selbst.
-  const linkField = el('input', {
-    value: url,
-    readonly: true,
-    onClick: (event) => event.currentTarget.select(),
-    style: { width: '100%', fontSize: '13px' },
-  });
+      // Das Feld mit dem Link. readonly, damit niemand versehentlich
+      // hineintippt, aber markierbar – manche kopieren lieber selbst.
+      const linkField = el('input', {
+        value: url,
+        readonly: true,
+        onClick: (event) => event.currentTarget.select(),
+        style: { width: '100%', fontSize: '13px' },
+      });
 
-  const copyButton = el('button.btn.btn-primary', {
-    type: 'button',
-    text: 'Link kopieren',
-    style: { width: '100%' },
-    onClick: async () => {
-      const ok = await copyToClipboard(url);
+      const copyButton = el('button.btn.btn-primary', {
+        type: 'button',
+        text: 'Link kopieren',
+        style: { width: '100%' },
+        onClick: async () => {
+          const ok = await copyToClipboard(url);
 
-      if (ok) {
-        copyButton.textContent = '✓ Kopiert';
-        toast('Link kopiert – jetzt einfach einfügen und verschicken.', 'success');
-        setTimeout(close, 800);
-      } else {
-        // Auch der zweite Weg kann scheitern. Dann wenigstens markieren,
-        // damit Strg+C reicht.
-        linkField.select();
-        toast('Kopieren nicht möglich – der Link ist markiert, jetzt Strg+C.', 'info');
-      }
+          if (ok) {
+            copyButton.textContent = '✓ Kopiert';
+            toast('Link kopiert – jetzt einfach einfügen und verschicken.', 'success');
+            setTimeout(() => close(), 800);
+          } else {
+            // Auch der zweite Weg kann scheitern. Dann wenigstens markieren,
+            // damit Strg+C reicht.
+            linkField.select();
+            toast('Kopieren nicht möglich – der Link ist markiert, jetzt Strg+C.', 'info');
+          }
+        },
+      });
+
+      return [
+        // Die Knöpfe für WhatsApp, Telegram und E-Mail sind ganz normale
+        // Links auf die Weiterleitungs-Adressen der Dienste. Die funktionieren
+        // überall: am Rechner öffnet sich WhatsApp Web, auf dem Handy die App.
+        el('div.share-targets', {}, [
+          target('WhatsApp', `https://wa.me/?text=${encodeURIComponent(message)}`),
+          target(
+            'Telegram',
+            `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`,
+          ),
+          target(
+            'E-Mail',
+            `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(message)}`,
+          ),
+        ]),
+
+        el('div.field', { style: { marginTop: '18px' } }, [
+          el('label', { text: 'Oder den Link selbst weitergeben' }),
+          linkField,
+        ]),
+
+        copyButton,
+
+        el('button.btn.btn-ghost', {
+          type: 'button',
+          text: 'Schließen',
+          style: { width: '100%', marginTop: '8px' },
+          onClick: () => close(),
+        }),
+      ];
     },
   });
-
-  const box = el('div.share-box', {}, [
-    el('h3', { text: title, style: { margin: '0 0 4px' } }),
-    el('p.muted', {
-      style: { margin: '0 0 16px', fontSize: '13px' },
-      text: 'Wer den Link hat, sieht die Liste – ohne Konto und ohne Anmeldung.',
-    }),
-
-    el('div.share-targets', {}, [
-      target('WhatsApp', `https://wa.me/?text=${encodeURIComponent(message)}`),
-      target(
-        'Telegram',
-        `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`,
-      ),
-      target(
-        'E-Mail',
-        `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(message)}`,
-      ),
-    ]),
-
-    el('div.field', { style: { marginTop: '18px' } }, [
-      el('label', { text: 'Oder den Link selbst weitergeben' }),
-      linkField,
-    ]),
-
-    copyButton,
-
-    el('button.btn.btn-ghost', {
-      type: 'button',
-      text: 'Schließen',
-      style: { width: '100%', marginTop: '8px' },
-      onClick: () => close(),
-    }),
-  ]);
-
-  const overlay = el('div.share-overlay', {
-    // Klick auf den dunklen Hintergrund schließt – aber nur dort, nicht wenn
-    // der Klick aus dem Kasten kommt und nur nach oben durchgereicht wird.
-    onClick: (event) => {
-      if (event.target === overlay) close();
-    },
-  }, [box]);
-
-  /** Schließt den Dialog und räumt den Tastatur-Merker wieder ab. */
-  function close() {
-    overlay.remove();
-    document.removeEventListener('keydown', onKey);
-  }
-
-  /** Escape schließt – das erwartet man von jedem Dialog. */
-  function onKey(event) {
-    if (event.key === 'Escape') close();
-  }
-
-  document.addEventListener('keydown', onKey);
-  document.body.append(overlay);
-
-  // Den Link gleich markieren, damit Strg+C ohne Umweg funktioniert.
-  linkField.select();
 }
 
 /**

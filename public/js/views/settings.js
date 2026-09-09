@@ -18,7 +18,19 @@
  */
 
 import { api } from '../api.js';
-import { el, render, toast, timeAgo, errorBox, formatDate, copyToClipboard } from '../ui.js';
+import {
+  el,
+  render,
+  toast,
+  timeAgo,
+  errorBox,
+  formatDate,
+  copyToClipboard,
+  // Fenster im Stil der Seite statt der grauen Browser-Dialoge.
+  askText,
+  askConfirm,
+  shareSheet,
+} from '../ui.js';
 import { refreshStatus } from '../app.js';
 import { isSupported, hasPlatformAuthenticator, createPasskey } from '../passkey.js';
 // Farbschema: anwenden, merken, auswaehlen. Siehe public/js/theme.js.
@@ -224,7 +236,13 @@ export async function render_(container) {
               ? 'iPhone'
               : 'Dieses Gerät';
 
-      const name = window.prompt('Wie soll dieses Gerät heißen?', suggestion);
+      const name = await askText({
+        title: 'Passkey anlegen',
+        label: 'Wie soll dieses Gerät heißen?',
+        value: suggestion,
+        hint: 'Ein sprechender Name hilft später beim Aufräumen – etwa "Laptop" oder "Handy".',
+        confirmLabel: 'Weiter',
+      });
       if (name === null) return; // abgebrochen
 
       button.disabled = true;
@@ -289,7 +307,11 @@ export async function render_(container) {
                   el('button.btn.btn-sm.btn-ghost', {
                     text: 'Umbenennen',
                     onClick: async () => {
-                      const name = window.prompt('Neuer Name:', passkey.name);
+                      const name = await askText({
+                        title: 'Passkey umbenennen',
+                        label: 'Neuer Name',
+                        value: passkey.name,
+                      });
                       if (name === null) return;
                       try {
                         await api.auth.renamePasskey(passkey.id, name);
@@ -303,7 +325,14 @@ export async function render_(container) {
                   el('button.btn.btn-sm.btn-danger', {
                     text: 'Entfernen',
                     onClick: async () => {
-                      if (!window.confirm(`Passkey „${passkey.name}" wirklich entfernen?`)) return;
+                      const sure = await askConfirm({
+                        title: `Passkey „${passkey.name}" entfernen?`,
+                        text: 'Mit diesem Gerät kannst du dich danach nicht mehr ohne Passwort anmelden.',
+                        confirmLabel: 'Entfernen',
+                        danger: true,
+                      });
+
+                      if (!sure) return;
                       try {
                         await api.auth.deletePasskey(passkey.id);
                         toast('Passkey entfernt.');
@@ -335,9 +364,15 @@ export async function render_(container) {
           el('button.btn.btn-sm.btn-ghost', {
             text: 'Passwort entfernen',
             onClick: async () => {
-              const current = window.prompt(
-                'Zur Bestätigung dein aktuelles Passwort:',
-              );
+              const current = await askText({
+                title: 'Passwort entfernen',
+                subtitle:
+                  'Danach kommst du nur noch per Passkey in dein Konto. Verlierst du alle Passkeys, gibt es keinen Weg zurück.',
+                label: 'Zur Bestätigung dein aktuelles Passwort',
+                type: 'password',
+                confirmLabel: 'Passwort entfernen',
+              });
+
               if (!current) return;
 
               try {
@@ -531,9 +566,14 @@ export async function render_(container) {
           el('button.btn.btn-sm.btn-ghost', {
             text: 'Neue Ersatzcodes',
             onClick: async () => {
-              const password = window.prompt(
-                'Zur Sicherheit dein Passwort. Die bisherigen Ersatzcodes verlieren damit ihre Gültigkeit.',
-              );
+              const password = await askText({
+                title: 'Neue Ersatzcodes',
+                subtitle: 'Die bisherigen Ersatzcodes verlieren damit ihre Gültigkeit.',
+                label: 'Zur Sicherheit dein Passwort',
+                type: 'password',
+                confirmLabel: 'Neue Codes erzeugen',
+              });
+
               if (password === null) return;
 
               try {
@@ -549,9 +589,14 @@ export async function render_(container) {
           el('button.btn.btn-sm.btn-danger', {
             text: 'Ausschalten',
             onClick: async () => {
-              const password = window.prompt(
-                'Zum Ausschalten der Zwei-Faktor-Anmeldung dein Passwort:',
-              );
+              const password = await askText({
+                title: 'Zwei-Faktor-Anmeldung ausschalten',
+                subtitle: 'Danach reicht wieder das Passwort allein, um in dein Konto zu kommen.',
+                label: 'Zur Bestätigung dein Passwort',
+                type: 'password',
+                confirmLabel: 'Ausschalten',
+              });
+
               if (password === null) return;
 
               try {
@@ -703,14 +748,14 @@ export async function render_(container) {
     const text = codes.join('\n');
 
     const overlay = el(
-      'div.share-overlay',
+      'div.modal-overlay',
       {
         onClick: (event) => {
           if (event.target === overlay) overlay.remove();
         },
       },
       [
-        el('div.share-box', {}, [
+        el('div.modal-box', {}, [
           el('h3', { text: 'Deine Ersatzcodes', style: { margin: '0 0 4px' } }),
           el('p.muted', {
             style: { margin: '0 0 14px', fontSize: '13px' },
@@ -988,27 +1033,17 @@ export async function render_(container) {
         const invite = await api.invites.create(options);
 
         // Direkt zum Verschicken anbieten – der Link ist ja der Zweck.
-        const text = 'Ich lade dich zu meinem Streamo ein. Damit siehst du, wo du unsere Serien streamen kannst.';
-
-        if (navigator.share) {
-          try {
-            await navigator.share({ title: 'Einladung zu Streamo', text, url: invite.url });
-            drawInvites();
-            return;
-          } catch (error) {
-            if (error.name === 'AbortError') {
-              drawInvites();
-              return;
-            }
-          }
-        }
-
-        try {
-          await navigator.clipboard.writeText(invite.url);
-          toast('Einladungslink kopiert – jetzt verschicken.', 'success');
-        } catch {
-          window.prompt('Einladungslink (kopieren mit Strg+C):', invite.url);
-        }
+        //
+        // Derselbe Dialog wie beim Teilen einer Filmreihe: Er nimmt die
+        // Teilen-Auswahl des Systems, wenn es sie gibt, und bietet sonst
+        // WhatsApp, Telegram, E-Mail und einen Kopier-Knopf an. Vorher stand
+        // hier ein nacktes prompt(), sobald die Zwischenablage nicht zur
+        // Verfügung stand – und die gibt es nur unter HTTPS.
+        await shareSheet({
+          url: invite.url,
+          title: 'Einladung zu Streamo',
+          text: 'Ich lade dich zu meinem Streamo ein. Damit siehst du, wo du unsere Serien streamen kannst.',
+        });
 
         drawInvites();
       } catch (error) {
@@ -1028,14 +1063,14 @@ export async function render_(container) {
         el('button.btn.btn-ghost', {
           text: 'Dauerhafter Link',
           title: 'Unbegrenzt nutzbar und ohne Ablaufdatum – für die ganze Familie',
-          onClick: () => {
-            if (
-              window.confirm(
-                'Ein dauerhafter Link kann von beliebig vielen Personen benutzt werden und läuft nie ab.\n\nNur weitergeben, wem du vertraust. Fortfahren?',
-              )
-            ) {
-              create({ uses: null, days: null });
-            }
+          onClick: async () => {
+            const sure = await askConfirm({
+              title: 'Dauerhaften Link erzeugen?',
+              text: 'Er kann von beliebig vielen Personen benutzt werden und läuft nie ab. Gib ihn nur weiter, wem du vertraust.',
+              confirmLabel: 'Link erzeugen',
+            });
+
+            if (sure) create({ uses: null, days: null });
           },
         }),
       ]),
@@ -1087,15 +1122,15 @@ export async function render_(container) {
 
                   invite.usable &&
                     el('button.btn.btn-sm.btn-ghost', {
-                      text: 'Kopieren',
-                      onClick: async () => {
-                        try {
-                          await navigator.clipboard.writeText(invite.url);
-                          toast('Kopiert.', 'success');
-                        } catch {
-                          window.prompt('Link:', invite.url);
-                        }
-                      },
+                      text: 'Teilen',
+                      // Statt nur zu kopieren: derselbe Dialog wie überall
+                      // sonst, mit WhatsApp, Telegram, E-Mail und Kopieren.
+                      onClick: () =>
+                        shareSheet({
+                          url: invite.url,
+                          title: 'Einladung zu Streamo',
+                          text: 'Ich lade dich zu meinem Streamo ein. Damit siehst du, wo du unsere Serien streamen kannst.',
+                        }),
                     }),
 
                   el('button.btn.btn-sm.btn-danger', {

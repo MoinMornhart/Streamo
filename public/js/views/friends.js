@@ -17,7 +17,19 @@
  */
 
 import { api, img } from '../api.js';
-import { el, render, empty, toast, posterCard, timeAgo, errorBox, STATUS_LABELS } from '../ui.js';
+import {
+  el,
+  render,
+  empty,
+  toast,
+  posterCard,
+  timeAgo,
+  errorBox,
+  STATUS_LABELS,
+  // Fenster im Stil der Seite statt der grauen Browser-Dialoge.
+  modal,
+  askConfirm,
+} from '../ui.js';
 import { navigateTo } from '../router.js';
 
 /**
@@ -61,7 +73,7 @@ function personRow(person, actions, subtitle) {
           width: '40px',
           height: '40px',
           borderRadius: '50%',
-          background: 'linear-gradient(135deg, var(--accent), #a55eea)',
+          background: 'linear-gradient(135deg, var(--accent), var(--accent-soft))',
           display: 'grid',
           placeItems: 'center',
           fontWeight: '700',
@@ -93,18 +105,122 @@ async function renderOverview(container) {
    * Stellt eine Freundschaftsanfrage.
    */
   const addFriend = async () => {
-    const username = window.prompt(
-      'Benutzername oder E-Mail der Person:\n(Sie muss ein Konto auf dieser Streamo-Instanz haben.)',
-    );
-    if (!username) return;
+    // Ein Suchfenster im Stil der Seite statt des grauen Browser-Popups.
+    //
+    // Der eigentliche Gewinn ist aber nicht das Aussehen: Vorher musste man
+    // den Benutzernamen auswendig kennen und exakt eintippen. Jetzt erscheinen
+    // beim Tippen passende Leute – auch bei Tippfehlern, denn gesucht wird
+    // über dieselbe nachsichtige Logik wie in der Bibliothek (src/fuzzy.js).
+    await modal({
+      title: 'Freund hinzufügen',
+      subtitle: 'Such nach jemandem, der auf dieser Streamo-Instanz ein Konto hat.',
+      wide: true,
+      body: (close) => {
+        const resultSlot = el('div.people-results', {}, [
+          el('p.muted.small', { style: { margin: 0 }, text: 'Tipp einen Namen ein.' }),
+        ]);
 
-    try {
-      const result = await api.friends.request(username);
-      toast(result.message, 'success');
-      reload();
-    } catch (error) {
-      toast(error.message, 'error');
-    }
+        /**
+         * Verschickt die Anfrage und schließt das Fenster.
+         * @param {string} identifier Benutzername oder E-Mail
+         */
+        const send = async (identifier) => {
+          if (!identifier) return;
+
+          try {
+            const result = await api.friends.request(identifier);
+            close();
+            toast(result.message, 'success');
+            reload();
+          } catch (error) {
+            toast(error.message, 'error');
+          }
+        };
+
+        const input = el('input', {
+          placeholder: 'Name oder E-Mail …',
+          autocomplete: 'off',
+          style: { width: '100%' },
+
+          // Beim Tippen suchen. Ein kleiner Aufschub bündelt schnelle
+          // Anschläge zu einer Anfrage – sonst löste jeder Buchstabe eine
+          // eigene aus.
+          onInput: (event) => {
+            const term = event.target.value.trim();
+
+            clearTimeout(input._timer);
+
+            if (!term) {
+              render(resultSlot, el('p.muted.small', { style: { margin: 0 }, text: 'Tipp einen Namen ein.' }));
+              return;
+            }
+
+            input._timer = setTimeout(async () => {
+              let found;
+
+              try {
+                found = await api.search.quick(term);
+              } catch (error) {
+                render(resultSlot, el('p.muted.small', { style: { margin: 0 }, text: error.message }));
+                return;
+              }
+
+              // Der Server liefert nur Leute, mit denen noch keine
+              // Verbindung besteht – Freunde und offene Anfragen sind schon
+              // ausgefiltert.
+              if (found.people.length === 0) {
+                render(
+                  resultSlot,
+                  el('p.muted.small', {
+                    style: { margin: 0 },
+                    text: `Niemand gefunden zu „${term}". Vielleicht seid ihr schon befreundet, oder die Person hat hier noch kein Konto.`,
+                  }),
+                );
+                return;
+              }
+
+              render(
+                resultSlot,
+                ...found.people.map((person) =>
+                  el('button.person-hit', {
+                    type: 'button',
+                    onClick: () => send(person.username),
+                  }, [
+                    el('span.person-avatar', {
+                      text: (person.displayName || person.username).charAt(0).toUpperCase(),
+                    }),
+                    el('span', {}, [
+                      el('div', { text: person.displayName || person.username }),
+                      person.displayName && person.displayName !== person.username &&
+                        el('div.muted.small', { text: person.username }),
+                    ]),
+                    el('span.person-add', { text: '+ Anfragen' }),
+                  ]),
+                ),
+              );
+            }, 200);
+          },
+
+          // Enter schickt die Anfrage an genau das, was da steht – so
+          // funktioniert es auch mit einer E-Mail-Adresse, nach der die
+          // Vorschlagsliste bewusst nicht sucht.
+          onKeyDown: (event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              send(event.target.value.trim());
+            }
+          },
+        });
+
+        return [
+          el('div.field', {}, [input]),
+          resultSlot,
+          el('div.modal-actions', {}, [
+            el('button.btn.btn-ghost', { text: 'Abbrechen', onClick: () => close() }),
+          ]),
+        ];
+      },
+    });
   };
 
   render(
@@ -193,7 +309,14 @@ async function renderOverview(container) {
                 text: '×',
                 title: 'Freundschaft beenden',
                 onClick: async () => {
-                  if (!window.confirm(`Freundschaft mit ${nameOf(person)} beenden?`)) return;
+                  const sure = await askConfirm({
+                    title: 'Freundschaft beenden?',
+                    text: `${nameOf(person)} sieht danach deine Bibliothek nicht mehr, und du seine nicht.`,
+                    confirmLabel: 'Beenden',
+                    danger: true,
+                  });
+
+                  if (!sure) return;
                   try {
                     await api.friends.remove(person.id);
                     toast('Freundschaft beendet.');

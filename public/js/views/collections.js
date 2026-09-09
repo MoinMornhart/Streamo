@@ -29,6 +29,11 @@ import {
   announceAchievements,
   // Der Dialog zum Weiterschicken – WhatsApp, Telegram, E-Mail, Kopieren.
   shareSheet,
+  // Fenster im Stil der Seite statt der grauen Browser-Dialoge.
+  modal,
+  askText,
+  askChoice,
+  askConfirm,
 } from '../ui.js';
 import { navigateTo } from '../router.js';
 
@@ -94,16 +99,49 @@ async function renderOverview(container) {
    * Legt eine neue eigene Reihe an und springt hinein.
    */
   const createCollection = async () => {
-    const name = window.prompt(
-      'Wie soll die Reihe heißen?',
-      'Vorwissen für …',
-    );
+    // Ein Fenster für beide Angaben statt zweier hintereinander – vorher
+    // ploppte nach dem Namen gleich das nächste graue Kästchen auf.
+    const values = await modal({
+      title: 'Neue Reihe',
+      subtitle: 'Zum Beispiel „Vorwissen für Spider-Man" oder einfach deine Lieblingsfilme.',
+      body: (close) => {
+        const nameInput = el('input', {
+          placeholder: 'Vorwissen für …',
+          style: { width: '100%' },
+          onKeyDown: (event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              close({ name: nameInput.value, description: descriptionInput.value });
+            }
+          },
+        });
+
+        const descriptionInput = el('input', {
+          placeholder: 'Wofür ist die Reihe gedacht?',
+          style: { width: '100%' },
+        });
+
+        return [
+          el('div.field', {}, [el('label', { text: 'Name' }), nameInput]),
+          el('div.field', {}, [
+            el('label', { text: 'Beschreibung (optional)' }),
+            descriptionInput,
+          ]),
+          el('div.modal-actions', {}, [
+            el('button.btn.btn-ghost', { text: 'Abbrechen', onClick: () => close(null) }),
+            el('button.btn.btn-primary', {
+              text: 'Anlegen',
+              onClick: () => close({ name: nameInput.value, description: descriptionInput.value }),
+            }),
+          ]),
+        ];
+      },
+    });
+
+    const name = values?.name?.trim();
     if (!name) return;
 
-    const description = window.prompt(
-      'Kurze Beschreibung (optional) – wofür ist die Reihe gedacht?',
-      '',
-    );
+    const description = values.description?.trim();
 
     try {
       const created = await api.collections.create(name, description || undefined);
@@ -118,11 +156,18 @@ async function renderOverview(container) {
    * Sucht offizielle Reihen bei TMDB und übernimmt die gewählte.
    */
   const importCollection = async () => {
-    const query = window.prompt('Nach welcher Filmreihe suchst du?', 'Kingsman');
-    if (!query) return;
+    const query = await askText({
+      title: 'Filmreihe suchen',
+      label: 'Wonach suchst du?',
+      value: 'Kingsman',
+      hint: 'Streamo sucht die offiziellen Reihen bei TMDB – Kingsman, Herr der Ringe, John Wick …',
+      confirmLabel: 'Suchen',
+    });
+
+    if (!query?.trim()) return;
 
     try {
-      const found = await api.collections.search(query);
+      const found = await api.collections.search(query.trim());
 
       if (found.results.length === 0) {
         toast(`Keine Filmreihe zu „${query}" gefunden.`, 'error');
@@ -130,21 +175,24 @@ async function renderOverview(container) {
       }
 
       // Bei einem eindeutigen Treffer direkt übernehmen, sonst zur Auswahl
-      // stellen. Eine Liste in einem prompt() ist unschön, aber ohne eigenes
-      // Auswahlfenster der direkteste Weg.
+      // stellen. Früher stand hier eine nummerierte Liste in einem prompt()
+      // und die Bitte, eine Zahl einzutippen – jetzt zeigt das Auswahlfenster
+      // die Poster, an denen man die richtige Reihe sofort erkennt.
       let chosen = found.results[0];
 
       if (found.results.length > 1) {
-        const list = found.results
-          .slice(0, 9)
-          .map((row, index) => `${index + 1}. ${row.name}`)
-          .join('\n');
+        chosen = await askChoice({
+          title: 'Welche Reihe?',
+          subtitle: `${found.results.length} Treffer zu „${query}".`,
+          items: found.results.slice(0, 12),
+          describe: (row) => ({
+            title: row.name,
+            subtitle: row.partCount ? `${row.partCount} Teile` : undefined,
+            image: img(row.posterPath, 'w92'),
+          }),
+        });
 
-        const answer = window.prompt(`Welche Reihe?\n\n${list}\n\nNummer eingeben:`, '1');
-        if (!answer) return;
-
-        chosen = found.results[Number(answer) - 1];
-        if (!chosen) return toast('Ungültige Auswahl.', 'error');
+        if (!chosen) return;
       }
 
       const result = await api.collections.import(chosen.tmdbId);
@@ -448,34 +496,50 @@ async function renderDetail(container, id) {
    * Sucht einen Film und nimmt ihn in die Reihe auf.
    */
   const addFilm = async () => {
-    const query = window.prompt('Welchen Titel möchtest du aufnehmen?');
-    if (!query) return;
+    const query = await askText({
+      title: 'Titel aufnehmen',
+      label: 'Welchen Titel möchtest du aufnehmen?',
+      placeholder: 'Serie oder Film …',
+      confirmLabel: 'Suchen',
+    });
+
+    if (!query?.trim()) return;
 
     try {
-      const found = await api.search.query(query);
-      const results = found.results.slice(0, 9);
+      const found = await api.search.query(query.trim());
+      const results = found.results.slice(0, 12);
 
       if (results.length === 0) return toast('Nichts gefunden.', 'error');
 
       let chosen = results[0];
 
       if (results.length > 1) {
-        const list = results
-          .map((row, index) => `${index + 1}. ${row.title}${row.year ? ` (${row.year})` : ''}`)
-          .join('\n');
+        chosen = await askChoice({
+          title: 'Welchen?',
+          subtitle: `Treffer zu „${query}".`,
+          items: results,
+          describe: (row) => ({
+            title: row.title,
+            subtitle: [row.year, row.mediaType === 'tv' ? 'Serie' : 'Film']
+              .filter(Boolean)
+              .join(' · '),
+            image: img(row.posterPath, 'w92'),
+          }),
+        });
 
-        const answer = window.prompt(`Welchen?\n\n${list}\n\nNummer eingeben:`, '1');
-        if (!answer) return;
-
-        chosen = results[Number(answer) - 1];
-        if (!chosen) return toast('Ungültige Auswahl.', 'error');
+        if (!chosen) return;
       }
 
       // Die Notiz ist der Grund, warum eine Vorwissen-Liste nützlich ist.
-      const note = window.prompt(
-        `Hinweis zu „${chosen.title}" (optional):\nz. B. „nur die Nachspannszene nötig"`,
-        '',
-      );
+      const note = await askText({
+        title: `Hinweis zu „${chosen.title}"`,
+        label: 'Was sollte man dazu wissen? (optional)',
+        placeholder: 'z. B. nur die Nachspannszene nötig',
+        confirmLabel: 'Aufnehmen',
+      });
+
+      // null heißt abgebrochen – dann soll auch nichts aufgenommen werden.
+      if (note === null) return;
 
       await api.collections.addItem(collection.id, chosen.tmdbId, chosen.mediaType, note || undefined);
       toast(`„${chosen.title}" aufgenommen.`, 'success');
@@ -565,8 +629,14 @@ async function renderDetail(container, id) {
           el('button.btn.btn-danger', {
             text: 'Reihe löschen',
             onClick: async () => {
-              if (!window.confirm(`„${collection.name}" wirklich löschen? Die Filme selbst bleiben erhalten.`))
-                return;
+              const sure = await askConfirm({
+                title: `„${collection.name}" löschen?`,
+                text: 'Die Filme selbst bleiben in deiner Bibliothek – nur die Reihe verschwindet.',
+                confirmLabel: 'Löschen',
+                danger: true,
+              });
+
+              if (!sure) return;
 
               try {
                 await api.collections.remove(collection.id);

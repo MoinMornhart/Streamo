@@ -33,6 +33,8 @@ import {
   STATUS_LABELS,
   announceAchievements,
   OFFER_LABELS,
+  // Fenster im Stil der Seite statt der grauen Browser-Dialoge.
+  askConfirm,
 } from '../ui.js';
 
 /**
@@ -431,7 +433,14 @@ export async function render_(container, params) {
       el('button.btn.btn-danger', {
         text: 'Entfernen',
         onClick: async () => {
-          if (!window.confirm(`„${show.title}" wirklich aus der Bibliothek entfernen?`)) return;
+          const sure = await askConfirm({
+            title: `„${show.title}" entfernen?`,
+            text: 'Dein Sehfortschritt und deine Bewertung gehen dabei verloren.',
+            confirmLabel: 'Entfernen',
+            danger: true,
+          });
+
+          if (!sure) return;
           try {
             await api.library.remove(show.showId);
             data.library = { inLibrary: false };

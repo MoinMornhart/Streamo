@@ -1082,7 +1082,7 @@ input[type='color'] {
    Systems (navigator.share) nur unter HTTPS existiert – im Heimnetz unter
    einer IP-Adresse gibt es sie nicht. */
 
-.share-overlay {
+.modal-overlay {
   position: fixed;
   inset: 0;
   z-index: 200; /* über allem, auch über der Kopfzeile */
@@ -1094,16 +1094,16 @@ input[type='color'] {
   padding: 20px;
 
   /* Auf dem Handy von unten hereinfahren – so kennt man es von Teilen-Menüs. */
-  animation: share-fade 0.16s ease-out;
+  animation: modal-fade 0.16s ease-out;
 }
 
-@keyframes share-fade {
+@keyframes modal-fade {
   from {
     opacity: 0;
   }
 }
 
-.share-box {
+.modal-box {
   width: 100%;
   max-width: 420px;
   background: var(--surface);
@@ -2084,4 +2084,149 @@ footer p {
   #mobile-nav a {
     font-size: 9.5px;
   }
+}
+
+/* Die Knopfzeile am Fuß eines Dialogs: rechtsbündig, Abbrechen links davon.
+   So, wie man es von jedem Betriebssystem kennt. */
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+/* Ein breiteres Fenster für Trefferlisten – etwa die Freundessuche. */
+.modal-box.wide {
+  max-width: 520px;
+}
+
+/* ==========================================================================
+   Personensuche im Dialog
+   ==========================================================================
+   Die Trefferliste beim Freund-Hinzufügen (public/js/views/friends.js).
+   Jeder Treffer ist ein <button>: anklickbar, mit der Tastatur erreichbar
+   und ohne dass ein <div> so tun muss, als wäre es ein Knopf. */
+
+.people-results {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  /* Bei vielen Treffern scrollt die Liste, nicht das ganze Fenster. */
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.person-hit {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 9px 11px;
+
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.person-hit:hover,
+.person-hit:focus-visible {
+  background: var(--surface-2);
+  border-color: var(--accent);
+  outline: none;
+}
+
+/* Der Anfangsbuchstabe als Bild-Ersatz – Streamo kennt keine Profilbilder. */
+.person-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-soft));
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+/* Der Hinweis rechts. Er wird erst beim Überfahren deutlich – vorher würde
+   er die Liste unruhig machen. */
+.person-add {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.person-hit:hover .person-add,
+.person-hit:focus-visible .person-add {
+  color: var(--accent-soft);
+}
+
+/* ==========================================================================
+   Auswahlliste im Dialog
+   ==========================================================================
+   Für askChoice() in public/js/ui.js: "Welche Filmreihe meinst du?" oder
+   "Welchen Titel?". Ersetzt die nummerierte Liste, die vorher in einem
+   prompt() stand – am Poster erkennt man den richtigen Eintrag sofort. */
+
+.choice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  max-height: 330px;
+  overflow-y: auto;
+}
+
+.choice-hit {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 10px;
+
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.choice-hit:hover,
+.choice-hit:focus-visible {
+  background: var(--surface-2);
+  border-color: var(--accent);
+  outline: none;
+}
+
+/* Das kleine Poster links. Feste Maße, damit die Zeilen gleich hoch bleiben,
+   auch wenn ein Bild fehlt. */
+.choice-hit img,
+.choice-placeholder {
+  width: 44px;
+  height: 66px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.choice-placeholder {
+  display: grid;
+  place-items: center;
+  background: var(--surface-2);
+  color: var(--text-faint);
+  font-weight: 700;
+  font-size: 18px;
 }

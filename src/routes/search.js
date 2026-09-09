@@ -31,6 +31,8 @@ import * as tmdb from '../tmdb.js';
 import { getRuntimeSettings, normalizeListItem } from '../tmdb.js';
 // Baut aus der eigenen Bibliothek persoenliche Vorschlaege.
 import { getPersonalRecommendations } from '../recommend.js';
+// Sucht in Filmreihen, Freunden und Leuten - ohne TMDB, also sofort.
+import { quickSearch } from '../quicksearch.js';
 // Macht die Suche nachsichtig gegenueber Tippfehlern.
 import { variants, rank } from '../fuzzy.js';
 
@@ -203,6 +205,25 @@ router.get('/discover', async (req, res, next) => {
       filteredByProviders: providerIds,
       region,
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/search/quick?q=kingsman
+ *
+ * Sucht in allem, was Streamo selbst weiß: Filmreihen, Freunde und andere
+ * Leute auf dieser Instanz. Kein TMDB – die Antwort kommt deshalb sofort und
+ * funktioniert auch ohne API-Schlüssel.
+ *
+ * Gedacht für das Menü unter der Suchleiste und für die Freundessuche: Man
+ * tippt, und die Treffer erscheinen beim Tippen. Die Serien und Filme kommen
+ * getrennt über /api/search nach, weil die einen Netzaufruf brauchen.
+ */
+router.get('/quick', (req, res, next) => {
+  try {
+    res.json(quickSearch(req.user.id, String(req.query.q ?? '')));
   } catch (error) {
     next(error);
   }

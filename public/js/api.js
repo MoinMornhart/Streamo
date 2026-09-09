@@ -236,6 +236,11 @@ export const api = {
      * -> GET /api/search/for-you (src/routes/search.js, src/recommend.js)
      */
     forYou: (params = {}) => request('/api/search/for-you', { query: params }),
+    /**
+     * Sucht in Filmreihen, Freunden und Leuten - ohne TMDB, also sofort.
+     * -> GET /api/search/quick (src/quicksearch.js)
+     */
+    quick: (q) => request('/api/search/quick', { query: { q } }),
     genres: (mediaType = 'tv') => request('/api/search/genres', { query: { mediaType } }),
   },
 
