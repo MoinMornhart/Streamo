@@ -159,8 +159,11 @@ async function renderOverview(container) {
     const query = await askText({
       title: 'Filmreihe suchen',
       label: 'Wonach suchst du?',
-      value: 'Kingsman',
-      hint: 'Streamo sucht die offiziellen Reihen bei TMDB – Kingsman, Herr der Ringe, John Wick …',
+      // Bewusst ohne Vorbelegung: Ein vorausgefülltes Feld muss man erst
+      // leeren, bevor man tippen kann. Der Platzhalter sagt dasselbe, steht
+      // aber niemandem im Weg – er verschwindet beim ersten Anschlag.
+      placeholder: 'Name der Reihe …',
+      hint: 'Streamo sucht in den offiziellen Filmreihen von TMDB.',
       confirmLabel: 'Suchen',
     });
 
