@@ -259,6 +259,10 @@ CREATE TABLE IF NOT EXISTS shows (
   -- Wann wurde zuletzt geprüft, wo die Serie läuft? Getrennt vom obigen Feld,
   -- weil Verfügbarkeiten sich viel häufiger ändern als Titel und Poster.
   availability_updated_at TEXT,
+  -- Zu welcher offiziellen Filmreihe gehört dieser Titel? Kommt bei Filmen
+  -- aus dem TMDB-Feld "belongs_to_collection", bei Serien immer NULL.
+  -- Verknüpfung: collections.tmdb_id (siehe src/collections.js).
+  collection_tmdb_id INTEGER,
   created_at     TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE (tmdb_id, media_type)
 );
@@ -456,6 +460,101 @@ const MIGRATIONS = [
       );
       CREATE INDEX IF NOT EXISTS idx_achievements_user ON user_achievements(user_id);
     `);
+  },
+
+  // -------------------------------------------------------------------------
+  // Version 4 -> Filmreihen
+  // -------------------------------------------------------------------------
+  // Zwei Arten von Reihen, die sich dieselben Tabellen teilen:
+  //
+  //   1. Offizielle Reihen von TMDB ("Kingsman", "Der Herr der Ringe").
+  //      Sie haben eine tmdb_id und gehören niemandem – jeder sieht dieselbe.
+  //
+  //   2. Eigene Reihen ("Vorwissen für Spider-Man: Brand New Day").
+  //      Sie haben eine user_id und eine selbst bestimmte Reihenfolge.
+  //
+  // Der Unterschied steckt allein darin, welche der beiden Spalten gefüllt
+  // ist. Alles andere – Titel, Beschreibung, die Liste der Filme – funktioniert
+  // für beide gleich, und das Frontend muss nur an wenigen Stellen unterscheiden.
+  () => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS collections (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+
+        -- Gesetzt bei offiziellen Reihen von TMDB, sonst NULL.
+        -- Der eindeutige Index weiter unten verhindert Doppelte.
+        tmdb_id       INTEGER,
+
+        -- Gesetzt bei eigenen Reihen, sonst NULL. Wird das Konto gelöscht,
+        -- verschwinden die eigenen Reihen mit; die offiziellen bleiben, weil
+        -- dort NULL steht und die Bedingung nie zutrifft.
+        user_id       INTEGER REFERENCES users(id) ON DELETE CASCADE,
+
+        name          TEXT NOT NULL,
+        -- Bei eigenen Reihen die Stelle für "Das braucht man vorher".
+        description   TEXT,
+        poster_path   TEXT,
+        backdrop_path TEXT,
+
+        -- Wonach richtet sich die Reihenfolge? Nur zur Anzeige gedacht:
+        --   release    – nach Erscheinungsdatum (Vorgabe bei TMDB-Reihen)
+        --   chronology – nach der erzählten Zeit
+        --   custom     – von Hand sortiert
+        order_type    TEXT NOT NULL DEFAULT 'release'
+                      CHECK (order_type IN ('release','chronology','custom')),
+
+        created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      -- Eine offizielle Reihe wird nur einmal gespeichert. Der WHERE-Zusatz
+      -- schließt eigene Reihen aus, bei denen tmdb_id NULL ist – sonst dürfte
+      -- es nur eine einzige eigene Reihe geben.
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_collections_tmdb
+        ON collections(tmdb_id) WHERE tmdb_id IS NOT NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_collections_user ON collections(user_id);
+
+      -- Welche Titel gehören zu einer Reihe, und in welcher Ordnung?
+      CREATE TABLE IF NOT EXISTS collection_items (
+        collection_id INTEGER NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+        -- Zeigt auf den Metadaten-Cache, nicht auf die Bibliothek: Eine Reihe
+        -- darf Filme enthalten, die man selbst gar nicht auf der Liste hat.
+        show_id       INTEGER NOT NULL REFERENCES shows(id) ON DELETE CASCADE,
+
+        -- Position in der Reihe, beginnend bei 0. Lücken sind erlaubt und
+        -- werden beim Umsortieren ohnehin neu vergeben.
+        position      INTEGER NOT NULL DEFAULT 0,
+
+        -- Freitext je Eintrag – gedacht für Hinweise wie "nur die erste
+        -- halbe Stunde nötig" oder "Nachspann nicht überspringen".
+        note          TEXT,
+
+        added_at      TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (collection_id, show_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_collection_items_order
+        ON collection_items(collection_id, position);
+    `);
+
+    // Zu welcher offiziellen Reihe gehört ein Film? TMDB liefert das bei den
+    // Filmdetails im Feld `belongs_to_collection`. Wir merken es uns hier,
+    // damit die Detailseite die Reihe nachladen kann, ohne die vollständige
+    // TMDB-Antwort noch einmal zu holen.
+    //
+    // Die Prüfung ist nötig, weil das Schema bei einer NEUEN Installation
+    // bereits die Spalte enthält – ALTER TABLE würde dann scheitern.
+    const columns = db.prepare('PRAGMA table_info(shows)').all();
+
+    if (!columns.some((c) => c.name === 'collection_tmdb_id')) {
+      db.exec('ALTER TABLE shows ADD COLUMN collection_tmdb_id INTEGER');
+    }
+
+    db.exec(
+      `CREATE INDEX IF NOT EXISTS idx_shows_collection
+         ON shows(collection_tmdb_id) WHERE collection_tmdb_id IS NOT NULL`,
+    );
   },
 ];
 

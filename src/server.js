@@ -46,6 +46,7 @@ import showRoutes from './routes/shows.js';
 import settingsRoutes from './routes/settings.js';
 import statsRoutes from './routes/stats.js';
 import achievementRoutes from './routes/achievements.js';
+import collectionRoutes from './routes/collections.js';
 
 const app = express();
 
@@ -119,6 +120,7 @@ app.use('/api/shows', showRoutes); //      Detailseite, Staffeln, Fortschritt
 app.use('/api/settings', settingsRoutes); // Einstellungen und Abgleich
 app.use('/api/stats', statsRoutes); //     Auswertungen
 app.use('/api/achievements', achievementRoutes); // Erfolge
+app.use('/api/collections', collectionRoutes); // Filmreihen
 
 /**
  * GET /api/health

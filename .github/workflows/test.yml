@@ -42,6 +42,9 @@ jobs:
       - name: Erfolge und Anbieter-Zusammenfassung testen
         run: npm run test:achievements
 
+      - name: Filmreihen testen
+        run: npm run test:collections
+
       - name: Serverstart prüfen
         # Startet den Server im Hintergrund und fragt /api/health ab. Damit ist
         # sichergestellt, dass alle Module fehlerfrei laden und das Schema

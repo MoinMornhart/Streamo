@@ -417,3 +417,41 @@ export function getRecommendations(tmdbId, mediaType = 'tv', opts = {}) {
 export function getGenres(mediaType = 'tv', opts = {}) {
   return tmdbFetch(`/genre/${mediaType}/list`, { language: opts.language });
 }
+
+/**
+ * Holt eine offizielle Filmreihe ("Collection") mit allen ihren Teilen.
+ *
+ * TMDB pflegt für zusammengehörige Filme solche Reihen – "Kingsman",
+ * "Der Herr der Ringe", "John Wick". Bei den Details eines Films steht die
+ * zugehörige Reihe im Feld `belongs_to_collection`; von dort führt der Weg
+ * hierher.
+ *
+ * Verknüpfung: Das Ergebnis füllt die Tabellen `collections` und
+ * `collection_items` (src/collections.js).
+ *
+ * @param {number} collectionId TMDB-Kennung der Reihe
+ * @param {object} [opts]
+ * @param {string} [opts.language]
+ * @returns {Promise<object>} mit .parts = die einzelnen Filme
+ */
+export function getCollection(collectionId, opts = {}) {
+  return tmdbFetch(`/collection/${collectionId}`, { language: opts.language });
+}
+
+/**
+ * Sucht nach Filmreihen anhand ihres Namens.
+ *
+ * Gebraucht, wenn jemand eine Reihe hinzufügen möchte, ohne erst einen ihrer
+ * Filme zu suchen – "Kingsman" eingeben und die Reihe bekommen.
+ *
+ * @param {string} query
+ * @param {object} [opts]
+ * @param {string} [opts.language]
+ * @returns {Promise<object>} mit .results = [{id, name, poster_path, …}]
+ */
+export function searchCollections(query, opts = {}) {
+  return tmdbFetch('/search/collection', {
+    query,
+    language: opts.language,
+  });
+}

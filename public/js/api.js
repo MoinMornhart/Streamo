@@ -246,6 +246,41 @@ export const api = {
     get: () => request('/api/stats'),
   },
 
+  // --- Filmreihen  -> src/routes/collections.js ---------------------------
+  collections: {
+    /** Alle sichtbaren Reihen: die eigenen und die offiziellen */
+    list: () => request('/api/collections'),
+    /** Eine Reihe mit allen Titeln, Verfügbarkeit und Fortschritt */
+    get: (id) => request(`/api/collections/${id}`),
+
+    /** Eigene Reihe anlegen */
+    create: (name, description) =>
+      request('/api/collections', { method: 'POST', body: { name, description } }),
+    /** Name oder Beschreibung ändern (nur eigene Reihen) */
+    update: (id, changes) =>
+      request(`/api/collections/${id}`, { method: 'PATCH', body: changes }),
+    /** Eigene Reihe löschen – die Filme darin bleiben erhalten */
+    remove: (id) => request(`/api/collections/${id}`, { method: 'DELETE' }),
+
+    /** Offizielle Reihen bei TMDB suchen */
+    search: (q) => request('/api/collections/search', { query: { q } }),
+    /** Eine offizielle Reihe übernehmen */
+    import: (tmdbId) =>
+      request('/api/collections/import', { method: 'POST', body: { tmdbId } }),
+
+    /** Titel aufnehmen; die Notiz ist der Kern einer Vorwissen-Liste */
+    addItem: (id, tmdbId, mediaType, note) =>
+      request(`/api/collections/${id}/items`, {
+        method: 'POST',
+        body: { tmdbId, mediaType, note },
+      }),
+    removeItem: (id, showId) =>
+      request(`/api/collections/${id}/items/${showId}`, { method: 'DELETE' }),
+    /** Reihenfolge festlegen – erwartet die vollständige Liste */
+    reorder: (id, showIds) =>
+      request(`/api/collections/${id}/order`, { method: 'PUT', body: { showIds } }),
+  },
+
   // --- Erfolge  -> src/routes/achievements.js -----------------------------
   achievements: {
     /** Alle Erfolge mit Zustand und Fortschritt */

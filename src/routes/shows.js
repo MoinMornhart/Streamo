@@ -26,6 +26,10 @@ import { getRuntimeSettings } from '../tmdb.js';
 // Nach dem Abhaken von Episoden kann ein Erfolg dazukommen – siehe unten.
 import { checkAchievements } from '../achievements.js';
 
+// Gehört ein Film zu einer Reihe, wird sie beim Öffnen der Detailseite
+// einmalig übernommen – siehe unten bei GET /:mediaType/:tmdbId.
+import { ensureOfficialCollection, findOfficialCollection, findCollectionForShow } from '../collections.js';
+
 import {
   ensureShow,
   findShow,
@@ -164,6 +168,28 @@ router.get('/:mediaType/:tmdbId', async (req, res, next) => {
       show.id,
     );
 
+    // ----------------------------------------------------------------------
+    // Filmreihe
+    // ----------------------------------------------------------------------
+    // Gehört der Film zu einer offiziellen Reihe ("Kingsman", "John Wick"),
+    // wird sie beim ersten Öffnen der Detailseite übernommen. Danach steht
+    // sie unter /collections und die Detailseite zeigt "Teil 2 von 3".
+    //
+    // Der Aufruf kostet eine TMDB-Anfrage, aber nur ein einziges Mal je Reihe –
+    // findOfficialCollection prüft vorher, ob sie schon da ist.
+    let collection = null;
+
+    try {
+      if (show.collection_tmdb_id && !findOfficialCollection(show.collection_tmdb_id)) {
+        await ensureOfficialCollection(show.collection_tmdb_id, { region, language });
+      }
+
+      collection = findCollectionForShow(show.id, req.user.id);
+    } catch (error) {
+      // Eine nicht ladbare Reihe darf die Detailseite nicht verhindern.
+      console.error('[collections] Reihe nicht ladbar:', error.message);
+    }
+
     // Empfehlungen sind ein Extra – wenn der Aufruf scheitert, soll die
     // Detailseite trotzdem erscheinen.
     let recommendations = [];
@@ -207,6 +233,8 @@ router.get('/:mediaType/:tmdbId', async (req, res, next) => {
         : { inLibrary: false },
       progress: getProgress(req.user.id, show),
       seasonStats: seasons,
+      // null, wenn der Titel zu keiner Reihe gehoert.
+      collection,
       recommendations,
     });
   } catch (error) {

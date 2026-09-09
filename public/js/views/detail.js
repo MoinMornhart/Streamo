@@ -493,6 +493,37 @@ export async function render_(container, params) {
             show.genres.length > 0 &&
               el('div.detail-meta', {}, [el('span', { text: show.genres.join(' · ') })]),
 
+            // Gehört der Titel zu einer Filmreihe? Dann hierher verlinken –
+            // bei einem mittleren Teil ist das oft genau die Frage, die man
+            // gerade hat ("was kam davor?").
+            data.collection &&
+              el(
+                'a',
+                {
+                  href: `/collections/${data.collection.id}`,
+                  'data-link': '',
+                  style: {
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '7px 13px',
+                    marginBottom: '12px',
+                    borderRadius: '999px',
+                    background: 'var(--surface-2)',
+                    border: '1px solid var(--surface-3)',
+                    color: 'var(--text)',
+                    fontSize: '13.5px',
+                    textDecoration: 'none',
+                  },
+                },
+                [
+                  el('span', { text: '🎬' }),
+                  el('span', {
+                    text: `Teil ${data.collection.part} von ${data.collection.total} · ${data.collection.name}`,
+                  }),
+                ],
+              ),
+
             el('p', { text: show.overview || 'Keine Beschreibung vorhanden.' }),
 
             actionSlot,

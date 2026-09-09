@@ -154,6 +154,9 @@ route('/library', view(() => import('./views/library.js')));
 route('/providers', view(() => import('./views/providers.js')));
 route('/stats', view(() => import('./views/stats.js')));
 route('/achievements', view(() => import('./views/achievements.js')));
+route('/collections', view(() => import('./views/collections.js')));
+// Eine einzelne Filmreihe: /collections/12
+route('/collections/:id', view(() => import('./views/collections.js')));
 route('/settings', view(() => import('./views/settings.js')));
 // Detailseite: /show/tv/1399 – mediaType und tmdbId landen in params.
 route('/show/:mediaType/:tmdbId', view(() => import('./views/detail.js')));

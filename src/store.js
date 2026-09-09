@@ -122,13 +122,19 @@ export function upsertShow(details, mediaType = 'tv') {
   const seasons = isTv ? details.number_of_seasons ?? null : 1;
   const episodes = isTv ? details.number_of_episodes ?? null : 1;
 
+  // Gehört der Film zu einer offiziellen Reihe? TMDB liefert das bei den
+  // Filmdetails mit; bei Serien und bei Listeneinträgen fehlt das Feld, dann
+  // bleibt es NULL. Die Detailseite lädt darüber später die Reihe nach
+  // (src/routes/shows.js -> ensureOfficialCollection).
+  const collectionTmdbId = details.belongs_to_collection?.id ?? null;
+
   run(
     `INSERT INTO shows (
         tmdb_id, media_type, title, original_title, overview,
         poster_path, backdrop_path, first_air_date, last_air_date, status,
         genres, number_of_seasons, number_of_episodes, vote_average, runtime,
-        metadata_updated_at
-     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, datetime('now'))
+        collection_tmdb_id, metadata_updated_at
+     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, datetime('now'))
      ON CONFLICT(tmdb_id, media_type) DO UPDATE SET
         title              = excluded.title,
         original_title     = excluded.original_title,
@@ -143,6 +149,9 @@ export function upsertShow(details, mediaType = 'tv') {
         number_of_episodes = excluded.number_of_episodes,
         vote_average       = excluded.vote_average,
         runtime            = excluded.runtime,
+        -- COALESCE: Listeneintraege einer Reihe liefern das Feld nicht mit.
+        -- Ohne das wuerde die Zugehoerigkeit beim naechsten Abgleich geloescht.
+        collection_tmdb_id = COALESCE(excluded.collection_tmdb_id, shows.collection_tmdb_id),
         metadata_updated_at = datetime('now')`,
     details.id,
     mediaType,
@@ -159,6 +168,7 @@ export function upsertShow(details, mediaType = 'tv') {
     episodes,
     details.vote_average ?? null,
     runtime,
+    collectionTmdbId,
   );
 
   return findShow(details.id, mediaType);
