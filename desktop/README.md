@@ -8,7 +8,7 @@ Die Desktop-App zeigt deine Streamo-Oberfläche in einem eigenen Programmfenster
 
 Fertige Installer für Windows liegen unter **[Releases](https://github.com/MoinMornhart/Streamo/releases)**:
 
-1. `Streamo-Setup-1.0.0.exe` herunterladen
+1. `Streamo-Setup-<version>.exe` herunterladen (die jeweils oberste Veröffentlichung)
 2. Ausführen und dem Installationsassistenten folgen
 3. Beim ersten Start die Adresse deines Servers eintragen – dieselbe, die du im Browser aufrufst
 
