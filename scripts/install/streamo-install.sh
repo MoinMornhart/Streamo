@@ -253,13 +253,61 @@ msg_ok "Dienst eingerichtet"
 # bei jedem Update erneut ausgeführt wird – siehe scripts/install-commands.sh.
 msg_info "Konsolenbefehle werden eingerichtet"
 
+# ---------------------------------------------------------------------------
+# Zuerst ein Notfall-"update" anlegen – noch bevor das eigentliche Skript
+# läuft.
+#
+# Der Grund ist eine Falle, in die man sonst geraten kann: Schlägt die
+# Einrichtung der Konsolenbefehle aus irgendeinem Grund fehl, fehlt
+# ausgerechnet der Befehl, mit dem man das Problem beheben würde. Man sitzt
+# dann in einem Container ohne den Weg hinaus.
+#
+# Diese Fassung kann nur das Nötigste: neueste Version holen, Abhängigkeiten
+# installieren, Dienst neu starten. Sie wird gleich darunter durch die
+# vollwertige Fassung ersetzt – existiert aber ab jetzt in jedem Fall.
+# ---------------------------------------------------------------------------
+cat >/usr/local/bin/update <<'FALLBACK'
+#!/usr/bin/env bash
+# Notfall-Fassung, angelegt von streamo-install.sh. Wird normalerweise sofort
+# durch die vollwertige Fassung aus install-commands.sh ersetzt.
+set -euo pipefail
+
+echo "Streamo wird aktualisiert (Notfall-Fassung) …"
+
+cd /opt/streamo
+git fetch --depth 1 origin main
+git reset --hard origin/main
+npm install --omit=dev --no-audit --no-fund --loglevel=error
+chown -R streamo:streamo /opt/streamo
+
+# Die vollwertigen Befehle nachträglich einrichten, falls sie fehlen.
+if [[ -f /opt/streamo/scripts/install/install-commands.sh ]]; then
+  bash /opt/streamo/scripts/install/install-commands.sh
+fi
+
+systemctl restart streamo
+echo "Fertig."
+FALLBACK
+
+chmod +x /usr/local/bin/update
+
+# --- Jetzt die vollwertigen Befehle -----------------------------------------
 if [[ -f "$APP_DIR/scripts/install/install-commands.sh" ]]; then
-  APP_DIR="$APP_DIR" bash "$APP_DIR/scripts/install/install-commands.sh" >/dev/null
-  msg_ok "Konsolenbefehle eingerichtet (update, streamo)"
+  # Ohne ">/dev/null": Ein Fehler soll sichtbar sein und nicht in der
+  # Dunkelheit verschwinden. "|| true" verhindert, dass die gesamte
+  # Installation daran scheitert – der Notfallbefehl von oben bleibt ja.
+  if APP_DIR="$APP_DIR" bash "$APP_DIR/scripts/install/install-commands.sh" >/tmp/streamo-commands.log 2>&1; then
+    msg_ok "Konsolenbefehle eingerichtet (update, streamo)"
+  else
+    msg_error "Die Konsolenbefehle konnten nicht vollständig eingerichtet werden."
+    echo "   Meldung:"
+    sed 's/^/     /' /tmp/streamo-commands.log | tail -10
+    echo "   Der Befehl 'update' steht trotzdem zur Verfügung (Notfall-Fassung)."
+  fi
 else
-  # Sollte nicht vorkommen – aber ohne diesen Zweig wäre die Installation
-  # bei einem unvollständigen Repository stillschweigend unvollständig.
-  msg_error "install-commands.sh fehlt im Repository – der Befehl 'update' steht nicht zur Verfügung."
+  msg_error "install-commands.sh fehlt im heruntergeladenen Stand."
+  echo "   'update' steht als Notfall-Fassung zur Verfügung und richtet die"
+  echo "   übrigen Befehle beim ersten Lauf ein."
 fi
 
 # ===========================================================================
