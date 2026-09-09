@@ -46,11 +46,16 @@ export const state = {
 export function updateChrome() {
   const topbar = document.getElementById('topbar');
   const footer = document.getElementById('footer');
+  const mobileNav = document.getElementById('mobile-nav');
 
   // Ohne Anmeldung gibt es weder Navigation noch Fußzeile – der
   // Anmeldebildschirm soll aufgeräumt sein.
   topbar.hidden = !state.user;
   footer.hidden = !state.user;
+
+  // Die untere Leiste wird per CSS nur auf Telefonen angezeigt; hier geht es
+  // allein darum, sie ohne Anmeldung ganz aus dem Weg zu haben.
+  mobileNav.hidden = !state.user;
 
   if (!state.user) return;
 
@@ -180,11 +185,25 @@ document.addEventListener('click', (event) => {
 
 // Abmelden.
 document.getElementById('logout-button').addEventListener('click', async () => {
-  await api.auth.logout();
+  try {
+    await api.auth.logout();
+  } catch {
+    // Auch wenn der Server nicht antwortet: örtlich abmelden. Die Sitzung
+    // läuft serverseitig ohnehin ab, und den Benutzer in einer scheinbar
+    // angemeldeten Oberfläche stehenzulassen wäre schlimmer.
+  }
+
   state.user = null;
   updateChrome();
   menu.hidden = true;
-  navigateTo('/');
+
+  // Zur Startseite und neu zeichnen. Das Erzwingen ist wichtig: Meldet man
+  // sich ab, während man bereits auf "/" steht, hält der Router den Pfad für
+  // unverändert und würde gar nichts tun – die Oberfläche bliebe stehen, bis
+  // man die Seite von Hand neu lädt.
+  window.history.pushState({}, '', '/');
+  resolve(true);
+
   toast('Abgemeldet.');
 });
 

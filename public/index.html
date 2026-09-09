@@ -21,7 +21,18 @@
 <html lang="de">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!--
+      viewport-fit=cover: Die Seite darf bis in die abgerundeten Ecken und
+      unter die Aussparung moderner Telefone reichen. Damit dort nichts
+      Wichtiges verschwindet, arbeitet das CSS mit env(safe-area-inset-*).
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+    <!-- Auf dem Homebildschirm wie eine App starten, ohne Browserleiste. -->
+    <meta name="mobile-web-app-capable" content="content=yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Streamo" />
     <title>Streamo</title>
     <meta
       name="description"
@@ -72,6 +83,12 @@
         <a href="/stats" data-link data-nav="stats">Statistik</a>
       </nav>
 
+      <!--
+        Auf dem Telefon wird diese Navigation ausgeblendet; stattdessen
+        erscheint die Leiste am unteren Bildschirmrand (siehe #mobile-nav
+        weiter unten). Der Daumen erreicht sie dort ohne Umgreifen.
+      -->
+
       <div class="topbar-right">
         <button id="user-menu-button" class="icon-button" aria-label="Konto">
           <span id="user-initial">?</span>
@@ -119,6 +136,35 @@
         unterstützt noch zertifiziert.
       </p>
     </footer>
+
+    <!-- =====================================================================
+         Navigationsleiste am unteren Rand – nur auf Telefonen sichtbar.
+
+         Warum unten? Auf einem Telefon hält man das Gerät in einer Hand; der
+         obere Bildschirmrand ist mit dem Daumen kaum erreichbar. Alle
+         gängigen Apps setzen die Hauptnavigation deshalb nach unten.
+
+         Dieselben Ziele wie die Kopfzeilen-Navigation, aber mit Symbolen und
+         größeren Berührungsflächen.
+         ===================================================================== -->
+    <nav id="mobile-nav" hidden>
+      <a href="/" data-link>
+        <span class="mnav-icon">🔍</span>
+        <span>Entdecken</span>
+      </a>
+      <a href="/library" data-link>
+        <span class="mnav-icon">📺</span>
+        <span>Bibliothek</span>
+      </a>
+      <a href="/providers" data-link>
+        <span class="mnav-icon">📡</span>
+        <span>Anbieter</span>
+      </a>
+      <a href="/stats" data-link>
+        <span class="mnav-icon">📊</span>
+        <span>Statistik</span>
+      </a>
+    </nav>
 
     <!-- Behälter für kurze Rückmeldungen ("Zur Bibliothek hinzugefügt"). -->
     <div id="toasts" class="toasts"></div>

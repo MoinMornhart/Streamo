@@ -1146,53 +1146,322 @@ footer p {
    11. Kleine Bildschirme
    =========================================================================== */
 
-@media (max-width: 860px) {
-  /* Die Navigation rutscht unter die Suchleiste in eine eigene Zeile. */
-  #topbar {
-    height: auto;
-    flex-wrap: wrap;
-    padding: 10px 14px;
-    gap: 10px;
-  }
-  #global-search {
-    order: 3;
-    max-width: none;
-    flex-basis: 100%;
-  }
-  #topbar nav {
-    order: 2;
-    margin-left: auto;
-    gap: 0;
-  }
-  #topbar nav a {
-    padding: 6px 9px;
-    font-size: 13px;
-  }
-  .brand-name {
-    display: none; /* nur noch das Logo-Quadrat */
-  }
-
+/* ---------------------------------------------------------------------------
+   Tablets und schmale Fenster
+   --------------------------------------------------------------------------- */
+@media (max-width: 1000px) {
   .view {
-    padding: 18px 14px 50px;
-  }
-
-  /* Enger gepacktes Raster auf dem Telefon */
-  .grid {
-    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-    gap: 14px 10px;
+    padding: 20px 16px 50px;
   }
 
   /* Der Held der Detailseite wird gestapelt statt nebeneinander. */
   .detail-hero-inner {
     flex-direction: column;
-    padding: 18px;
+    padding: 20px;
   }
   .detail-poster {
-    width: 130px;
+    width: 150px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Telefone
+   ---------------------------------------------------------------------------
+   Leitgedanke: Die Seite soll sich wie eine App anfühlen, nicht wie eine
+   zusammengeschobene Webseite. Konkret heißt das:
+
+     - Die Hauptnavigation wandert an den unteren Rand, wo der Daumen sie
+       erreicht. Oben bleiben nur Logo, Suche und Konto.
+     - Alle Berührungsflächen sind mindestens 44 px hoch. Das ist der Wert,
+       den Apple und Google als Minimum für sicher treffbare Ziele nennen.
+     - Nichts verschwindet hinter der Aussparung oder der Streichleiste
+       moderner Telefone (env(safe-area-inset-*)).
+   --------------------------------------------------------------------------- */
+@media (max-width: 720px) {
+  :root {
+    /* Etwas kompaktere Grundmaße auf kleinen Bildschirmen. */
+    --gap: 12px;
+    --topbar-height: 56px;
   }
 
-  .bar-label {
-    width: 118px;
+  /* --- Kopfzeile: nur noch Logo, Suche, Konto --- */
+  #topbar {
+    height: var(--topbar-height);
+    padding: 0 12px;
+    /* Unter die Statusleiste bzw. Aussparung schieben, aber den Inhalt
+       darunter halten. */
+    padding-top: env(safe-area-inset-top, 0px);
+    height: calc(var(--topbar-height) + env(safe-area-inset-top, 0px));
+    gap: 10px;
+  }
+
+  .brand-name {
+    display: none; /* nur noch das Logo-Quadrat */
+  }
+
+  /* Die Navigation in der Kopfzeile weicht der unteren Leiste. */
+  #topbar nav {
+    display: none;
+  }
+
+  #global-search {
+    flex: 1;
+    max-width: none;
+    margin-left: 4px;
+  }
+  #global-search input {
+    height: 36px;
+    /* 16px verhindert, dass iOS beim Hineintippen hineinzoomt – bei
+       kleinerer Schrift tut es das automatisch. */
+    font-size: 16px;
+  }
+
+  /* --- Untere Navigationsleiste --- */
+  #mobile-nav {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+    background: rgba(19, 24, 34, 0.96);
+    backdrop-filter: blur(14px);
+    border-top: 1px solid var(--surface-3);
+    /* Platz für die Streichleiste am unteren Rand. */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  #mobile-nav a {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    /* 52 px – deutlich über dem Minimum von 44 px für Berührungsziele. */
+    min-height: 52px;
+    padding: 7px 4px;
+    color: var(--text-faint);
+    font-size: 10.5px;
+    font-weight: 550;
+    text-decoration: none;
+    /* Kein blaues Aufblitzen beim Antippen unter Android. */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #mobile-nav a.active {
+    color: var(--accent-soft);
+  }
+
+  .mnav-icon {
+    font-size: 19px;
+    line-height: 1;
+  }
+
+  /* Der Inhalt braucht unten Platz, sonst liegt die Leiste darüber. */
+  .view {
+    padding: 16px 12px 90px;
+  }
+
+  footer {
+    /* Ebenfalls über der Leiste enden lassen. */
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* --- Poster-Raster: zwei bis drei Spalten --- */
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+    gap: 16px 10px;
+  }
+  .poster-title {
     font-size: 12.5px;
+  }
+
+  /* --- Überschriften etwas kleiner --- */
+  h1 {
+    font-size: 22px;
+  }
+  h2 {
+    font-size: 18px;
+  }
+
+  .view-header {
+    /* Untereinander statt nebeneinander, sonst wird es gequetscht. */
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  /* --- Filterleiste: waagerecht wischbar statt umgebrochen ---
+     Vier Auswahlfelder untereinander würden den halben Bildschirm füllen. */
+  .filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    /* Die Leiste selbst darf über den Seitenrand hinausgehen, damit sie
+       optisch bis zum Rand wischbar ist. */
+    margin-left: -12px;
+    margin-right: -12px;
+    padding: 10px 12px;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    /* Beim Wischen an den Elementen einrasten. */
+    scroll-snap-type: x proximity;
+    /* Die Bildlaufleiste ausblenden – auf Telefonen ohnehin unsichtbar. */
+    scrollbar-width: none;
+  }
+  .filters::-webkit-scrollbar {
+    display: none;
+  }
+  .filters > * {
+    flex-shrink: 0;
+    scroll-snap-align: start;
+  }
+
+  /* Statusreiter ebenfalls wischbar. */
+  .view > div:has(> .chip) {
+    overflow-x: auto;
+    flex-wrap: nowrap !important;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .view > div:has(> .chip)::-webkit-scrollbar {
+    display: none;
+  }
+  .chip {
+    flex-shrink: 0;
+    /* Größere Berührungsfläche. */
+    padding: 9px 15px;
+  }
+
+  /* --- Bedienelemente: alles gut treffbar --- */
+  .btn {
+    height: 44px;
+    padding: 0 18px;
+  }
+  .btn-sm {
+    height: 36px;
+    padding: 0 13px;
+  }
+  input[type="text"],
+  input[type="password"],
+  input[type="search"],
+  input[type="email"],
+  input[type="number"],
+  select,
+  textarea {
+    /* 16px gegen das automatische Hineinzoomen von iOS. */
+    font-size: 16px;
+    padding: 12px 14px;
+  }
+  .filters select,
+  .filters input {
+    height: 38px;
+    font-size: 14px;
+    min-width: 118px;
+  }
+
+  /* --- Detailseite --- */
+  .detail-hero {
+    /* Bis an den Bildschirmrand, das wirkt großzügiger. */
+    margin-left: -12px;
+    margin-right: -12px;
+    border-radius: 0;
+  }
+  .detail-hero-inner {
+    padding: 16px;
+    gap: 16px;
+  }
+  .detail-poster {
+    width: 116px;
+  }
+  .detail-actions {
+    /* Knöpfe über die volle Breite, statt drei nebeneinander zu quetschen. */
+    flex-direction: column;
+  }
+  .detail-actions > * {
+    width: 100%;
+  }
+
+  /* Angebote: jedes in einer eigenen Zeile, gut treffbar. */
+  .offer {
+    flex: 1 1 100%;
+    padding: 11px 14px 11px 11px;
+  }
+
+  /* --- Episodenliste --- */
+  .episode {
+    padding: 12px 8px;
+  }
+  .episode-check {
+    /* Größer, damit man beim Abhaken nicht danebentippt. */
+    width: 30px;
+    height: 30px;
+  }
+  .episode-number {
+    width: 52px;
+  }
+
+  /* --- Anbieter-Auswahl --- */
+  .provider-grid {
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: 9px;
+  }
+  .provider-tile {
+    padding: 12px 6px;
+  }
+  .provider-tile img {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* --- Statistik --- */
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .stat-tile {
+    padding: 14px;
+  }
+  .stat-value {
+    font-size: 25px;
+  }
+  .bar-label {
+    width: 108px;
+    font-size: 12px;
+  }
+
+  /* --- Anmeldung --- */
+  .auth-box {
+    padding: 26px 22px;
+  }
+
+  /* --- Toasts über der unteren Leiste --- */
+  .toasts {
+    left: 12px;
+    right: 12px;
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+  .toast {
+    max-width: none;
+  }
+
+  /* --- Konto-Menü --- */
+  .menu {
+    /* Am rechten Rand ausrichten, sonst ragt es heraus. */
+    right: -4px;
+    min-width: 190px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Sehr schmale Telefone (iPhone SE und ähnliche)
+   --------------------------------------------------------------------------- */
+@media (max-width: 380px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  #mobile-nav a {
+    font-size: 9.5px;
   }
 }

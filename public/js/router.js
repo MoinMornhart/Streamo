@@ -84,8 +84,10 @@ export function resolve(force = false) {
   if (!force && key === currentPath) return;
   currentPath = key;
 
-  // Navigationspunkt in der Kopfzeile markieren.
-  for (const link of document.querySelectorAll('#topbar nav a')) {
+  // Aktiven Navigationspunkt markieren – in der Kopfzeile und in der unteren
+  // Leiste auf Telefonen. Beide zeigen auf dieselben Ziele, deshalb ein
+  // gemeinsamer Durchlauf.
+  for (const link of document.querySelectorAll('#topbar nav a, #mobile-nav a')) {
     // Die Startseite "/" ist nur bei exakter Übereinstimmung aktiv, sonst
     // wäre sie auf jeder Seite markiert (jeder Pfad beginnt mit "/").
     const href = link.getAttribute('href');
@@ -118,10 +120,29 @@ export function resolve(force = false) {
 }
 
 /**
+ * Merkt sich, ob die Ereignis-Listener bereits hängen.
+ *
+ * startRouter() wird mehrfach aufgerufen: einmal beim Programmstart und
+ * danach nach jeder Anmeldung. Ohne diesen Merker käme bei jedem Aufruf ein
+ * weiterer Klick-Listener dazu, und ein einziger Klick auf einen Verweis
+ * würde die Navigation zwei-, drei- oder viermal auslösen.
+ */
+let routerStarted = false;
+
+/**
  * Startet den Router: fängt Klicks auf interne Verweise ab und reagiert auf
  * die Vor-/Zurück-Knöpfe des Browsers.
+ *
+ * Ist er bereits gestartet, wird nur die aktuelle Ansicht neu gezeichnet.
+ * Genau das braucht es nach einer Anmeldung: Die Adresse bleibt dieselbe,
+ * aber es soll jetzt die Anwendung statt der Anmeldemaske erscheinen.
  */
 export function startRouter() {
+  if (routerStarted) {
+    resolve(true);
+    return;
+  }
+  routerStarted = true;
   // Ein einziger Listener am Dokument statt eines pro Verweis. Das funktioniert
   // auch für Verweise, die erst später erzeugt werden (Ereignis-Delegation).
   document.addEventListener('click', (event) => {
@@ -143,5 +164,8 @@ export function startRouter() {
   // ohne den Router importieren zu müssen (vermeidet einen Importkreis).
   window.navigateTo = navigateTo;
 
-  resolve();
+  // force: Beim ersten Lauf ist currentPath noch null, aber nach einer
+  // Anmeldung stimmt er bereits mit der Adresse überein – ohne das Erzwingen
+  // bliebe die Anmeldemaske stehen.
+  resolve(true);
 }
