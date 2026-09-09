@@ -27,10 +27,14 @@
 
 import express from 'express';
 import path from 'node:path';
+import http from 'node:http';
+import https from 'node:https';
 import config from './config.js';
 import { attachUser, pruneSessions } from './auth.js';
 import { hasApiKey } from './tmdb.js';
 import { startSyncScheduler, stopSyncScheduler } from './sync.js';
+// Nur gebraucht, wenn ENABLE_HTTPS gesetzt ist – siehe startServer() unten.
+import { getTlsOptions } from './tls.js';
 
 // Routen-Module. Jedes bringt einen eigenen express.Router mit.
 import authRoutes from './routes/auth.js';
@@ -197,7 +201,70 @@ app.use((error, req, res, next) => {
 const pruned = pruneSessions();
 if (pruned > 0) console.log(`[start] ${pruned} abgelaufene Sitzungen entfernt.`);
 
-const server = app.listen(config.port, config.host, () => {
+/**
+ * Startet den HTTP- bzw. HTTPS-Server.
+ *
+ * Ohne ENABLE_HTTPS läuft schlicht ein HTTP-Server – der Normalfall, wenn ein
+ * Reverse Proxy davorsteht und sich um das Zertifikat kümmert.
+ *
+ * Mit ENABLE_HTTPS kommt ein zweiter Server hinzu: HTTPS auf dem eigenen Port,
+ * und der HTTP-Port leitet nur noch dorthin um. So landet niemand versehentlich
+ * auf der unverschlüsselten Fassung – was besonders wichtig ist, weil Passkeys
+ * genau daran scheitern würden.
+ *
+ * @returns {import('node:http').Server} der Server, der die Anwendung bedient
+ */
+function startServer() {
+  if (!config.https) {
+    return app.listen(config.port, config.host, onListening);
+  }
+
+  // Zertifikat besorgen bzw. erzeugen (src/tls.js).
+  let tls;
+  try {
+    tls = getTlsOptions();
+  } catch (error) {
+    console.error('');
+    console.error(`[tls] HTTPS konnte nicht eingerichtet werden: ${error.message}`);
+    console.error('[tls] Streamo startet stattdessen mit HTTP.');
+    console.error('');
+    return app.listen(config.port, config.host, onListening);
+  }
+
+  const httpsServer = https.createServer({ cert: tls.cert, key: tls.key }, app);
+  httpsServer.listen(config.httpsPort, config.host, onListening);
+
+  // Der HTTP-Port leitet auf HTTPS um – ein eigener, winziger Server, der die
+  // Express-Anwendung gar nicht erst zu sehen bekommt.
+  http
+    .createServer((req, res) => {
+      // Den Host aus der Anfrage übernehmen, aber den Port ersetzen. So
+      // funktioniert die Umleitung unabhängig davon, unter welchem Namen
+      // Streamo aufgerufen wurde.
+      const host = String(req.headers.host || config.tlsHostname).split(':')[0];
+
+      res.writeHead(301, {
+        Location: `https://${host}:${config.httpsPort}${req.url}`,
+      });
+      res.end();
+    })
+    .listen(config.port, config.host, () => {
+      console.log(`[tls] Port ${config.port} leitet auf HTTPS um.`);
+    });
+
+  if (tls.selfSigned) {
+    console.log('');
+    console.log('  Hinweis: Das Zertifikat ist selbstsigniert. Der Browser zeigt beim');
+    console.log('  ersten Aufruf eine Warnung – einmal bestätigen, dann funktionieren');
+    console.log('  auch Passkeys. Die Desktop-App akzeptiert es ohne Rückfrage.');
+    console.log('');
+  }
+
+  return httpsServer;
+}
+
+/** Wird aufgerufen, sobald der Server lauscht – gibt den Startbanner aus. */
+function onListening() {
   console.log('');
   console.log('  ███████╗████████╗██████╗ ███████╗ █████╗ ███╗   ███╗ ██████╗');
   console.log('  ██╔════╝╚══██╔══╝██╔══██╗██╔════╝██╔══██╗████╗ ████║██╔═══██╗');
@@ -206,16 +273,32 @@ const server = app.listen(config.port, config.host, () => {
   console.log('  ███████║   ██║   ██║  ██║███████╗██║  ██║██║ ╚═╝ ██║╚██████╔╝');
   console.log('  ╚══════╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝ ╚═════╝');
   console.log('');
+  // Bei HTTPS gilt der andere Port, und der Hostname aus dem Zertifikat ist
+  // die Adresse, die tatsächlich funktioniert – eine IP würde das Zertifikat
+  // nicht abdecken.
+  const scheme = config.https ? 'https' : 'http';
+  const shownHost = config.https
+    ? config.tlsHostname
+    : config.host === '0.0.0.0'
+      ? 'localhost'
+      : config.host;
+  const shownPort = config.https ? config.httpsPort : config.port;
+
   console.log(`  Version   ${config.version}`);
-  console.log(`  Adresse   http://${config.host === '0.0.0.0' ? 'localhost' : config.host}:${config.port}`);
+  console.log(`  Adresse   ${scheme}://${shownHost}:${shownPort}`);
   console.log(`  Daten     ${config.dataDir}`);
   console.log(`  Region    ${config.region}   Sprache ${config.language}`);
   console.log(`  TMDB-Key  ${hasApiKey() ? 'hinterlegt' : 'FEHLT – im Setup eintragen'}`);
+  console.log(
+    `  Passkeys  ${config.https || config.trustProxy ? 'möglich' : 'erst mit HTTPS und einem Hostnamen'}`,
+  );
   console.log('');
 
   // Erst starten, wenn der Server wirklich lauscht.
   startSyncScheduler();
-});
+}
+
+const server = startServer();
 
 /**
  * Geordnetes Herunterfahren.
