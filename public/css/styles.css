@@ -1,0 +1,1081 @@
+/**
+ * ---------------------------------------------------------------------------
+ * public/css/styles.css – Das gesamte Aussehen von Streamo
+ * ---------------------------------------------------------------------------
+ * Eine einzige Datei, ohne Präprozessor und ohne Framework. Struktur:
+ *   1. Design-Tokens (Farben, Abstände, Radien) als CSS-Variablen
+ *   2. Grundlagen (Reset, Typografie)
+ *   3. Kopfzeile und Navigation
+ *   4. Bausteine: Knöpfe, Karten, Abzeichen, Formulare
+ *   5. Ansichten: Anmeldung, Bibliothek, Detailseite, Anbieter, Statistik
+ *   6. Rückmeldungen: Toasts, Spinner, Leerzustände
+ *   7. Anpassung an kleine Bildschirme
+ *
+ * Warum Variablen? Die gesamte Farbgebung hängt an den zehn Werten unter
+ * :root. Wer ein anderes Akzentfarbschema will, ändert dort zwei Zeilen.
+ * ---------------------------------------------------------------------------
+ */
+
+/* ===========================================================================
+   1. Design-Tokens
+   =========================================================================== */
+:root {
+  /* Flächen, von dunkel nach hell gestaffelt */
+  --bg: #0b0e14; /* Seitenhintergrund */
+  --surface: #131822; /* Karten, Kopfzeile */
+  --surface-2: #1b2130; /* Eingabefelder, Hover */
+  --surface-3: #252c3d; /* Rahmen, Trenner */
+
+  /* Text */
+  --text: #e8ecf4;
+  --text-dim: #97a2b8; /* Nebeninformationen */
+  --text-faint: #5f6b83; /* Sehr zurückhaltend, z. B. Platzhalter */
+
+  /* Akzent – das Violett aus dem Logo */
+  --accent: #6c5ce7;
+  --accent-soft: #8b7cf0;
+  --accent-glow: rgba(108, 92, 231, 0.35);
+
+  /* Signalfarben */
+  --success: #2ecc8f; /* "in deinem Abo enthalten" */
+  --warning: #f6b93b; /* "nur leihen/kaufen" */
+  --danger: #ff6b6b; /* Fehler, Entfernen */
+
+  /* Maße */
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-lg: 18px;
+  --gap: 16px;
+  --topbar-height: 64px;
+
+  /* Schatten für schwebende Elemente */
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+}
+
+/* ===========================================================================
+   2. Grundlagen
+   =========================================================================== */
+
+*,
+*::before,
+*::after {
+  /* Padding und Rahmen zählen zur angegebenen Breite – erspart überall
+     Nachrechnen bei Layouts. */
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  /* Sanftere Kantenglättung auf dunklem Grund */
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+a {
+  color: var(--accent-soft);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.25;
+  margin: 0 0 0.5em;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+h1 {
+  font-size: 26px;
+}
+h2 {
+  font-size: 20px;
+}
+h3 {
+  font-size: 16px;
+}
+
+.muted {
+  color: var(--text-dim);
+}
+.small {
+  font-size: 13px;
+}
+
+/* Bilder sollen nie aus ihrem Behälter herauslaufen. */
+img {
+  max-width: 100%;
+  display: block;
+}
+
+/* ===========================================================================
+   3. Kopfzeile
+   =========================================================================== */
+
+#topbar {
+  position: sticky; /* bleibt beim Scrollen oben */
+  top: 0;
+  z-index: 50;
+  height: var(--topbar-height);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 22px;
+  background: rgba(19, 24, 34, 0.85);
+  /* Weichzeichner hinter der Leiste – die Poster schimmern durch. */
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--surface-3);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 17px;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.brand:hover {
+  text-decoration: none;
+}
+
+.brand-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--accent), #a55eea);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  color: #fff;
+}
+
+#global-search {
+  flex: 1;
+  max-width: 460px;
+}
+#global-search input {
+  width: 100%;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--surface-3);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+}
+#global-search input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+#topbar nav {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+#topbar nav a {
+  padding: 7px 13px;
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+#topbar nav a:hover {
+  background: var(--surface-2);
+  color: var(--text);
+  text-decoration: none;
+}
+/* Die aktive Seite wird von public/js/router.js markiert. */
+#topbar nav a.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.topbar-right {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.icon-button {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, var(--accent), #a55eea);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+/* Das Konto-Aufklappmenü */
+.menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 6px;
+  z-index: 60;
+}
+.menu-header {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--surface-3);
+  margin-bottom: 6px;
+  display: flex;
+  flex-direction: column;
+}
+.menu a,
+.menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  border: none;
+  background: none;
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  cursor: pointer;
+}
+.menu a:hover,
+.menu button:hover {
+  background: var(--surface-2);
+  text-decoration: none;
+}
+
+/* ===========================================================================
+   4. Bausteine
+   =========================================================================== */
+
+.view {
+  flex: 1; /* schiebt den Footer nach unten, auch bei wenig Inhalt */
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 26px 22px 60px;
+}
+
+/* --- Kopfbereich einer Ansicht --- */
+.view-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+/* --- Knöpfe --- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-weight: 550;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, transform 0.08s;
+}
+.btn:hover {
+  background: var(--surface-3);
+}
+.btn:active {
+  transform: translateY(1px);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover {
+  background: var(--accent-soft);
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: var(--surface-3);
+}
+.btn-ghost:hover {
+  background: var(--surface-2);
+}
+
+.btn-danger {
+  background: transparent;
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.btn-danger:hover {
+  background: rgba(255, 107, 107, 0.12);
+}
+
+.btn-sm {
+  height: 30px;
+  padding: 0 11px;
+  font-size: 13px;
+}
+
+/* --- Formulare --- */
+.field {
+  margin-bottom: 16px;
+}
+.field label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--text-dim);
+}
+input[type="text"],
+input[type="password"],
+input[type="search"],
+input[type="number"],
+select,
+textarea {
+  width: 100%;
+  padding: 10px 13px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--surface-3);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+.hint {
+  font-size: 12.5px;
+  color: var(--text-faint);
+  margin-top: 5px;
+}
+
+/* --- Karte --- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+/* --- Filterleiste --- */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 22px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius);
+}
+.filters select,
+.filters input {
+  width: auto;
+  min-width: 130px;
+  height: 34px;
+  padding: 0 10px;
+  font-size: 13.5px;
+}
+
+/* Umschalt-Knöpfe (Status-Reiter in der Bibliothek) */
+.chip {
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--surface-3);
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.chip:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* ===========================================================================
+   5. Poster-Raster – das visuelle Herzstück
+   =========================================================================== */
+
+.grid {
+  display: grid;
+  /* auto-fill + minmax: Die Spaltenzahl ergibt sich aus der Breite, ohne
+     eine einzige Media Query. Karten sind mindestens 150px breit. */
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 20px 16px;
+}
+
+.poster-card {
+  position: relative;
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: transform 0.16s ease;
+}
+.poster-card:hover {
+  transform: translateY(-4px);
+}
+
+.poster-wrap {
+  position: relative;
+  aspect-ratio: 2 / 3; /* Standard-Seitenverhältnis eines Filmposters */
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface-2);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+.poster-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Platzhalter, wenn TMDB kein Poster hat */
+.poster-placeholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-faint);
+  background: linear-gradient(160deg, var(--surface-2), var(--surface));
+}
+
+.poster-title {
+  margin-top: 9px;
+  font-size: 13.5px;
+  font-weight: 550;
+  line-height: 1.35;
+  /* Zwei Zeilen, danach Auslassungspunkte – hält das Raster ruhig. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.poster-meta {
+  font-size: 12px;
+  color: var(--text-faint);
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+
+/* --- Anbieter-Logos auf der Poster-Kachel --- */
+/* Das ist die Antwort auf "wo kann ich das streamen?" – direkt im Raster. */
+.provider-strip {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  max-width: calc(100% - 12px);
+}
+.provider-logo {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  overflow: hidden;
+  background: var(--surface-3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  border: 1.5px solid transparent;
+}
+/* Grüner Rahmen = "das ist in einem DEINER Abos enthalten". */
+.provider-logo.subscribed {
+  border-color: var(--success);
+  box-shadow: 0 0 0 1px var(--success), 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+.provider-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Eckabzeichen oben rechts auf dem Poster */
+.corner-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 650;
+  background: rgba(11, 14, 20, 0.85);
+  backdrop-filter: blur(4px);
+}
+.corner-badge.included {
+  background: var(--success);
+  color: #06251a;
+}
+.corner-badge.in-library {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Fortschrittsbalken unter dem Poster */
+.progress-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--surface-3);
+  overflow: hidden;
+  margin-top: 7px;
+}
+.progress-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+/* ===========================================================================
+   6. Detailseite
+   =========================================================================== */
+
+.detail-hero {
+  position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: 26px;
+  /* Das Hintergrundbild wird per style-Attribut gesetzt (deshalb erlaubt die
+     CSP in src/server.js 'unsafe-inline' für Styles). */
+  background-size: cover;
+  background-position: center 20%;
+}
+/* Dunkler Verlauf über dem Bild, damit die Schrift lesbar bleibt. */
+.detail-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to right,
+    rgba(11, 14, 20, 0.97) 0%,
+    rgba(11, 14, 20, 0.85) 45%,
+    rgba(11, 14, 20, 0.55) 100%
+  );
+}
+.detail-hero-inner {
+  position: relative;
+  display: flex;
+  gap: 26px;
+  padding: 30px;
+}
+.detail-poster {
+  width: 190px;
+  flex-shrink: 0;
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.detail-info {
+  flex: 1;
+  min-width: 0; /* erlaubt dem Text, in schmalen Spalten umzubrechen */
+}
+.detail-meta {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  color: var(--text-dim);
+  font-size: 13.5px;
+  margin-bottom: 12px;
+}
+.detail-actions {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+/* --- Verfügbarkeits-Block --- */
+.availability-section {
+  margin: 26px 0;
+}
+.offer-group {
+  margin-bottom: 18px;
+}
+.offer-group h3 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+.offer-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.offer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px 9px 9px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--surface-3);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 550;
+}
+.offer:hover {
+  border-color: var(--accent);
+  text-decoration: none;
+}
+/* Hervorhebung, wenn der Anbieter zu den eigenen Abos gehört. */
+.offer.subscribed {
+  border-color: var(--success);
+  background: rgba(46, 204, 143, 0.09);
+}
+.offer img {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+}
+.offer-tag {
+  font-size: 11px;
+  font-weight: 650;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--success);
+  color: #06251a;
+}
+
+/* --- Staffeln und Episoden --- */
+.season-tabs {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.episode-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.episode {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  transition: background 0.12s;
+}
+.episode:hover {
+  background: var(--surface);
+}
+.episode.watched .episode-title {
+  color: var(--text-faint);
+}
+.episode-number {
+  width: 42px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums; /* Ziffern gleich breit -> saubere Spalte */
+  color: var(--text-faint);
+  font-size: 13px;
+}
+.episode-body {
+  flex: 1;
+  min-width: 0;
+}
+.episode-title {
+  font-size: 14px;
+  font-weight: 500;
+}
+.episode-date {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+/* Eigene Checkbox statt der Systemvariante – die lässt sich nicht gestalten. */
+.episode-check {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1.5px solid var(--surface-3);
+  background: transparent;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: transparent;
+  font-size: 13px;
+}
+.episode-check.checked {
+  background: var(--success);
+  border-color: var(--success);
+  color: #06251a;
+}
+.episode.upcoming {
+  opacity: 0.45;
+}
+.episode.upcoming .episode-check {
+  cursor: not-allowed;
+}
+
+/* ===========================================================================
+   7. Anbieter-Auswahl
+   =========================================================================== */
+
+.provider-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  gap: 12px;
+}
+.provider-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  padding: 16px 10px;
+  border-radius: var(--radius);
+  border: 2px solid var(--surface-3);
+  background: var(--surface);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s, background 0.15s;
+}
+.provider-tile:hover {
+  border-color: var(--accent-soft);
+}
+/* Ausgewählt = verknüpftes Abo (Tabelle user_providers). */
+.provider-tile.selected {
+  border-color: var(--success);
+  background: rgba(46, 204, 143, 0.08);
+}
+.provider-tile img {
+  width: 54px;
+  height: 54px;
+  border-radius: 13px;
+}
+.provider-tile span {
+  font-size: 12.5px;
+  line-height: 1.3;
+  color: var(--text-dim);
+}
+.provider-tile.selected span {
+  color: var(--text);
+  font-weight: 550;
+}
+
+/* ===========================================================================
+   8. Anmeldung und Einrichtung
+   =========================================================================== */
+
+.auth-screen {
+  min-height: 78vh;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+.auth-box {
+  width: 100%;
+  max-width: 430px;
+  background: var(--surface);
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  box-shadow: var(--shadow);
+}
+.auth-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+  font-size: 22px;
+  font-weight: 700;
+}
+.auth-logo .brand-mark {
+  width: 38px;
+  height: 38px;
+  font-size: 19px;
+}
+.auth-sub {
+  color: var(--text-dim);
+  margin: 0 0 24px;
+  font-size: 14px;
+}
+.error-box {
+  padding: 11px 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 107, 107, 0.12);
+  border: 1px solid rgba(255, 107, 107, 0.35);
+  color: #ffb0b0;
+  font-size: 13.5px;
+  margin-bottom: 16px;
+}
+.success-box {
+  padding: 11px 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(46, 204, 143, 0.12);
+  border: 1px solid rgba(46, 204, 143, 0.35);
+  color: #9ff0cf;
+  font-size: 13.5px;
+  margin-bottom: 16px;
+}
+
+/* ===========================================================================
+   9. Statistik
+   =========================================================================== */
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+  margin-bottom: 28px;
+}
+.stat-tile {
+  padding: 18px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--surface-3);
+}
+.stat-value {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.stat-label {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-top: 3px;
+}
+
+/* Waagerechtes Balkendiagramm für die Anbieter-Verteilung. Kein Diagramm-
+   Framework nötig – die Balkenbreite ist ein Prozentwert im style-Attribut. */
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+}
+.bar-label {
+  width: 165px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13.5px;
+}
+.bar-label img {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+}
+.bar-track {
+  flex: 1;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--accent), #a55eea);
+  min-width: 2px;
+}
+.bar-value {
+  width: 42px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 13.5px;
+  color: var(--text-dim);
+}
+
+/* ===========================================================================
+   10. Rückmeldungen: Banner, Toasts, Spinner, Leerzustände
+   =========================================================================== */
+
+.banner {
+  margin: 0;
+  padding: 11px 22px;
+  background: rgba(246, 185, 59, 0.14);
+  border-bottom: 1px solid rgba(246, 185, 59, 0.3);
+  color: #ffd98a;
+  font-size: 13.5px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.banner a {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.toasts {
+  position: fixed;
+  bottom: 22px;
+  right: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  z-index: 100;
+  pointer-events: none; /* Toasts blockieren keine Klicks darunter */
+}
+.toast {
+  padding: 12px 17px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--surface-3);
+  box-shadow: var(--shadow);
+  font-size: 14px;
+  max-width: 340px;
+  animation: toast-in 0.22s ease;
+}
+.toast.error {
+  border-color: var(--danger);
+  color: #ffb0b0;
+}
+.toast.success {
+  border-color: var(--success);
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+
+.loading-screen {
+  display: grid;
+  place-items: center;
+  gap: 16px;
+  min-height: 45vh;
+  color: var(--text-dim);
+}
+.spinner {
+  width: 34px;
+  height: 34px;
+  border: 3px solid var(--surface-3);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Leerzustand: kein Fehler, sondern "hier ist noch nichts". */
+.empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-dim);
+}
+.empty-icon {
+  font-size: 42px;
+  margin-bottom: 12px;
+  opacity: 0.55;
+}
+
+footer {
+  padding: 26px 22px 34px;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 13px;
+  border-top: 1px solid var(--surface-3);
+}
+footer p {
+  margin: 3px 0;
+}
+
+/* ===========================================================================
+   11. Kleine Bildschirme
+   =========================================================================== */
+
+@media (max-width: 860px) {
+  /* Die Navigation rutscht unter die Suchleiste in eine eigene Zeile. */
+  #topbar {
+    height: auto;
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    gap: 10px;
+  }
+  #global-search {
+    order: 3;
+    max-width: none;
+    flex-basis: 100%;
+  }
+  #topbar nav {
+    order: 2;
+    margin-left: auto;
+    gap: 0;
+  }
+  #topbar nav a {
+    padding: 6px 9px;
+    font-size: 13px;
+  }
+  .brand-name {
+    display: none; /* nur noch das Logo-Quadrat */
+  }
+
+  .view {
+    padding: 18px 14px 50px;
+  }
+
+  /* Enger gepacktes Raster auf dem Telefon */
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 14px 10px;
+  }
+
+  /* Der Held der Detailseite wird gestapelt statt nebeneinander. */
+  .detail-hero-inner {
+    flex-direction: column;
+    padding: 18px;
+  }
+  .detail-poster {
+    width: 130px;
+  }
+
+  .bar-label {
+    width: 118px;
+    font-size: 12.5px;
+  }
+}

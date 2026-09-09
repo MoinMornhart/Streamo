@@ -1,0 +1,133 @@
+<!doctype html>
+<!--
+  ---------------------------------------------------------------------------
+  public/index.html – Das Grundgerüst der Oberfläche
+  ---------------------------------------------------------------------------
+  Streamo ist eine Single-Page-Anwendung: Diese Datei wird EINMAL geladen und
+  danach tauscht JavaScript nur noch den Inhalt von <main id="view"> aus.
+  Deshalb liefert auch der Server für jeden unbekannten Pfad diese Datei aus
+  (siehe SPA-Fallback in src/server.js).
+
+  Bewusst ohne Build-Werkzeug: Die JS-Dateien sind native ES-Module und werden
+  direkt vom Browser geladen. Dadurch gibt es kein npm run build, kein Bundle
+  und keine Wartezeit beim Deployen – man kopiert die Dateien und fertig.
+
+  Verknüpfungen:
+    - public/css/styles.css  -> das gesamte Aussehen
+    - public/js/app.js       -> Einstiegspunkt, lädt alles Weitere
+    - src/server.js          -> liefert diese Datei aus
+  ---------------------------------------------------------------------------
+-->
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Streamo</title>
+    <meta
+      name="description"
+      content="Streamo – alle Streaming-Abos an einem Ort. Deine Serien-Datenbank, die dir immer zeigt, wo du schauen kannst."
+    />
+    <!-- Farbe der Browser-Leiste auf Mobilgeräten -->
+    <meta name="theme-color" content="#0b0e14" />
+
+    <!-- Inline-SVG als Favicon: spart eine zusätzliche Datei und funktioniert
+         ohne Netzwerkzugriff. "S" im Streamo-Verlauf. -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%236c5ce7'/><text x='50' y='72' font-size='64' font-family='system-ui,sans-serif' font-weight='700' fill='white' text-anchor='middle'>S</text></svg>"
+    />
+
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+
+  <body>
+    <!-- =====================================================================
+         Kopfzeile mit Navigation.
+         Sie ist anfangs versteckt (hidden) und wird von public/js/app.js
+         eingeblendet, sobald feststeht, dass jemand angemeldet ist.
+         ===================================================================== -->
+    <header id="topbar" hidden>
+      <a class="brand" href="/" data-link>
+        <span class="brand-mark">S</span>
+        <span class="brand-name">Streamo</span>
+      </a>
+
+      <!-- Die Suchleiste liegt in der Kopfzeile, weil Suchen die häufigste
+           Aktion ist. Enter löst die Suche aus (public/js/app.js). -->
+      <form id="global-search" autocomplete="off">
+        <input
+          type="search"
+          id="global-search-input"
+          placeholder="Serie oder Film suchen …"
+          aria-label="Suche"
+        />
+      </form>
+
+      <!-- data-link markiert Verweise, die der Router abfängt, statt die
+           Seite neu zu laden (siehe public/js/router.js). -->
+      <nav>
+        <a href="/" data-link data-nav="home">Entdecken</a>
+        <a href="/library" data-link data-nav="library">Bibliothek</a>
+        <a href="/providers" data-link data-nav="providers">Anbieter</a>
+        <a href="/stats" data-link data-nav="stats">Statistik</a>
+      </nav>
+
+      <div class="topbar-right">
+        <button id="user-menu-button" class="icon-button" aria-label="Konto">
+          <span id="user-initial">?</span>
+        </button>
+
+        <!-- Kleines Aufklappmenü; wird per .open ein- und ausgeblendet. -->
+        <div id="user-menu" class="menu" hidden>
+          <div class="menu-header">
+            <strong id="user-name">–</strong>
+            <span id="user-region" class="muted"></span>
+          </div>
+          <a href="/settings" data-link>Einstellungen</a>
+          <button id="logout-button" type="button">Abmelden</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Hinweisbanner, z. B. "Es ist kein TMDB-Key hinterlegt".
+         Wird von public/js/ui.js befüllt und sichtbar geschaltet. -->
+    <div id="banner" class="banner" hidden></div>
+
+    <!-- =====================================================================
+         Der Bereich, den die Views austauschen.
+         Jede Datei in public/js/views/ rendert genau hier hinein.
+         ===================================================================== -->
+    <main id="view" class="view">
+      <div class="loading-screen">
+        <div class="spinner"></div>
+        <p>Streamo startet …</p>
+      </div>
+    </main>
+
+    <footer id="footer" hidden>
+      <!-- Attribution ist Pflicht: Die Metadaten kommen von TMDB, die
+           Verfügbarkeitsdaten stammen von JustWatch. Beides fordert deren
+           Nutzungsbedingungen ausdrücklich. -->
+      <p>
+        Streamo <span id="footer-version"></span> · Daten von
+        <a href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer">TMDB</a>
+        · Streaming-Verfügbarkeit von
+        <a href="https://www.justwatch.com" target="_blank" rel="noopener noreferrer">JustWatch</a>
+      </p>
+      <p class="muted small">
+        Dieses Produkt verwendet die TMDB-API, ist aber weder von TMDB
+        unterstützt noch zertifiziert.
+      </p>
+    </footer>
+
+    <!-- Behälter für kurze Rückmeldungen ("Zur Bibliothek hinzugefügt"). -->
+    <div id="toasts" class="toasts"></div>
+
+    <!--
+      type="module" bewirkt dreierlei: die Datei wird als ES-Modul geladen,
+      sie läuft automatisch erst nach dem Parsen des HTML (also kein defer
+      nötig), und import/export funktioniert ohne Bundler.
+    -->
+    <script type="module" src="/js/app.js"></script>
+  </body>
+</html>

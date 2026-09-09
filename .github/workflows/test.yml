@@ -1,0 +1,69 @@
+# ---------------------------------------------------------------------------
+# .github/workflows/test.yml – Automatischer Test bei jedem Push
+# ---------------------------------------------------------------------------
+# Prüft zweierlei, damit ein kaputter Stand gar nicht erst im Hauptzweig landet:
+#   1. Die Kernlogik (tests/store.test.mjs) – Verfügbarkeit, Abo-Abgleich,
+#      Fortschritt, Fremdschlüssel. Läuft ohne TMDB-Key und ohne Netzwerk.
+#   2. Die Shell-Skripte – ein Syntaxfehler im Proxmox-Installer würde sonst
+#      erst auf dem Server auffallen, mitten in der Installation.
+# ---------------------------------------------------------------------------
+
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Quellen auschecken
+        uses: actions/checkout@v4
+
+      - name: Node.js einrichten
+        uses: actions/setup-node@v4
+        with:
+          # Node 24, weil Streamo das eingebaute node:sqlite verwendet.
+          node-version: '24'
+
+      - name: Abhängigkeiten installieren
+        run: npm install --omit=dev --no-audit --no-fund
+
+      - name: Kernlogik testen
+        run: npm test
+
+      - name: Serverstart prüfen
+        # Startet den Server im Hintergrund und fragt /api/health ab. Damit ist
+        # sichergestellt, dass alle Module fehlerfrei laden und das Schema
+        # angelegt werden kann.
+        run: |
+          DATA_DIR=/tmp/streamo-ci PORT=3123 node src/server.js &
+          SERVER_PID=$!
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:3123/api/health >/dev/null 2>&1; then
+              echo "Server antwortet:"
+              curl -s http://127.0.0.1:3123/api/health
+              kill $SERVER_PID
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Server ist nicht hochgekommen."
+          kill $SERVER_PID 2>/dev/null || true
+          exit 1
+
+  shellcheck:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Syntax der Shell-Skripte prüfen
+        run: |
+          bash -n scripts/streamo.sh
+          bash -n scripts/install/streamo-install.sh
+          echo "Shell-Skripte sind syntaktisch in Ordnung."

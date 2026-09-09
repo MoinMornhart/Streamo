@@ -1,0 +1,223 @@
+# Streamo
+
+**Alle Streaming-Abos an einem Ort.** Streamo ist eine selbst gehostete Web-Anwendung, in der du deine Streaming-Anbieter verknüpfst, deine eigene Serien-Datenbank aufbaust und bei jedem Titel sofort siehst, **wo du ihn streamen kannst** – und ob er in einem deiner Abos schon enthalten ist.
+
+---
+
+## Schnellstart auf Proxmox
+
+Ein Befehl in der **Shell deines Proxmox-Hosts**. Er legt einen LXC-Container an, installiert alles und nennt dir am Ende die Adresse:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/MoinMornhart/Streamo/main/scripts/streamo.sh)"
+```
+
+Nach zwei bis vier Minuten läuft Streamo unter `http://<container-ip>:3000`.
+
+Die ausführliche Anleitung mit allen Optionen steht in **[docs/QUICKSTART.md](docs/QUICKSTART.md)**.
+
+| Vorgabe | Wert |
+| --- | --- |
+| Betriebssystem | Debian 13 (LXC, unprivilegiert) |
+| CPU | 2 Kerne |
+| Arbeitsspeicher | 2048 MB |
+| Festplatte | 8 GB |
+| Netzwerk | DHCP an `vmbr0` |
+| Port | 3000 |
+| Autostart | ja |
+
+Alle Werte lassen sich im Installationsdialog unter „Erweitert" ändern.
+
+---
+
+## Was Streamo kann
+
+**Anbieter verknüpfen**
+Klick die Dienste an, die du abonniert hast – Netflix, Disney+, Prime Video, WOW, Paramount+, Apple TV+, MagentaTV und über hundert weitere, je nach Region. Streamo weiß danach, was du ohne Zusatzkosten sehen kannst.
+
+**Deine Serien-Datenbank**
+Suche Serien und Filme und leg sie auf deine Liste. Fünf Zustände (*Will ich sehen, Schaue ich, Gesehen, Pausiert, Abgebrochen*), eigene Bewertung, Favoriten und Notizen.
+
+**Immer sehen, wo es läuft**
+Jede Kachel zeigt die Anbieter-Logos direkt auf dem Poster. Grün umrandet heißt: in deinem Abo enthalten. Auf der Detailseite steht die vollständige Aufstellung, getrennt nach Abo, kostenlos, Leihe und Kauf, mit Deeplink zum Anbieter.
+
+**Episoden-Fortschritt**
+Staffeln und Episoden abhaken, einzeln, staffelweise oder „alles bis hierhin". Der Status wechselt automatisch von *Will ich sehen* auf *Schaue ich* und am Ende auf *Gesehen*.
+
+**Entdecken statt suchen**
+Die Startseite zeigt, was gerade in deinen Abos läuft – gefiltert auf genau die Dienste, für die du bezahlst.
+
+**Auswertung, die eine Frage beantwortet**
+Wie verteilen sich deine Serien auf die Abos? Bei welchem Dienst läuft nichts von deiner Liste (Kündigungskandidat)? Welches zusätzliche Abo würde dir am meisten freischalten? Und wie viel Lebenszeit hast du eigentlich investiert?
+
+**Automatischer Abgleich**
+Streamo prüft alle 12 Stunden, wo deine Serien inzwischen laufen. Streaming-Rechte wandern ständig – du merkst es, ohne nachzusehen.
+
+**Mehrere Personen**
+Optional. Jede Person hat eigene Abos, eigene Bibliothek, eigenen Fortschritt und eigene Region.
+
+---
+
+## Woher kommen die Daten?
+
+Streamo meldet sich **nicht** bei Netflix, Disney+ und Co. an und braucht **keine Zugangsdaten** fremder Dienste. Solche Schnittstellen gibt es nicht öffentlich, und Passwörter anderer Anbieter gehören nicht in eine selbst gehostete Anwendung.
+
+Stattdessen:
+
+1. Du hinterlegst **welche Abos du hast** (ein Klick pro Dienst).
+2. Streamo holt die **Verfügbarkeitsdaten von JustWatch** – über die kostenlose TMDB-API. Das ist dieselbe Quelle, die auch die großen Vergleichsportale nutzen.
+3. Beides wird abgeglichen: Du siehst bei jedem Titel, wo er läuft und ob er in *deinem* Abo drin ist.
+
+Das Ergebnis ist dasselbe, nur ohne Passwort-Weitergabe.
+
+**Du brauchst dafür einen kostenlosen TMDB-API-Key:** [themoviedb.org/settings/api](https://www.themoviedb.org/settings/api) → Konto anlegen → API beantragen (Verwendungszweck „Personal / Education" genügt) → Schlüssel kopieren. Sowohl der *API Read Access Token* als auch der klassische *API Key* funktionieren. Du kannst ihn beim Einrichten oder später unter *Einstellungen* eintragen.
+
+---
+
+## Manuelle Installation
+
+Falls du kein Proxmox nutzt. Voraussetzung: **Node.js 23.4 oder neuer** (wegen des eingebauten `node:sqlite`-Moduls; Node 24 LTS wird empfohlen).
+
+```bash
+git clone https://github.com/MoinMornhart/Streamo.git
+cd Streamo
+npm install --omit=dev
+cp .env.example .env      # optional, es geht auch ohne
+npm start
+```
+
+Streamo läuft dann auf <http://localhost:3000>. Beim ersten Aufruf führt dich ein Assistent durch die Einrichtung.
+
+Auf jedem Debian- oder Ubuntu-Server geht auch das Installationsskript direkt, ohne Proxmox:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/MoinMornhart/Streamo/main/scripts/install/streamo-install.sh)"
+```
+
+Es installiert Node.js, legt einen eigenen Dienstbenutzer an und richtet einen systemd-Dienst ein.
+
+---
+
+## Konfiguration
+
+Alle Werte stehen in `.env` (Vorlage: [`.env.example`](.env.example)). Jeder hat eine sinnvolle Vorgabe – eine leere Datei funktioniert.
+
+| Variable | Vorgabe | Bedeutung |
+| --- | --- | --- |
+| `PORT` | `3000` | Port der Weboberfläche |
+| `HOST` | `0.0.0.0` | Bind-Adresse; `127.0.0.1` = nur lokal |
+| `DATA_DIR` | `./data` | Speicherort der SQLite-Datenbank |
+| `SESSION_SECRET` | *(automatisch)* | Signatur der Anmeldesitzungen |
+| `TMDB_API_KEY` | – | Dein TMDB-Schlüssel; auch im UI setzbar |
+| `STREAMO_REGION` | `DE` | Land, für das die Verfügbarkeit gilt |
+| `STREAMO_LANGUAGE` | `de-DE` | Sprache von Titeln und Beschreibungen |
+| `SYNC_INTERVAL_HOURS` | `12` | Takt des Hintergrundabgleichs; `0` = aus |
+| `ALLOW_REGISTRATION` | `false` | Dürfen sich weitere Personen registrieren? |
+| `TRUST_PROXY` | `false` | `true`, wenn ein HTTPS-Proxy davorsteht |
+
+Nach Änderungen: `systemctl restart streamo`
+
+---
+
+## Aufbau des Projekts
+
+```
+Streamo/
+├── src/                    Server (Node.js + Express)
+│   ├── server.js           Einstiegspunkt, Middleware, Routen einhängen
+│   ├── config.js           Konfiguration aus .env
+│   ├── db.js               SQLite-Schema und Zugriffs-Helfer
+│   ├── auth.js             Passwörter (scrypt), Sessions, Zugriffsschutz
+│   ├── tmdb.js             TMDB-Client inkl. Verfügbarkeitsdaten
+│   ├── store.js            Brücke zwischen TMDB und Datenbank
+│   ├── sync.js             Hintergrundabgleich
+│   └── routes/             Die API, ein Modul je Bereich
+├── public/                 Frontend – reine ES-Module, kein Build nötig
+│   ├── index.html
+│   ├── css/styles.css
+│   └── js/
+│       ├── api.js          Der einzige Weg zum Server
+│       ├── ui.js           Bausteine (Poster-Kachel, Toasts, Formatierer)
+│       ├── router.js       Routing über die Adressleiste
+│       ├── app.js          Einstiegspunkt, globaler Zustand
+│       └── views/          Eine Datei je Ansicht
+├── scripts/
+│   ├── streamo.sh          Proxmox-Installer (LXC anlegen)
+│   └── install/            Installation im Container
+└── docs/QUICKSTART.md      Ausführliche Anleitung
+```
+
+Der gesamte Code ist durchgehend auf Deutsch kommentiert – jede Verknüpfung zwischen Tabellen, Endpunkten und Ansichten ist an Ort und Stelle erklärt.
+
+### Technische Entscheidungen
+
+- **Genau eine npm-Abhängigkeit** (`express`). Passwort-Hashing, Sessions, `.env`-Parsing und der Cookie-Umgang sind mit Bordmitteln von Node gelöst. Das hält die Installation schnell und die Angriffsfläche klein.
+- **SQLite über `node:sqlite`** – seit Node 22.5 eingebaut. Keine native Kompilierung, kein Datenbankserver. Die gesamte Installation ist eine Datei plus ein Verzeichnis.
+- **Kein Frontend-Build.** Die Oberfläche besteht aus nativen ES-Modulen. Kein Webpack, kein `npm run build`, kein Bundle – Dateien kopieren genügt.
+- **Alle Filter stehen in der URL.** Jede Ansicht der Bibliothek ist verlinkbar, der Zurück-Knopf funktioniert.
+
+---
+
+## Datensicherung
+
+Alles Wichtige liegt in einem Verzeichnis:
+
+```bash
+# Sicherung
+cp -r /opt/streamo/data ~/streamo-backup
+
+# In der Oberfläche: Einstellungen → Daten → Bibliothek exportieren
+# ergibt eine JSON-Datei mit Bibliothek, Abos und Fortschritt.
+```
+
+Der Container lässt sich natürlich auch klassisch über die Proxmox-Sicherung (vzdump) sichern.
+
+---
+
+## Aktualisieren
+
+Im Container:
+
+```bash
+streamo-update
+```
+
+Das Skript legt vorher eine Sicherung der Datenbank an, holt die neue Version, installiert Abhängigkeiten und startet den Dienst neu. Deine Daten und deine `.env` bleiben unberührt.
+
+Vom Proxmox-Host aus:
+
+```bash
+pct exec <CTID> -- streamo-update
+```
+
+---
+
+## Fehlersuche
+
+**Die Oberfläche ist nicht erreichbar**
+
+```bash
+pct exec <CTID> -- systemctl status streamo
+pct exec <CTID> -- journalctl -u streamo -n 50
+```
+
+**Suche liefert nichts / Anbieterliste ist leer**
+Meistens fehlt der TMDB-API-Key oder er ist falsch. *Einstellungen → TMDB-Zugang → Schlüssel testen* sagt dir, woran es liegt.
+
+**Es werden die falschen Anbieter angezeigt**
+Prüfe deine Region unter *Einstellungen → Konto*. Sie entscheidet, welcher Länder-Katalog und welche Verfügbarkeiten gelten.
+
+**Verfügbarkeit wirkt veraltet**
+*Einstellungen → Abgleich → Verfügbarkeit abgleichen* stößt den Lauf sofort an. Auf der Detailseite gibt es dafür den Knopf *Aktualisieren*.
+
+---
+
+## Hinweise
+
+Dieses Produkt verwendet die TMDB-API, ist aber weder von TMDB unterstützt noch zertifiziert. Die Streaming-Verfügbarkeit stammt von JustWatch.
+
+Streamo speichert keine Zugangsdaten fremder Dienste und stellt keine Inhalte bereit – es zeigt lediglich, wo Inhalte legal verfügbar sind.
+
+## Lizenz
+
+MIT – siehe [LICENSE](LICENSE).
