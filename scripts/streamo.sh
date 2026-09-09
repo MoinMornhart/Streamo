@@ -509,7 +509,52 @@ install_app() {
 # ===========================================================================
 # Abschluss
 # ===========================================================================
+# ---------------------------------------------------------------------------
+# install_host_helper – der Befehl "streamo" auf dem Proxmox-Host
+# ---------------------------------------------------------------------------
+# Ohne ihn muss man jedes Mal "pct exec <CTID> -- …" tippen und dabei die
+# Container-ID im Kopf behalten. Der Helfer merkt sich die ID und reicht
+# alles durch, sodass auf dem Host dieselben Befehle gelten wie im Container:
+#
+#   streamo update
+#   streamo info
+#   streamo domain streamo.example.de
+#
+# Er wird bei jeder Installation neu geschrieben und zeigt dann auf den
+# zuletzt angelegten Container.
+# ---------------------------------------------------------------------------
+install_host_helper() {
+  cat >/usr/local/bin/streamo <<HELPER
+#!/usr/bin/env bash
+# Reicht Befehle an den Streamo-Container durch.
+# Erzeugt von scripts/streamo.sh – zeigt auf Container ${CTID}.
+set -euo pipefail
+
+CTID=${CTID}
+
+# Läuft der Container überhaupt? Sonst kommt nur eine kryptische pct-Meldung.
+if [[ "\$(pct status "\$CTID" 2>/dev/null)" != "status: running" ]]; then
+  echo "Der Streamo-Container \$CTID läuft nicht."
+  echo "Starten mit: pct start \$CTID"
+  exit 1
+fi
+
+# "streamo update" auf das eigenständige update-Skript im Container abbilden,
+# alles andere an dessen streamo-Befehl weiterreichen.
+if [[ "\${1:-}" == "update" ]]; then
+  shift
+  exec pct exec "\$CTID" -- /usr/local/bin/update "\$@"
+fi
+
+exec pct exec "\$CTID" -- /usr/local/bin/streamo "\$@"
+HELPER
+
+  chmod +x /usr/local/bin/streamo
+}
+
 finish() {
+  install_host_helper
+
   # IP-Adresse des Containers ermitteln. hostname -I liefert alle Adressen;
   # die erste ist die des Hauptinterfaces.
   local ip
