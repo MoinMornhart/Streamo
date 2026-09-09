@@ -271,6 +271,13 @@ export const api = {
     get: () => request('/api/settings'),
     update: (body) => request('/api/settings', { method: 'PUT', body }),
     updateGlobal: (body) => request('/api/settings/global', { method: 'PUT', body }),
+
+    // --- Benutzerverwaltung (nur Administratoren) ------------------------
+    /** Alle Konten dieser Instanz mit Rang und letzter Anmeldung. */
+    users: () => request('/api/settings/users'),
+    /** Adminrechte vergeben oder entziehen. */
+    setUserAdmin: (id, isAdmin) =>
+      request(`/api/settings/users/${id}`, { method: 'PUT', body: { isAdmin } }),
     testKey: (apiKey) =>
       request('/api/settings/test-key', { method: 'POST', body: { apiKey } }),
     startSync: (kind = 'availability') =>

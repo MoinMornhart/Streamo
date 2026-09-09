@@ -31,10 +31,21 @@
   --text-dim: #97a2b8; /* Nebeninformationen */
   --text-faint: #5f6b83; /* Sehr zurückhaltend, z. B. Platzhalter */
 
-  /* Akzent – das Violett aus dem Logo */
+  /* Halbdurchsichtige Kopfzeile. Als Variable, weil sie beim schwarzen
+     Grundton eine andere sein muss – siehe [data-base] weiter unten. */
+  --topbar-bg: rgba(19, 24, 34, 0.85);
+
+  /* Akzent – die Vorgabe ist das Violett aus dem Logo.
+     ACHTUNG: Diese drei Werte werden zur Laufzeit von public/js/theme.js
+     überschrieben, sobald jemand eine eigene Farbe gewählt hat. Sie stehen
+     hier als Ausgangspunkt und für den kurzen Moment, bevor das Thema
+     angewendet ist. --accent-soft und --accent-glow werden dort aus
+     --accent errechnet; wer hier etwas ändert, sollte alle drei anfassen. */
   --accent: #6c5ce7;
   --accent-soft: #8b7cf0;
   --accent-glow: rgba(108, 92, 231, 0.35);
+  /* Ein Hauch der Akzentfarbe, für zarte Verläufe hinter Karten. */
+  --accent-veil: rgba(108, 92, 231, 0.1);
 
   /* Signalfarben */
   --success: #2ecc8f; /* "in deinem Abo enthalten" */
@@ -50,6 +61,39 @@
 
   /* Schatten für schwebende Elemente */
   --shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+}
+
+/* ---------------------------------------------------------------------------
+   Grundton "schwarz"
+   ---------------------------------------------------------------------------
+   Gesetzt wird das Attribut von public/js/theme.js am <html>-Element. Es
+   überschreibt nur die Flächen – Akzentfarbe, Signalfarben und alle Maße
+   bleiben, wie sie sind.
+
+   Warum überhaupt ein zweiter Grundton? Das Dunkelblau oben ist angenehm,
+   aber es ist eben blau: Mit einer orangen oder roten Akzentfarbe stößt sich
+   das. Auf echtem Schwarz wirkt jede Akzentfarbe für sich, und auf einem
+   OLED-Bildschirm bleiben die Pixel dort tatsächlich aus.
+
+   Die Abstufungen sind absichtlich enger als beim Dunkelblau: Auf Schwarz
+   fällt schon ein kleiner Helligkeitsunterschied auf, größere Sprünge wirken
+   grau statt schwarz.
+   --------------------------------------------------------------------------- */
+:root[data-base='schwarz'] {
+  --bg: #000000;
+  --surface: #0d0d0f;
+  --surface-2: #17171a;
+  --surface-3: #26262b;
+
+  /* Etwas kühler entsättigt, weil der blaue Stich der Vorgabe hier fehlt. */
+  --text: #f0f0f2;
+  --text-dim: #9a9aa2;
+  --text-faint: #62626c;
+
+  --topbar-bg: rgba(0, 0, 0, 0.88);
+
+  /* Auf Schwarz darf der Schatten kräftiger sein, sonst sieht man ihn nicht. */
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.75);
 }
 
 /* ===========================================================================
@@ -154,7 +198,7 @@ img {
   align-items: center;
   gap: 20px;
   padding: 0 22px;
-  background: rgba(19, 24, 34, 0.85);
+  background: var(--topbar-bg);
   /* Weichzeichner hinter der Leiste – die Poster schimmern durch. */
   backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--surface-3);
@@ -178,7 +222,7 @@ img {
   width: 30px;
   height: 30px;
   border-radius: 9px;
-  background: linear-gradient(135deg, var(--accent), #a55eea);
+  background: linear-gradient(135deg, var(--accent), var(--accent-soft));
   display: grid;
   place-items: center;
   font-weight: 800;
@@ -254,7 +298,7 @@ img {
   height: 34px;
   border-radius: 50%;
   border: none;
-  background: linear-gradient(135deg, var(--accent), #a55eea);
+  background: linear-gradient(135deg, var(--accent), var(--accent-soft));
   color: #fff;
   font-weight: 700;
   cursor: pointer;
@@ -771,41 +815,73 @@ textarea {
 /* --- Die Pfeile --- */
 /* Sie liegen über dem Streifen, halb über der ersten bzw. letzten Kachel.
    library.js blendet sie aus, sobald es in dieser Richtung nichts mehr gibt. */
+/* Deutlich sichtbar: In der ersten Fassung waren die Pfeile so dezent, dass
+   man sie vor den Postern kaum fand. Jetzt in der Akzentfarbe, größer, mit
+   kräftigem Schatten und einem hellen Ring, der sie auch vor einem hellen
+   Poster abhebt. */
 .reel-arrow {
   position: absolute;
   top: 33%; /* auf Höhe des Posters, nicht des Titels darunter */
   z-index: 3;
 
-  width: 34px;
-  height: 34px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
-  border: 1px solid var(--surface-3);
-  background: var(--surface-1);
-  color: var(--text);
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  background: var(--accent);
+  color: #fff;
 
-  font-size: 20px;
+  font-size: 26px;
+  font-weight: 700;
   line-height: 1;
+  /* Das Zeichen sitzt in seiner Zeile etwas zu tief – so steht es mittig. */
+  padding-bottom: 3px;
   cursor: pointer;
 
   display: flex;
   align-items: center;
   justify-content: center;
 
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
-  transition: background 0.15s, transform 0.15s;
+  /* Zwei Schatten: ein dunkler zum Abheben vom Poster darunter und ein
+     farbiger Schein, der den Pfeil als Bedienelement kenntlich macht. */
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.6),
+    0 0 0 4px var(--accent-glow);
+
+  transition: transform 0.15s, box-shadow 0.15s;
 }
 
 .reel-arrow:hover {
-  background: var(--accent);
-  transform: scale(1.08);
+  transform: scale(1.12);
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.7),
+    0 0 0 7px var(--accent-glow);
 }
 
+/* Weiter außen als vorher, damit sie nicht auf dem Poster kleben. */
 .reel-arrow.prev {
-  left: -12px;
+  left: -16px;
 }
 
 .reel-arrow.next {
-  right: -12px;
+  right: -16px;
+}
+
+/* Auf dem Handy rücken sie nach innen – außerhalb wäre kein Platz. */
+@media (max-width: 720px) {
+  .reel-arrow {
+    width: 36px;
+    height: 36px;
+    font-size: 22px;
+  }
+
+  .reel-arrow.prev {
+    left: -4px;
+  }
+
+  .reel-arrow.next {
+    right: -4px;
+  }
 }
 
 /* Eine Zeile mit Schalter links und Erklärung rechts.
@@ -827,6 +903,115 @@ textarea {
   margin-top: 2px; /* auf Höhe der ersten Textzeile */
   accent-color: var(--accent);
   cursor: pointer;
+}
+
+/* ==========================================================================
+   Farbauswahl
+   ==========================================================================
+   Gebaut in public/js/views/settings.js, angewendet von public/js/theme.js. */
+
+.swatches {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Ein Farbkästchen. Die Farbe selbst setzt das JavaScript als Hintergrund –
+   deshalb steht hier keine. */
+.swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+
+  /* Der Abstand zwischen Rahmen und Farbe macht die Markierung sichtbar,
+     ohne dass das Kästchen springt. */
+  box-shadow: inset 0 0 0 2px var(--surface);
+  transition: transform 0.12s, border-color 0.12s;
+}
+
+.swatch:hover {
+  transform: scale(1.12);
+}
+
+/* Die gewählte Farbe bekommt einen Ring in der Textfarbe – der ist auf jedem
+   Grundton und neben jeder Farbe zu erkennen. */
+.swatch.active {
+  border-color: var(--text);
+  transform: scale(1.12);
+}
+
+/* Der freie Farbwähler. Browser stellen input[type=color] sehr
+   unterschiedlich dar; diese Regeln machen daraus überall ein rundes
+   Kästchen in derselben Größe wie die Vorgaben daneben. */
+input[type='color'] {
+  width: 34px;
+  height: 30px;
+  padding: 2px;
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   Benutzerliste (Einstellungen, nur Administratoren)
+   ========================================================================== */
+
+.user-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.user-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+
+  padding: 11px 0;
+  border-bottom: 1px solid var(--surface-3);
+}
+
+.user-row:last-child {
+  border-bottom: none;
+}
+
+/* Kleine Kennzeichnungen neben dem Namen: Admin, du, angemeldet. */
+.badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--surface-3);
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-accent {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.badge-online {
+  color: var(--success);
+  border-color: rgba(46, 204, 143, 0.4);
+}
+
+/* Auf schmalen Bildschirmen untereinander statt nebeneinander – sonst wird
+   der Name auf zwei Zeichen zusammengequetscht. */
+@media (max-width: 560px) {
+  .user-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
 }
 
 /* ==========================================================================
@@ -921,7 +1106,7 @@ textarea {
 .share-box {
   width: 100%;
   max-width: 420px;
-  background: var(--surface-1);
+  background: var(--surface);
   border: 1px solid var(--surface-3);
   border-radius: 16px;
   padding: 24px;
@@ -1389,7 +1574,7 @@ textarea {
 .bar-fill {
   height: 100%;
   border-radius: 6px;
-  background: linear-gradient(90deg, var(--accent), #a55eea);
+  background: linear-gradient(90deg, var(--accent), var(--accent-soft));
   min-width: 2px;
 }
 .bar-value {
@@ -1432,8 +1617,8 @@ textarea {
    soll auf einen Blick erkennbar sein, auch ohne den Text zu lesen. */
 .achievement.unlocked {
   opacity: 1;
-  border-color: rgba(108, 92, 231, 0.55);
-  background: linear-gradient(135deg, rgba(108, 92, 231, 0.1), var(--surface) 60%);
+  border-color: var(--accent-glow);
+  background: linear-gradient(135deg, var(--accent-veil), var(--surface) 60%);
 }
 
 .achievement-icon {
@@ -1449,7 +1634,7 @@ textarea {
 }
 
 .achievement.unlocked .achievement-icon {
-  background: rgba(108, 92, 231, 0.2);
+  background: var(--accent-glow);
 }
 
 .achievement-body {
@@ -1662,7 +1847,7 @@ footer p {
     right: 0;
     bottom: 0;
     z-index: 60;
-    background: rgba(19, 24, 34, 0.96);
+    background: var(--topbar-bg);
     backdrop-filter: blur(14px);
     border-top: 1px solid var(--surface-3);
     /* Platz für die Streichleiste am unteren Rand. */

@@ -304,6 +304,10 @@ export function getUserBySession(token) {
     // hätte es keine E-Mail-Adresse – auch auf der Einstellungsseite.
     `SELECT u.id, u.username, u.email, u.display_name, u.is_admin,
             u.region, u.language,
+            -- Das eigene Farbschema als JSON. Es reist mit dem Anmeldezustand
+            -- mit, damit ein frisch geöffneter Browser sofort die richtige
+            -- Farbe zeigt und nicht erst violett aufblitzt.
+            u.theme,
             u.created_at, u.last_login_at
        FROM sessions s
        JOIN users u ON u.id = s.user_id

@@ -41,6 +41,9 @@ const {
   globalShortcut,
   dialog,
   nativeImage,
+  // Zugriff auf den Zwischenspeicher - beim Start wird er geleert, damit die
+  // Oberflaeche nach einem Server-Update sicher die neue ist.
+  session,
 } = require('electron');
 
 const path = require('node:path');
@@ -873,13 +876,39 @@ app.on('certificate-error', (event, webContents, url, error, certificate, callba
 // Start und Ende
 // ==========================================================================
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   loadSettings();
 
   // Unter Windows sorgt die App-ID dafür, dass Benachrichtigungen den
   // richtigen Absender zeigen und nicht "electron.app.Electron".
   if (process.platform === 'win32') {
     app.setAppUserModelId('de.mornhart.streamo');
+  }
+
+  // ------------------------------------------------------------------------
+  // Bei jedem Start mit frischen Dateien beginnen
+  // ------------------------------------------------------------------------
+  // Die App zeigt die Oberfläche vom Server an, und Chromium hebt deren
+  // Dateien auf – JavaScript, Stylesheet, Bilder. Nach einem Update des
+  // Servers lief die App deshalb unter Umständen tagelang mit der alten
+  // Oberfläche weiter, obwohl der Server längst eine neue auslieferte. Von
+  // außen sieht das aus, als wäre das Update nicht angekommen.
+  //
+  // Der Server hängt an seine Skript-Adressen zwar eine Versionsnummer
+  // (siehe ASSET_VERSION in src/server.js), aber index.html selbst hat keine –
+  // und genau die entscheidet, welche Versionen geladen werden.
+  //
+  // Einmal beim Start den Zwischenspeicher zu leeren kostet ein paar hundert
+  // Kilobyte Nachladen und beseitigt die ganze Fehlerklasse. Angemeldet
+  // bleibt man dabei: Das Sitzungs-Cookie liegt nicht im Zwischenspeicher,
+  // sondern im Cookie-Speicher, und der wird hier nicht angefasst.
+  try {
+    await session.defaultSession.clearCache();
+    console.log('[start] Zwischenspeicher geleert – die Oberfläche wird frisch geladen.');
+  } catch (error) {
+    // Kein Grund, deswegen nicht zu starten. Dann ist die Oberfläche eben
+    // möglicherweise einen Stand alt.
+    console.error('[start] Zwischenspeicher nicht leerbar:', error?.message ?? error);
   }
 
   createWindow();

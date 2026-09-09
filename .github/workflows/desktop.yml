@@ -179,3 +179,40 @@ jobs:
             ```
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ---------------------------------------------------------------------
+      # Ältere Veröffentlichungen wegräumen
+      # ---------------------------------------------------------------------
+      # Auf der Download-Seite soll genau eine Version stehen: die neueste.
+      # Sonst lädt jemand versehentlich eine alte herunter, und jede Version
+      # belegt gut 110 MB.
+      #
+      # Für die Selbstaktualisierung ist das ohne Belang: electron-updater
+      # liest immer die latest.yml der NEUESTEN Veröffentlichung, nie eine
+      # ältere. Wer auf einem alten Stand ist, kommt trotzdem direkt auf den
+      # neuen.
+      #
+      # Die Tags bleiben stehen – sie kosten nichts und halten die Geschichte
+      # nachvollziehbar. Entfernt werden nur die Veröffentlichungen samt der
+      # Installer daran.
+      - name: Ältere Veröffentlichungen entfernen
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          aktuell="${GITHUB_REF_NAME}"
+          echo "Behalten wird: $aktuell"
+
+          # --limit großzügig, damit auch bei vielen Ständen alles erfasst wird.
+          gh release list --limit 100 --json tagName --jq '.[].tagName' > alle.txt || true
+
+          while read -r tag; do
+            [ -z "$tag" ] && continue
+            [ "$tag" = "$aktuell" ] && continue
+
+            echo "Entferne Veröffentlichung $tag (Tag bleibt bestehen)"
+            gh release delete "$tag" --yes || echo "  konnte $tag nicht entfernen"
+          done < alle.txt

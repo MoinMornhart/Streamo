@@ -759,6 +759,31 @@ const MIGRATIONS = [
         ON totp_backup_codes(user_id, code_hash);
     `);
   },
+
+  // -------------------------------------------------------------------------
+  // Version 9 -> Eigenes Farbschema je Konto
+  // -------------------------------------------------------------------------
+  // Streamo war violett, weil sich irgendjemand einmal für Violett entscheiden
+  // musste. Warum sollte das für alle gelten? Jede Person wählt jetzt ihre
+  // eigene Akzentfarbe und einen Grundton (dunkelblau oder schwarz).
+  //
+  // Gespeichert wird das an zwei Stellen: im localStorage des Browsers, damit
+  // es beim nächsten Start sofort da ist und nichts violett aufblitzt – und
+  // hier am Konto, damit dieselbe Farbe auch am Telefon gilt.
+  //
+  // Als JSON in einer Spalte statt zwei einzelner Spalten: Es ist eine
+  // Anzeigeeinstellung, nach der nie gesucht oder sortiert wird, und
+  // wahrscheinlich kommt später noch etwas dazu.
+  //
+  // Verknüpfung: public/js/theme.js liest und schreibt das Format,
+  // src/routes/settings.js reicht es durch.
+  () => {
+    const columns = db.prepare('PRAGMA table_info(users)').all();
+
+    if (!columns.some((column) => column.name === 'theme')) {
+      db.exec('ALTER TABLE users ADD COLUMN theme TEXT');
+    }
+  },
 ];
 
 /**

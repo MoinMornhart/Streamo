@@ -213,6 +213,18 @@ case "\${1:-help}" in
     su "\$RUN_USER" -s /bin/bash -c "cd '\$APP_DIR' && node scripts/make-admin.mjs \$*"
     ;;
 
+  registration)
+    # Offene Registrierung ein- und ausschalten.
+    #
+    # In der Oberflaeche gibt es dafuer einen Schalter - aber nur in der Karte
+    # "Freunde einladen", und die sehen ausschliesslich Administratoren. Wer
+    # selbst keiner ist, kommt also nicht heran und wird auch keiner, ohne auf
+    # den Server zu gehen. Dieser Befehl loest das Henne-Ei-Problem.
+    shift
+    cd "\$APP_DIR" || exit 1
+    su "\$RUN_USER" -s /bin/bash -c "cd '\$APP_DIR' && node scripts/registration.mjs \$*"
+    ;;
+
   backup)
     # Sichert Datenbank und Konfiguration in ein Archiv.
     target="/root/streamo-backup-\$(date +%Y%m%d-%H%M%S).tar.gz"
@@ -246,6 +258,7 @@ case "\${1:-help}" in
     echo -e "  \${GN}streamo config\${CL}    Konfiguration bearbeiten"
     echo -e "  \${GN}streamo domain\${CL} <d> Domain eintragen (nötig für Passkeys)"
     echo -e "  \${GN}streamo admin\${CL} <n>  Adminrechte vergeben (ohne Namen: Liste)"
+    echo -e "  \${GN}streamo registration\${CL} offen|zu  Konto ohne Einladung erlauben"
     echo -e "  \${GN}streamo backup\${CL}    Datenbank sichern"
     echo -e "  \${GN}streamo info\${CL}      Version und Adresse anzeigen"
     echo ""

@@ -49,6 +49,54 @@
     />
 
     <link rel="stylesheet" href="/css/styles.css" />
+
+    <!-- =====================================================================
+         Das gewählte Farbschema anwenden, BEVOR etwas gezeichnet wird.
+
+         Warum hier und nicht in app.js? app.js ist ein Modul und läuft
+         deshalb erst nach dem Aufbau des Dokuments. Wer Orange eingestellt
+         hat, sähe die Seite für einen Sekundenbruchteil violett aufblitzen
+         und dann umspringen. Dieses kleine Stück läuft noch im <head>, also
+         vor dem ersten Bild.
+
+         Es ist bewusst eine verkleinerte Fassung von public/js/theme.js –
+         nur das Nötigste, ohne Import. Die vollständige Logik samt Auswahl
+         und Speichern steht dort.
+         ===================================================================== -->
+    <script>
+      (function () {
+        try {
+          var theme = JSON.parse(localStorage.getItem('streamo.theme') || '{}');
+
+          // Grundton: alles außer "schwarz" bedeutet die Vorgabe.
+          if (theme.base === 'schwarz') {
+            document.documentElement.setAttribute('data-base', 'schwarz');
+          }
+
+          // Akzentfarbe nur übernehmen, wenn sie plausibel ist – ein kaputter
+          // Wert würde halbe Bedienelemente unsichtbar machen.
+          if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(theme.accent || '')) {
+            var hex = theme.accent.replace('#', '');
+            if (hex.length === 3) hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+
+            var r = parseInt(hex.slice(0, 2), 16);
+            var g = parseInt(hex.slice(2, 4), 16);
+            var b = parseInt(hex.slice(4, 6), 16);
+            var soft = function (v) {
+              return Math.round(v + (255 - v) * 0.32);
+            };
+
+            var root = document.documentElement.style;
+            root.setProperty('--accent', theme.accent);
+            root.setProperty('--accent-soft', 'rgb(' + soft(r) + ',' + soft(g) + ',' + soft(b) + ')');
+            root.setProperty('--accent-glow', 'rgba(' + r + ',' + g + ',' + b + ',0.35)');
+            root.setProperty('--accent-veil', 'rgba(' + r + ',' + g + ',' + b + ',0.1)');
+          }
+        } catch (error) {
+          /* Kein gemerktes Thema, blockierte Website-Daten – dann die Vorgabe. */
+        }
+      })();
+    </script>
   </head>
 
   <body>

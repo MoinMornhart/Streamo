@@ -21,6 +21,15 @@ import { api } from '../api.js';
 import { el, render, toast, timeAgo, errorBox, formatDate, copyToClipboard } from '../ui.js';
 import { refreshStatus } from '../app.js';
 import { isSupported, hasPlatformAuthenticator, createPasskey } from '../passkey.js';
+// Farbschema: anwenden, merken, auswaehlen. Siehe public/js/theme.js.
+import {
+  ACCENT_PRESETS,
+  BASE_PRESETS,
+  DEFAULT_THEME,
+  applyTheme,
+  loadTheme,
+  saveTheme,
+} from '../theme.js';
 
 /** Dieselben Listen wie im Einrichtungsassistenten (views/auth.js). */
 const REGIONS = [
@@ -350,6 +359,122 @@ export async function render_(container) {
   );
 
   // ========================================================================
+  // 1a. Aussehen
+  // ========================================================================
+  // Streamo war violett, weil sich irgendjemand einmal für Violett
+  // entscheiden musste. Hier wählt jede Person ihre eigene Farbe – die
+  // Einstellung gilt nur für ihr Konto, nicht für die ganze Instanz.
+  //
+  // Angewendet wird sie sofort und ohne Neuladen: Das ganze Stylesheet hängt
+  // an CSS-Variablen, ein Thema ist deshalb nur das Überschreiben einiger
+  // dieser Variablen am <html>-Element (siehe public/js/theme.js).
+  let theme = loadTheme();
+
+  /** Die Kästchen zur Farbauswahl, damit sich ihre Markierung setzen lässt. */
+  const swatches = [];
+
+  /**
+   * Übernimmt eine Änderung: sofort anwenden, im Browser merken, am Konto
+   * speichern.
+   *
+   * Zwei Ablagen mit Absicht – der Browser weiß es beim nächsten Start sofort
+   * (ohne violettes Aufblitzen), das Konto trägt es auf andere Geräte.
+   *
+   * @param {object} changes z. B. { accent: '#f39c12' }
+   */
+  const setTheme = async (changes) => {
+    theme = applyTheme({ ...theme, ...changes });
+    saveTheme(theme);
+
+    // Markierung nachziehen.
+    for (const { node, value } of swatches) {
+      node.classList.toggle('active', value === theme.accent);
+    }
+    for (const button of baseButtons) {
+      button.classList.toggle('active', button.dataset.base === theme.base);
+    }
+
+    colorInput.value = theme.accent;
+
+    try {
+      await api.settings.update({ theme });
+    } catch {
+      // Das Speichern am Konto ist die Kür. Klappt es nicht, gilt die Farbe
+      // trotzdem – sie steht ja schon im Browser. Eine Fehlermeldung wäre
+      // hier lauter, als der Ausfall es verdient.
+    }
+  };
+
+  // --- Die vorgegebenen Farben ---
+  const swatchRow = el(
+    'div.swatches',
+    {},
+    ACCENT_PRESETS.map(([value, name]) => {
+      const node = el('button.swatch' + (value === theme.accent ? '.active' : ''), {
+        type: 'button',
+        title: name,
+        'aria-label': name,
+        style: { background: value },
+        onClick: () => setTheme({ accent: value }),
+      });
+
+      swatches.push({ node, value });
+      return node;
+    }),
+  );
+
+  // --- Der freie Farbwähler ---
+  // Für alle, denen acht Vorgaben nicht reichen. "input" statt "change",
+  // damit man die Farbe schon beim Ziehen wirken sieht.
+  const colorInput = el('input', {
+    type: 'color',
+    value: theme.accent,
+    title: 'Eigene Farbe wählen',
+    onInput: (event) => setTheme({ accent: event.target.value }),
+  });
+
+  // --- Der Grundton ---
+  const baseButtons = BASE_PRESETS.map(([value, name]) =>
+    el('button.chip' + (value === theme.base ? '.active' : ''), {
+      type: 'button',
+      text: name,
+      'data-base': value,
+      onClick: () => setTheme({ base: value }),
+    }),
+  );
+
+  const appearanceCard = el('div.card', { style: { marginBottom: '20px' } }, [
+    el('h2', { text: 'Aussehen' }),
+    el('p.muted.small', {
+      text: 'Gilt nur für dein Konto. Die Änderung ist sofort zu sehen – Speichern ist nicht nötig.',
+    }),
+
+    el('div.field', {}, [
+      el('label', { text: 'Akzentfarbe' }),
+      el('div', { style: { display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' } }, [
+        swatchRow,
+        el('div', { style: { display: 'flex', alignItems: 'center', gap: '7px' } }, [
+          colorInput,
+          el('span.hint', { text: 'eigene' }),
+        ]),
+      ]),
+    ]),
+
+    el('div.field', {}, [
+      el('label', { text: 'Grundton' }),
+      el('div', { style: { display: 'flex', gap: '7px', flexWrap: 'wrap' } }, baseButtons),
+      el('div.hint', {
+        text: 'Schwarz passt besser zu kräftigen Akzentfarben – und auf einem OLED-Bildschirm bleiben die Pixel dort tatsächlich aus.',
+      }),
+    ]),
+
+    el('button.btn.btn-sm.btn-ghost', {
+      text: 'Zurücksetzen',
+      onClick: () => setTheme(DEFAULT_THEME),
+    }),
+  ]);
+
+  // ========================================================================
   // 1c. Zwei-Faktor-Anmeldung
   // ========================================================================
   // Ein Passwort kann gestohlen werden, ohne dass man es merkt. Der zweite
@@ -619,6 +744,124 @@ export async function render_(container) {
   drawTwoFactor().catch(() =>
     render(twoFactorBody, el('p.muted', { text: 'Zustand konnte nicht geladen werden.' })),
   );
+
+  // ========================================================================
+  // 1d. Benutzer (nur Administratoren)
+  // ========================================================================
+  // Bis hierher gab es keine Übersicht darüber, wer auf dieser Instanz
+  // überhaupt ein Konto hat. Wer eine Einladung verschickt, will aber sehen,
+  // ob sie angekommen ist – und Adminrechte ließen sich nur über die Konsole
+  // vergeben (streamo admin <name>).
+  const userList = el('div');
+
+  const usersCard =
+    data.user.isAdmin &&
+    el('div.card', { style: { marginBottom: '20px' } }, [
+      el('h2', { text: 'Benutzer' }),
+      el('p.muted.small', {
+        text: 'Wer hat hier ein Konto, wann war er zuletzt da – und wer darf verwalten.',
+      }),
+      userList,
+    ]);
+
+  /**
+   * Zeichnet die Benutzerliste neu.
+   * Nach jeder Änderung erneut aufgerufen, damit die Anzeige stimmt.
+   */
+  const drawUsers = async () => {
+    let result;
+
+    try {
+      result = await api.settings.users();
+    } catch (error) {
+      render(userList, errorBox(error.message));
+      return;
+    }
+
+    render(
+      userList,
+      el(
+        'div.user-list',
+        {},
+        result.users.map((user) => {
+          const name = user.displayName && user.displayName !== user.username
+            ? `${user.displayName} (${user.username})`
+            : user.username;
+
+          return el('div.user-row', {}, [
+            // --- Wer ---
+            el('div', { style: { minWidth: 0 } }, [
+              el('div', { style: { display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap' } }, [
+                el('strong', { text: name }),
+                user.isAdmin && el('span.badge.badge-accent', { text: 'Admin' }),
+                user.isSelf && el('span.badge', { text: 'du' }),
+                // Ein eingeschalteter zweiter Faktor ist eine gute Nachricht
+                // und darf sichtbar sein – das Geheimnis natürlich nicht.
+                user.twoFactor && el('span.badge', { title: 'Zwei-Faktor-Anmeldung aktiv', text: '🔐' }),
+                user.activeSessions > 0 &&
+                  el('span.badge.badge-online', {
+                    title: `${user.activeSessions} aktive Anmeldung${user.activeSessions === 1 ? '' : 'en'}`,
+                    text: '● angemeldet',
+                  }),
+              ]),
+
+              el('div.muted.small', {
+                text: [
+                  user.lastLoginAt
+                    ? `zuletzt da ${timeAgo(user.lastLoginAt)}`
+                    : 'war noch nie angemeldet',
+                  `dabei seit ${formatDate(user.createdAt.slice(0, 10))}`,
+                  `${user.libraryCount} ${user.libraryCount === 1 ? 'Titel' : 'Titel'} in der Bibliothek`,
+                ].join(' · '),
+              }),
+            ]),
+
+            // --- Adminrechte ---
+            // Das eigene Konto lässt sich nicht umschalten: Der Schalter wäre
+            // sofort weg und man käme nur noch über die Konsole zurück. Der
+            // Server lehnt das ebenfalls ab, das hier ist nur die freundliche
+            // Variante davon.
+            el('label.toggle-row', { style: { flex: '0 0 auto' } }, [
+              el('input', {
+                type: 'checkbox',
+                checked: user.isAdmin,
+                disabled: user.isSelf,
+                title: user.isSelf
+                  ? 'Die eigenen Rechte kann man sich nicht selbst nehmen.'
+                  : 'Adminrechte vergeben oder entziehen',
+                onChange: async (event) => {
+                  const makeAdmin = event.currentTarget.checked;
+
+                  try {
+                    await api.settings.setUserAdmin(user.id, makeAdmin);
+                    toast(
+                      makeAdmin
+                        ? `${user.username} ist jetzt Administrator.`
+                        : `${user.username} ist jetzt ein gewöhnlicher Benutzer.`,
+                      'success',
+                    );
+                    drawUsers();
+                  } catch (error) {
+                    // Zurückspringen, sonst zeigt der Schalter etwas an, das
+                    // nicht gespeichert wurde.
+                    event.currentTarget.checked = !makeAdmin;
+                    toast(error.message, 'error');
+                  }
+                },
+              }),
+              el('span.small', { text: 'Admin' }),
+            ]),
+          ]);
+        }),
+      ),
+    );
+  };
+
+  if (data.user.isAdmin) {
+    drawUsers().catch(() =>
+      render(userList, el('p.muted', { text: 'Benutzer konnten nicht geladen werden.' })),
+    );
+  }
 
   // ========================================================================
   // 2. Passwort
@@ -1061,7 +1304,9 @@ export async function render_(container) {
     container,
     el('h1', { text: 'Einstellungen' }),
     accountCard,
+    appearanceCard,
     inviteCard,
+    usersCard,
     passkeyCard,
     // Direkt hinter den Passkeys: Beide beantworten dieselbe Frage – wie
     // komme ich sicher in mein Konto.

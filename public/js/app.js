@@ -22,6 +22,9 @@
 import { api } from './api.js';
 import { render, viewRoot, loading, toast, banner, el } from './ui.js';
 import { route, startRouter, navigateTo, resolve } from './router.js';
+// Farbschema: Das im Browser gemerkte wendet bereits index.html an, hier
+// kommt das am Konto hinterlegte hinterher.
+import { applyTheme, saveTheme } from './theme.js';
 
 /**
  * Der gemeinsame Zustand.
@@ -100,6 +103,22 @@ export async function refreshStatus() {
   state.version = status.version;
   state.region = status.user?.region || status.defaults.region;
   state.allowRegistration = Boolean(status.allowRegistration);
+
+  // Das am Konto hinterlegte Farbschema anwenden – so gilt dieselbe Farbe
+  // auch in einem Browser, in dem sie noch nie eingestellt wurde.
+  //
+  // Das kleine Stück Code im <head> von index.html hat vorher schon das
+  // gemerkte Thema aus dem localStorage angewendet, damit nichts aufblitzt.
+  // Hier kommt es nur noch vom Server hinterher.
+  if (status.user?.theme) {
+    try {
+      const theme = JSON.parse(status.user.theme);
+      applyTheme(theme);
+      saveTheme(theme);
+    } catch {
+      /* Unbrauchbarer Eintrag – dann bleibt es beim gemerkten Thema. */
+    }
+  }
 
   updateChrome();
   return status;

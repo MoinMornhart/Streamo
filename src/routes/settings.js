@@ -24,7 +24,7 @@
 
 import express from 'express';
 import config from '../config.js';
-import { all, run, getSetting, setSetting } from '../db.js';
+import { all, get, run, getSetting, setSetting } from '../db.js';
 import {
   requireAuth,
   requireAdmin,
@@ -125,6 +125,30 @@ router.put('/', (req, res) => {
   if (req.body?.displayName !== undefined) {
     updates.push('display_name = ?');
     params.push(String(req.body.displayName).trim().slice(0, 60));
+  }
+
+  // Das Farbschema. Es gilt nur für dieses eine Konto – am Telefon soll
+  // dieselbe Farbe erscheinen wie am Rechner, aber nicht bei allen anderen.
+  //
+  // Der Server prüft die Werte, statt sie blind zu übernehmen: Das Frontend
+  // schreibt sie zwar sauber, aber der Endpunkt ist offen und eine unsinnige
+  // Farbe würde beim nächsten Laden halbe Bedienelemente unsichtbar machen.
+  if (req.body?.theme !== undefined) {
+    const theme = req.body.theme ?? {};
+
+    const accent = String(theme.accent ?? '');
+    const base = String(theme.base ?? '');
+
+    if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(accent)) {
+      return res.status(400).json({ error: 'Die Akzentfarbe muss eine Farbe wie "#f39c12" sein.' });
+    }
+
+    if (!['nacht', 'schwarz'].includes(base)) {
+      return res.status(400).json({ error: 'Unbekannter Grundton.' });
+    }
+
+    updates.push('theme = ?');
+    params.push(JSON.stringify({ accent: accent.toLowerCase(), base }));
   }
 
   if (updates.length === 0) {
@@ -256,6 +280,103 @@ router.delete('/sessions', (req, res) => {
   setSessionCookie(res, token);
 
   res.json({ ok: true });
+});
+
+// ==========================================================================
+// Benutzerverwaltung (nur Administratoren)
+// ==========================================================================
+// Bis hierher gab es keine Übersicht darüber, wer auf einer Instanz überhaupt
+// ein Konto hat. Wer eine Einladung verschickt, will aber sehen, ob sie
+// angekommen ist – und Adminrechte ließen sich nur über die Konsole vergeben
+// (scripts/make-admin.mjs).
+
+/**
+ * GET /api/settings/users
+ *
+ * Alle Konten dieser Instanz mit ihrem Rang und der letzten Anmeldung.
+ *
+ * Bewusst sparsam: Es kommen keine Passwort-Hashes, keine TOTP-Geheimnisse
+ * und keine E-Mail-Adressen. Wer hier Konten verwaltet, muss wissen, WER da
+ * ist – nicht, was diese Person sieht oder womit sie sich anmeldet.
+ */
+router.get('/users', requireAdmin, (req, res) => {
+  const users = all(
+    `SELECT u.id, u.username, u.display_name, u.is_admin,
+            u.created_at, u.last_login_at,
+            -- Wie viele Titel stehen in der Bibliothek? Daran erkennt man,
+            -- ob ein Konto tatsächlich benutzt wird oder nur existiert.
+            (SELECT COUNT(*) FROM library l WHERE l.user_id = u.id) AS library_count,
+            -- Ist gerade jemand angemeldet? Zählt die noch gültigen Sitzungen.
+            (SELECT COUNT(*) FROM sessions s
+              WHERE s.user_id = u.id AND s.expires_at > datetime('now')) AS active_sessions,
+            -- Zweiter Faktor eingeschaltet? Nur ja/nein, nie das Geheimnis.
+            u.totp_enabled
+       FROM users u
+      ORDER BY u.is_admin DESC, u.username COLLATE NOCASE`,
+  );
+
+  res.json({
+    users: users.map((user) => ({
+      id: user.id,
+      username: user.username,
+      displayName: user.display_name,
+      isAdmin: Boolean(user.is_admin),
+      createdAt: user.created_at,
+      lastLoginAt: user.last_login_at,
+      libraryCount: user.library_count,
+      activeSessions: user.active_sessions,
+      twoFactor: Boolean(user.totp_enabled),
+      // Damit die Oberfläche das eigene Konto kenntlich machen und den
+      // Schalter dafür sperren kann.
+      isSelf: user.id === req.user.id,
+    })),
+  });
+});
+
+/**
+ * PUT /api/settings/users/:id
+ * Body: { isAdmin: boolean }
+ *
+ * Vergibt oder entzieht Adminrechte.
+ *
+ * Zwei Sperren, die beide denselben Zweck haben – niemanden aussperren:
+ *
+ *   1. Man kann sich nicht selbst die Rechte nehmen. Sonst wäre der Schalter
+ *      dafür sofort weg und man käme nur noch über die Konsole zurück.
+ *   2. Der letzte Administrator bleibt einer. Ohne ihn könnte niemand mehr
+ *      den TMDB-Key ändern, Einladungen erzeugen oder den Abgleich starten.
+ *
+ * Denselben Schutz hat scripts/make-admin.mjs auf der Konsole.
+ */
+router.put('/users/:id', requireAdmin, (req, res) => {
+  const id = Number(req.params.id);
+  const makeAdmin = Boolean(req.body?.isAdmin);
+
+  const target = get('SELECT id, username, is_admin FROM users WHERE id = ?', id);
+
+  if (!target) {
+    return res.status(404).json({ error: 'Dieses Konto gibt es nicht.' });
+  }
+
+  if (target.id === req.user.id && !makeAdmin) {
+    return res.status(400).json({
+      error: 'Du kannst dir die Adminrechte nicht selbst nehmen. Lass das jemand anderen tun.',
+    });
+  }
+
+  if (!makeAdmin && target.is_admin) {
+    const admins = get('SELECT COUNT(*) AS count FROM users WHERE is_admin = 1').count;
+
+    if (admins <= 1) {
+      return res.status(400).json({
+        error: 'Das ist der einzige Administrator. Gib zuerst jemand anderem die Rechte.',
+      });
+    }
+  }
+
+  run('UPDATE users SET is_admin = ? WHERE id = ?', makeAdmin ? 1 : 0, target.id);
+
+  res.json({ ok: true, username: target.username, isAdmin: makeAdmin });
 });
 
 export default router;
