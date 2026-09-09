@@ -27,6 +27,8 @@ import {
   formatRuntime,
   errorBox,
   announceAchievements,
+  // Der Dialog zum Weiterschicken – WhatsApp, Telegram, E-Mail, Kopieren.
+  shareSheet,
 } from '../ui.js';
 import { navigateTo } from '../router.js';
 
@@ -426,31 +428,17 @@ async function renderDetail(container, id) {
     try {
       const { url } = await api.collections.share(coll.id);
 
+      const count = coll.items?.length ?? coll.itemCount ?? 0;
+
+      // Der Text, der in der Nachricht vor dem Link steht.
       const text =
         `Diese Liste solltest du dir ansehen: „${coll.name}"` +
-        (coll.items.length > 0 ? ` (${coll.items.length} Titel)` : '');
+        (count > 0 ? ` (${count} Titel)` : '');
 
-      // Die Teilen-Auswahl des Systems – der direkte Weg zu WhatsApp und Co.
-      if (navigator.share) {
-        try {
-          await navigator.share({ title: coll.name, text, url });
-          return;
-        } catch (error) {
-          // Abbrechen ist kein Fehler: Wer die Auswahl schließt, wollte
-          // eben doch nicht teilen. Nur bei echten Problemen weitermachen.
-          if (error.name === 'AbortError') return;
-        }
-      }
-
-      // Kein systemeigenes Teilen: Link in die Zwischenablage.
-      try {
-        await navigator.clipboard.writeText(url);
-        toast('Link kopiert – jetzt einfach einfügen und verschicken.', 'success');
-      } catch {
-        // Die Zwischenablage ist nur in sicheren Kontexten erlaubt. Klappt
-        // sie nicht, wird der Link wenigstens zum Herauskopieren angezeigt.
-        window.prompt('Link zum Teilen (kopieren mit Strg+C):', url);
-      }
+      // Alles Weitere übernimmt der gemeinsame Dialog aus ui.js: Er nutzt die
+      // Teilen-Auswahl des Systems, wenn es sie gibt, und bietet sonst
+      // WhatsApp, Telegram, E-Mail und einen Kopier-Knopf an.
+      await shareSheet({ url, title: `„${coll.name}" teilen`, text });
     } catch (error) {
       toast(error.message, 'error');
     }
@@ -559,14 +547,19 @@ async function renderDetail(container, id) {
         collection.isCustom &&
           el('button.btn.btn-ghost', { text: '+ Titel aufnehmen', onClick: addFilm }),
 
-        // Teilen – nur bei eigenen Reihen. Eine offizielle TMDB-Reihe zu
-        // teilen hätte keinen Sinn, die kennt der Empfänger ohnehin.
-        collection.isCustom &&
-          el('button.btn.btn-ghost', {
-            text: '↗ Teilen',
-            title: 'Einen Link erzeugen, den du weiterschicken kannst',
-            onClick: () => shareCollection(collection),
-          }),
+        // Teilen – für ALLE Reihen, auch die offiziellen von TMDB.
+        //
+        // Früher stand hier "collection.isCustom &&", mit der Begründung, eine
+        // offizielle Reihe kenne der Empfänger ohnehin. Das war falsch
+        // gedacht: Wer einen Link verschickt, teilt keine Neuigkeit, sondern
+        // einen Vorschlag – "schau dir Kingsman an, am besten in dieser
+        // Reihenfolge". Ausgerechnet bei den Reihen, die man am ehesten
+        // weiterschickt, fehlte deshalb der Knopf.
+        el('button.btn.btn-ghost', {
+          text: '↗ Teilen',
+          title: 'Einen Link erzeugen, den du per WhatsApp weiterschicken kannst',
+          onClick: () => shareCollection(collection),
+        }),
 
         collection.isCustom &&
           el('button.btn.btn-danger', {

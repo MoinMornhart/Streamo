@@ -307,6 +307,261 @@ export function render_(container, options = {}) {
   }
 
   // ------------------------------------------------------------------------
+  // Der zweite Faktor beim Anmelden
+  // ------------------------------------------------------------------------
+  // Erreicht man nur aus der Anmeldemaske heraus: Das Passwort hat gestimmt,
+  // aber eine Sitzung gibt es noch nicht. options.pendingToken ist der Beleg
+  // dafür, er gilt fünf Minuten.
+  //
+  // Angenommen wird beides – der sechsstellige Code aus der App und ein
+  // Ersatzcode. Deshalb steht hier nur ein Feld statt zweier: Wer sein
+  // Telefon verloren hat, ist ohnehin in Not und soll nicht auch noch den
+  // richtigen Reiter suchen müssen.
+  if (mode === 'twofactor') {
+    const form = el(
+      'form',
+      {
+        onSubmit: async (event) => {
+          event.preventDefault();
+          render(messageSlot);
+
+          const data = Object.fromEntries(new FormData(form).entries());
+          const button = form.querySelector('button[type=submit]');
+
+          button.disabled = true;
+          button.textContent = 'Wird geprüft …';
+
+          try {
+            const result = await api.auth.loginTwoFactor(options.pendingToken, data.code);
+
+            await refreshStatus();
+
+            // Ein verbrauchter Ersatzcode ist eine Nachricht wert: Er ist
+            // jetzt weg, und irgendwann sind alle aufgebraucht.
+            if (result.usedBackupCode) {
+              toast(
+                `Ersatzcode verwendet. Es sind noch ${result.backupCodesLeft} übrig.`,
+                'info',
+              );
+            }
+
+            startRouter();
+          } catch (error) {
+            render(messageSlot, errorBox(error.message));
+
+            // Ist der Zwischen-Token verfallen – abgelaufen oder zu viele
+            // Fehlversuche –, hilft kein weiterer Code. Dann zurück zur
+            // Anmeldung, sonst tippt man ins Leere.
+            if (error.code === 'pending_expired' || error.code === 'too_many_attempts') {
+              setTimeout(() => render_(container, { ...options, mode: 'login' }), 2200);
+              return;
+            }
+
+            button.disabled = false;
+            button.textContent = 'Bestätigen';
+
+            // Für den nächsten Versuch leeren und den Fokus zurückgeben.
+            const input = form.querySelector('#code');
+            input.value = '';
+            input.focus();
+          }
+        },
+      },
+      [
+        field(
+          'code',
+          'Code aus deiner App',
+          {
+            required: true,
+            // inputmode statt type="number": Auf dem Telefon erscheint die
+            // Zifferntastatur, aber ohne die Pfeilchen zum Hoch- und
+            // Runterzählen, die bei einem Code sinnlos sind. Und ein
+            // Ersatzcode enthält Buchstaben, wäre mit type="number" also
+            // gar nicht eingebbar.
+            inputmode: 'numeric',
+            autocomplete: 'one-time-code',
+            placeholder: '123456',
+            // Der Browser soll nichts vorschlagen und nichts korrigieren.
+            autocapitalize: 'characters',
+            spellcheck: 'false',
+            style: { fontSize: '20px', letterSpacing: '3px', textAlign: 'center' },
+          },
+          'Sechs Ziffern. Du kannst hier auch einen deiner Ersatzcodes eingeben.',
+        ),
+
+        messageSlot,
+
+        el('button.btn.btn-primary', {
+          type: 'submit',
+          text: 'Bestätigen',
+          style: { width: '100%', height: '42px' },
+        }),
+      ],
+    );
+
+    render(
+      container,
+      el('div.auth-screen', {}, [
+        el('div.auth-box', {}, [
+          el('div.auth-logo', {}, [el('span.brand-mark', { text: 'S' }), 'Noch ein Schritt']),
+          el('p.auth-sub', {
+            text: 'Dein Passwort stimmt. Gib jetzt den Code aus deiner Authenticator-App ein.',
+          }),
+          form,
+
+          el('p.auth-switch', {}, [
+            el('a', {
+              href: '#',
+              text: 'Abbrechen',
+              onClick: (event) => {
+                event.preventDefault();
+                render_(container, { ...options, mode: 'login' });
+              },
+            }),
+          ]),
+        ]),
+      ]),
+    );
+
+    // Der Fokus gehört sofort ins Feld – man hat den Code schon im Blick.
+    form.querySelector('#code').focus();
+    return;
+  }
+
+  // ------------------------------------------------------------------------
+  // Konto selbst anlegen
+  // ------------------------------------------------------------------------
+  // Erreichbar über den Verweis unter der Anmeldemaske. Bis dahin gab es nur
+  // zwei Wege zu einem Konto: die Ersteinrichtung (genau einmal je Instanz)
+  // und einen Einladungslink. Wer weder das eine noch das andere hatte, stand
+  // vor einer Anmeldemaske ohne Ausweg.
+  //
+  // Ob es dabei einen Einladungscode braucht, entscheidet die Instanz über
+  // ALLOW_REGISTRATION. Ist die Registrierung offen, reichen Name und
+  // Passwort; sonst erscheint zusätzlich ein Feld für den Code. Dieses Feld
+  // ist der eigentliche Gewinn gegenüber vorher: Wer den Code als Text
+  // bekommen hat statt als Link, konnte ihn bisher nirgends eingeben.
+  if (mode === 'register') {
+    const open = state.allowRegistration;
+
+    const form = el(
+      'form',
+      {
+        onSubmit: async (event) => {
+          event.preventDefault();
+          render(messageSlot);
+
+          const data = Object.fromEntries(new FormData(form).entries());
+          const button = form.querySelector('button[type=submit]');
+
+          button.disabled = true;
+          button.textContent = 'Konto wird angelegt …';
+
+          try {
+            await api.auth.register({
+              username: data.username,
+              password: data.password,
+              email: data.email,
+              displayName: data.displayName,
+              // Leere Eingabe als "keine Einladung" durchreichen, sonst
+              // prüfte der Server einen leeren Token.
+              invite: data.invite?.trim() || undefined,
+            });
+
+            await refreshStatus();
+            toast('Willkommen bei Streamo!', 'success');
+
+            // Direkt zur Anbieter-Auswahl – ohne verknüpfte Abos wäre
+            // Streamo nur halb nützlich.
+            startRouter();
+            navigateTo('/providers');
+          } catch (error) {
+            render(messageSlot, errorBox(error.message));
+            button.disabled = false;
+            button.textContent = 'Konto anlegen';
+          }
+        },
+      },
+      [
+        field('username', 'Benutzername', {
+          required: true,
+          minlength: 3,
+          autocomplete: 'username',
+          placeholder: 'z. B. lisa',
+        }),
+
+        field(
+          'password',
+          'Passwort',
+          {
+            type: 'password',
+            required: true,
+            minlength: 8,
+            autocomplete: 'new-password',
+          },
+          'Mindestens 8 Zeichen.',
+        ),
+
+        field(
+          'email',
+          'E-Mail (optional)',
+          { type: 'email', autocomplete: 'email', placeholder: 'lisa@example.de' },
+          'Nur als zweiter Anmeldename. Streamo verschickt keine E-Mails.',
+        ),
+
+        field('displayName', 'Anzeigename (optional)', { placeholder: 'Lisa' }),
+
+        // Nur nötig, solange die Registrierung nicht offen steht.
+        !open &&
+          field(
+            'invite',
+            'Einladungscode',
+            { required: true, placeholder: 'Code aus der Einladung' },
+            'Auf dieser Instanz braucht es eine Einladung. Hast du einen Link bekommen, kannst du ihn auch einfach öffnen.',
+          ),
+
+        messageSlot,
+
+        el('button.btn.btn-primary', {
+          type: 'submit',
+          text: 'Konto anlegen',
+          style: { width: '100%', height: '42px' },
+        }),
+      ],
+    );
+
+    render(
+      container,
+      el('div.auth-screen', {}, [
+        el('div.auth-box', {}, [
+          el('div.auth-logo', {}, [el('span.brand-mark', { text: 'S' }), 'Konto anlegen']),
+          el('p.auth-sub', {
+            text: open
+              ? 'Zwei Angaben, dann gehören alle deine Streaming-Abos an einen Ort.'
+              : 'Für ein Konto auf dieser Instanz brauchst du eine Einladung.',
+          }),
+          form,
+
+          // Zurück zur Anmeldung. Der Wechsel geschieht ohne Neuladen –
+          // beide Masken liegen in derselben Datei.
+          el('p.auth-switch', {}, [
+            'Du hast schon ein Konto? ',
+            el('a', {
+              href: '#',
+              text: 'Anmelden',
+              onClick: (event) => {
+                event.preventDefault();
+                render_(container, { ...options, mode: 'login' });
+              },
+            }),
+          ]),
+        ]),
+      ]),
+    );
+    return;
+  }
+
+  // ------------------------------------------------------------------------
   // Anmeldung
   // ------------------------------------------------------------------------
 
@@ -393,7 +648,20 @@ export function render_(container, options = {}) {
         button.textContent = 'Anmelden …';
 
         try {
-          await api.auth.login(data.username, data.password);
+          const result = await api.auth.login(data.username, data.password);
+
+          // Ist der zweite Faktor eingeschaltet, ist noch keine Sitzung
+          // entstanden – es fehlt der Code aus der App. Der Server hat dafür
+          // einen kurzlebigen Zwischen-Token mitgeschickt.
+          if (result.needsTwoFactor) {
+            render_(container, {
+              ...options,
+              mode: 'twofactor',
+              pendingToken: result.pendingToken,
+            });
+            return;
+          }
+
           await refreshStatus();
 
           // startRouter() zeichnet die Ansicht zur aktuellen Adresse. Nach dem
@@ -433,6 +701,23 @@ export function render_(container, options = {}) {
         el('p.auth-sub', { text: 'Alle Abos an einem Ort. Melde dich an.' }),
         passkeySlot,
         form,
+
+        // Der Weg zu einem eigenen Konto. Er steht hier immer, auch wenn die
+        // Registrierung nicht offen ist: Dann verlangt die nächste Maske
+        // einen Einladungscode. Den Verweis in dem Fall zu verstecken wäre
+        // schlechter – wer einen Code hat, fände sonst nirgends ein Feld
+        // dafür und wüsste nicht, was er damit anfangen soll.
+        el('p.auth-switch', {}, [
+          'Noch kein Konto? ',
+          el('a', {
+            href: '#',
+            text: 'Konto erstellen',
+            onClick: (event) => {
+              event.preventDefault();
+              render_(container, { ...options, mode: 'register' });
+            },
+          }),
+        ]),
       ]),
     ]),
   );

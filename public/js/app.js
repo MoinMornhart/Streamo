@@ -37,6 +37,15 @@ export const state = {
   version: '',
   /** Die eigene Watch-Region, z. B. "DE" */
   region: 'DE',
+  /**
+   * Darf sich jede Person selbst ein Konto anlegen?
+   *
+   * Kommt aus ALLOW_REGISTRATION in der .env (siehe src/config.js). Steuert,
+   * ob der Anmeldebildschirm ein Feld für einen Einladungscode verlangt:
+   * Ist die Registrierung offen, reichen Name und Passwort; sonst braucht es
+   * eine Einladung von der Person, die Streamo betreibt.
+   */
+  allowRegistration: false,
 };
 
 /**
@@ -90,6 +99,7 @@ export async function refreshStatus() {
   state.hasApiKey = status.hasApiKey;
   state.version = status.version;
   state.region = status.user?.region || status.defaults.region;
+  state.allowRegistration = Boolean(status.allowRegistration);
 
   updateChrome();
   return status;

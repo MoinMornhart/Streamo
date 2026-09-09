@@ -64,6 +64,30 @@
   box-sizing: border-box;
 }
 
+/* ---------------------------------------------------------------------------
+   Verstecktes bleibt versteckt
+   ---------------------------------------------------------------------------
+   Das HTML-Attribut `hidden` wirkt nur über die Standardregel des Browsers
+   `[hidden] { display: none }`. Die hat aber sehr geringes Gewicht – jede
+   eigene Regel mit einer ID sticht sie aus.
+
+   Genau das ist hier passiert: Die Kopfzeile trägt im HTML `hidden`, und
+   public/js/app.js setzt `topbar.hidden = !state.user`. Wirkungslos, denn
+   weiter unten steht `#topbar { display: flex }`. Auf dem Anmeldebildschirm
+   stand deshalb die vollständige Navigation – Entdecken, Bibliothek,
+   Anbieter, Statistik, Reihen, Freunde, Erfolge – obendrein mit einem
+   Platzhalter-Kreis "?" statt eines Benutzers. Auf dem Telefon galt
+   dasselbe für die untere Leiste (`#mobile-nav { display: flex }`).
+
+   Diese eine Regel behebt das für alle Elemente auf einmal, auch für die,
+   die erst noch dazukommen. Das !important ist hier ausnahmsweise richtig:
+   `hidden` ist eine Aussage über den Inhalt ("das gehört gerade nicht auf
+   die Seite") und muss jede Darstellungsregel schlagen.
+   --------------------------------------------------------------------------- */
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -648,6 +672,239 @@ textarea {
   align-items: center;
 }
 
+/* ==========================================================================
+   Filmreihen in der Bibliothek – ein- und ausklappbar
+   ==========================================================================
+   Gebaut in public/js/views/library.js -> collectionSection().
+
+   Eingeklappt liegen die Teile einer Reihe in einem waagerecht scrollbaren
+   Streifen (.reel), in dem etwa drei Kacheln Platz haben; ein Pfeil rechts
+   schiebt zu den nächsten. Ausgeklappt erscheint stattdessen das gewohnte
+   Raster. */
+
+.collection-section {
+  margin-bottom: 26px;
+}
+
+/* Kopfzeile einer Reihe: Dreieck, Name, Zähler, Verweis. */
+.collection-head {
+  display: flex;
+  align-items: baseline;
+  gap: 11px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+/* Das Dreieck zum Auf- und Zuklappen. Bewusst ein <button>, damit es sich mit
+   der Tastatur bedienen lässt – nur ohne dessen übliches Aussehen. */
+.collection-toggle {
+  background: none;
+  border: none;
+  padding: 0 2px;
+  cursor: pointer;
+
+  font-size: 17px;
+  line-height: 1;
+  color: var(--text-faint);
+  transition: color 0.15s;
+}
+
+.collection-toggle:hover {
+  color: var(--accent-soft);
+}
+
+/* --- Der waagerechte Streifen --- */
+.reel-wrap {
+  position: relative;
+}
+
+.reel {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+
+  /* Beim Wischen und beim Klick auf den Pfeil rastet jede Kachel am linken
+     Rand ein – sonst bliebe eine halbe Kachel angeschnitten stehen. */
+  scroll-snap-type: x mandatory;
+
+  /* Die Bildlaufleiste ausblenden: Gescrollt wird hier über die Pfeile oder
+     mit dem Finger, und eine Leiste unter jeder Reihe wäre unruhig. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  /* Platz für den Schatten der Kacheln, damit er nicht abgeschnitten wird. */
+  padding-bottom: 4px;
+}
+
+.reel::-webkit-scrollbar {
+  display: none;
+}
+
+/* Drei Kacheln nebeneinander: Von der vollen Breite gehen zwei Abstände ab,
+   der Rest wird gedrittelt. flex-shrink 0, damit sie sich nicht doch quetschen. */
+.reel > * {
+  flex: 0 0 calc((100% - 28px) / 3);
+  scroll-snap-align: start;
+}
+
+/* Auf schmalen Geräten sind drei Kacheln zu klein – dort zwei. */
+@media (max-width: 700px) {
+  .reel > * {
+    flex-basis: calc((100% - 14px) / 2);
+  }
+}
+
+/* --- Die Pfeile --- */
+/* Sie liegen über dem Streifen, halb über der ersten bzw. letzten Kachel.
+   library.js blendet sie aus, sobald es in dieser Richtung nichts mehr gibt. */
+.reel-arrow {
+  position: absolute;
+  top: 33%; /* auf Höhe des Posters, nicht des Titels darunter */
+  z-index: 3;
+
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--surface-3);
+  background: var(--surface-1);
+  color: var(--text);
+
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  transition: background 0.15s, transform 0.15s;
+}
+
+.reel-arrow:hover {
+  background: var(--accent);
+  transform: scale(1.08);
+}
+
+.reel-arrow.prev {
+  left: -12px;
+}
+
+.reel-arrow.next {
+  right: -12px;
+}
+
+/* ==========================================================================
+   Zwei-Faktor-Anmeldung einrichten
+   ==========================================================================
+   Gebaut in public/js/views/settings.js. */
+
+/* Die nummerierten Schritte der Einrichtung. */
+.setup-steps {
+  margin: 4px 0 18px;
+  padding-left: 20px;
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.setup-steps li {
+  margin-bottom: 14px;
+}
+
+/* Das Geheimnis zum Abtippen. Monospace, weil es dabei auf jedes einzelne
+   Zeichen ankommt – in einer Proportionalschrift verschwimmen I, l und 1. */
+.secret-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--surface-3);
+}
+
+.secret-box code {
+  font-family: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+  font-size: 15px;
+  letter-spacing: 1px;
+  /* Umbrechen statt überlaufen: 32 Zeichen passen auf einem Telefon nicht
+     in eine Zeile. */
+  word-break: break-all;
+}
+
+/* Die Ersatzcodes im Dialog – zwei Spalten, damit zehn Stück ohne Scrollen
+   auf den Bildschirm passen. */
+.backup-codes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.backup-codes code {
+  padding: 8px;
+  text-align: center;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--surface-3);
+
+  font-family: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+  font-size: 14px;
+  letter-spacing: 1px;
+}
+
+/* ==========================================================================
+   Teilen-Dialog
+   ==========================================================================
+   Wird von ui.js -> shareSheet() erzeugt. Nötig, weil die Teilen-Auswahl des
+   Systems (navigator.share) nur unter HTTPS existiert – im Heimnetz unter
+   einer IP-Adresse gibt es sie nicht. */
+
+.share-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200; /* über allem, auch über der Kopfzeile */
+  background: rgba(0, 0, 0, 0.62);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+
+  /* Auf dem Handy von unten hereinfahren – so kennt man es von Teilen-Menüs. */
+  animation: share-fade 0.16s ease-out;
+}
+
+@keyframes share-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.share-box {
+  width: 100%;
+  max-width: 420px;
+  background: var(--surface-1);
+  border: 1px solid var(--surface-3);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+
+  /* Bei sehr kleinen Bildschirmen lieber scrollen als überlaufen. */
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Die Knöpfe für WhatsApp, Telegram und E-Mail. Sie brechen um, wenn der
+   Platz nicht reicht – auf einem schmalen Handy stehen sie untereinander. */
+.share-targets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 /* --- Begründung einer persönlichen Empfehlung --- */
 /* "Weil du Breaking Bad gesehen hast" – steht unter Jahr und Bewertung.
    Wird von src/recommend.js geliefert und erscheint nur auf den Kacheln der
@@ -1003,6 +1260,21 @@ textarea {
   color: var(--text-dim);
   margin: 0 0 24px;
   font-size: 14px;
+}
+
+/* Der Wechsel zwischen Anmelden und Konto anlegen, unter dem Formular.
+   Beide Masken liegen in public/js/views/auth.js; der Wechsel geschieht ohne
+   Neuladen der Seite. */
+.auth-switch {
+  margin: 20px 0 0;
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.auth-switch a {
+  color: var(--accent-soft);
+  font-weight: 600;
 }
 .error-box {
   padding: 11px 14px;

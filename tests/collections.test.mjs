@@ -280,6 +280,61 @@ check(
   null,
 );
 
+// ---------------------------------------------------------------------------
+// Wer darf was teilen?
+// ---------------------------------------------------------------------------
+// Früher ließen sich nur eigene Reihen teilen, mit der Begründung, eine
+// offizielle TMDB-Reihe kenne der Empfänger ohnehin. Das war falsch gedacht:
+// Wer einen Link verschickt, teilt keine Neuigkeit, sondern einen Vorschlag –
+// "schau dir Kingsman an, am besten in dieser Reihenfolge". Ausgerechnet bei
+// den Reihen, die man am ehesten weiterschickt, fehlte deshalb der Knopf.
+console.log('\nWer darf teilen?');
+
+check(
+  'Die eigene Reihe darf man teilen',
+  collections.getShareableCollection(custom.id, anna)?.id,
+  custom.id,
+);
+
+check(
+  'Eine offizielle Reihe ebenfalls – gerade die schickt man weiter',
+  collections.getShareableCollection(collection.id, anna)?.id,
+  collection.id,
+);
+
+check(
+  'Auch Bert darf die offizielle Reihe teilen, sie gehört ja allen',
+  collections.getShareableCollection(collection.id, bert)?.id,
+  collection.id,
+);
+
+check(
+  'Aber nicht Annas eigene Reihe',
+  collections.getShareableCollection(custom.id, bert),
+  null,
+);
+
+check(
+  'Und eine Reihe, die es nicht gibt, schon gar nicht',
+  collections.getShareableCollection(999999, anna),
+  null,
+);
+
+// Der Unterschied zum Ändern bleibt bestehen: Teilen darf man eine offizielle
+// Reihe, ändern nicht.
+check(
+  'Teilen heißt nicht ändern dürfen',
+  collections.getEditableCollection(collection.id, anna),
+  null,
+);
+
+const officialToken = collections.shareCollection(collection.id);
+const officialShared = collections.getSharedCollection(officialToken);
+
+check('Auch die offizielle Reihe ist danach über ihren Link abrufbar', officialShared?.name, collection.name);
+check('Und sie liefert ihre Titel mit', officialShared?.items.length > 0, true);
+check('Ohne zu verraten, wer sie geteilt hat', officialShared?.userId, undefined);
+
 console.log('\nLöschen eines Kontos');
 
 run('DELETE FROM users WHERE id = ?', anna);

@@ -54,6 +54,20 @@ Eingerichtet werden Passkeys unter *Einstellungen → Passkeys*. Du kannst mehre
 
 > **Streamo verschickt keine E-Mails** und braucht keinen Mailserver. Die Adresse ist ausschließlich ein zweiter Anmeldename.
 
+Ein Konto anlegen kann man direkt auf dem Anmeldebildschirm über *Konto erstellen*. Ob dabei ein Einladungscode nötig ist, entscheidet `ALLOW_REGISTRATION` in der `.env`: Steht sie auf `true`, reichen Name und Passwort; sonst verlangt die Maske den Code aus einer Einladung. Wer einen Einladungs**link** bekommen hat, öffnet einfach ihn.
+
+### Zwei-Faktor-Anmeldung
+
+Zusätzlich zum Passwort ein sechsstelliger Code aus einer Authenticator-App – Aegis, 2FAS, Google Authenticator oder was auch immer TOTP beherrscht. Selbst wer dein Passwort kennt, kommt damit nicht in dein Konto.
+
+Streamo verschickt dafür nichts und ruft nichts ab. Server und App teilen sich beim Einrichten ein Geheimnis und rechnen danach unabhängig voneinander dasselbe aus – das funktioniert auch im Flugmodus. Das Verfahren ist TOTP nach RFC 6238; die Umsetzung in `src/totp.js` wird gegen die offiziellen Testvektoren der Norm geprüft (`npm run test:totp`).
+
+Eingerichtet wird das unter *Einstellungen → Zwei-Faktor-Anmeldung*, in zwei Schritten: Erst bekommt die App das Geheimnis, dann muss ein gültiger Code beweisen, dass sie es wirklich hat. Ohne diesen Beweis könnte man sich beim Übertragen vertun und wäre anschließend ausgesperrt.
+
+Dazu gibt es zehn **Ersatzcodes**. Sie erscheinen genau einmal – danach liegen nur noch ihre Prüfsummen in der Datenbank, niemand kann sie erneut anzeigen, auch der Betreiber nicht. Bewahre sie auf: Weil Streamo keine E-Mails verschickt, gibt es ohne sie keinen Weg zurück, wenn das Telefon verloren geht. Jeder Code gilt einmal.
+
+Passkeys brauchen keinen zweiten Faktor – sie sind selbst schon zwei (das Gerät plus Fingerabdruck oder PIN) und werden deshalb nicht zusätzlich nach einem Code gefragt.
+
 ### Voraussetzungen für Passkeys
 
 Zwei Regeln setzt der Browser, an denen sich nichts ändern lässt:
@@ -95,6 +109,18 @@ Staffeln und Episoden abhaken, einzeln, staffelweise oder „alles bis hierhin".
 
 **Entdecken statt suchen**
 Die Startseite zeigt, was gerade in deinen Abos läuft – gefiltert auf genau die Dienste, für die du bezahlst.
+
+**Für dich – Empfehlungen aus der eigenen Bibliothek**
+Über den populären Titeln steht eine Leiste, die für jede Person anders aussieht. Sie entsteht aus dem, was du selbst gesehen hast: Eine 10 von 10 zählt mehr als eine 6, ein Favorit mehr als ein Nebenbei-Titel, eine durchgesehene Serie mehr als eine angefangene. Was auf der Merkliste liegt, zählt nicht – gesehen hast du es ja noch nicht; Abgebrochenes und schlecht Bewertetes ebenso wenig. Jede Kachel sagt, warum sie da ist: *„Weil du Breaking Bad gesehen hast."*
+
+**Suche, die Tippfehler verzeiht**
+„Kingsmann" findet *Kingsman*, „Braking Bad" findet *Breaking Bad*, „spiderman" findet *Spider-Man*. Umlaute und Akzente sind egal. Bringt die Suche bei TMDB nichts, fasst Streamo mit bereinigten Schreibweisen nach und sagt dazu, wonach es tatsächlich gesucht hat.
+
+**Filmreihen, ein- und ausklappbar**
+In der Bibliothek lassen sich Titel nach Reihen gruppieren. Eingeklappt belegt eine achtteilige Reihe eine Zeile: drei Kacheln nebeneinander, ein Pfeil rechts blättert weiter. Ausgeklappt steht alles auf einmal da. Welche Reihen offen sind, merkt sich der Browser – genauso wie die zuletzt gesetzten Filter.
+
+**Listen teilen**
+Jede Reihe – die eigenen wie die offiziellen von TMDB – lässt sich über einen Link weitergeben, per WhatsApp, Telegram, E-Mail oder einfach kopiert. Wer den Link öffnet, sieht die Liste ohne Konto und ohne Anmeldung. Was der Ersteller gesehen hat und welche Abos er besitzt, steht dort nicht.
 
 **Auswertung, die eine Frage beantwortet**
 Wie verteilen sich deine Serien auf die Abos? Bei welchem Dienst läuft nichts von deiner Liste (Kündigungskandidat)? Welches zusätzliche Abo würde dir am meisten freischalten? Und wie viel Lebenszeit hast du eigentlich investiert?

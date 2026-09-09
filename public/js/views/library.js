@@ -23,6 +23,234 @@ import { api, img } from '../api.js';
 import { el, render, posterCard, empty, toast, STATUS_LABELS } from '../ui.js';
 import { navigateTo } from '../router.js';
 
+// ===========================================================================
+// Was sich die Bibliothek über Sitzungen hinweg merkt
+// ===========================================================================
+// Beides liegt im localStorage des Browsers, nicht auf dem Server: Es sind
+// Bequemlichkeiten dieses einen Geräts, keine Daten, die zum Konto gehören.
+// Am Telefon darf eine andere Ansicht eingestellt sein als am Rechner.
+
+/** Die zuletzt benutzte Filterzeile, z. B. "status=watching&provider=8". */
+const FILTER_KEY = 'streamo.library.filters';
+
+/** Welche Filmreihen ausgeklappt sind – als JSON-Liste von Kennungen. */
+const EXPANDED_KEY = 'streamo.library.expanded';
+
+/**
+ * Liest die gemerkte Filterzeile.
+ *
+ * In einem privaten Fenster oder bei blockierten Website-Daten wirft der
+ * Zugriff. Dann gibt es eben keine gemerkten Filter – das ist kein Grund,
+ * die ganze Bibliothek nicht anzuzeigen.
+ *
+ * @returns {string} leer, wenn nichts gemerkt ist
+ */
+function loadSavedFilters() {
+  try {
+    return localStorage.getItem(FILTER_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Merkt sich die Filterzeile.
+ * @param {string} search z. B. "status=watching" – leer heißt "keine Filter"
+ */
+function saveFilters(search) {
+  try {
+    localStorage.setItem(FILTER_KEY, search);
+  } catch {
+    /* nicht schreibbar – dann eben ohne Gedächtnis */
+  }
+}
+
+/**
+ * Liest, welche Filmreihen ausgeklappt sein sollen.
+ * @returns {Set<number>}
+ */
+function loadExpanded() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(EXPANDED_KEY) || '[]');
+    return new Set(Array.isArray(parsed) ? parsed : []);
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * Merkt sich die ausgeklappten Filmreihen.
+ * @param {Set<number>} ids
+ */
+function saveExpanded(ids) {
+  try {
+    localStorage.setItem(EXPANDED_KEY, JSON.stringify([...ids]));
+  } catch {
+    /* siehe oben */
+  }
+}
+
+/**
+ * Baut den Abschnitt einer Filmreihe – ein- und ausklappbar.
+ *
+ * Zwei Darstellungen für dieselben Titel:
+ *
+ *   EINGEKLAPPT (Vorgabe): eine waagerechte Zeile, in der etwa drei Kacheln
+ *     nebeneinander Platz haben. Rechts ein Pfeil, der zu den nächsten
+ *     weiterschiebt. Auf dem Handy lässt sich stattdessen einfach wischen.
+ *     So belegt eine achtteilige Reihe eine Zeile statt einer halben Seite.
+ *
+ *   AUSGEKLAPPT: das gewohnte Raster mit allen Teilen auf einmal.
+ *
+ * Welcher Zustand gilt, merkt sich der Browser je Reihe (siehe EXPANDED_KEY).
+ * Umgeschaltet wird ohne Neuladen – die Seite neu zu zeichnen würde die
+ * Scrollposition zerstören, und man klappt ja meist mehrere nacheinander auf.
+ *
+ * @param {object} group     Eine Gruppe aus data.groups
+ * @param {Set<number>} expanded Die ausgeklappten Reihen (wird verändert)
+ * @param {(entry: object) => HTMLElement} actions Baut die Knopfleiste einer Kachel
+ * @returns {HTMLElement}
+ */
+function collectionSection(group, expanded, actions) {
+  let isOpen = expanded.has(group.collectionId);
+
+  // --- Die eingeklappte Zeile ----------------------------------------------
+  // Die Kacheln liegen in einem waagerecht scrollbaren Streifen. Die Breite
+  // einer Kachel legt das Stylesheet fest (.reel > *), damit genau drei
+  // hineinpassen – auf schmalen Bildschirmen zwei.
+  const reel = el(
+    'div.reel',
+    {},
+    group.items.map((entry) => posterCard(entry, { action: actions(entry) })),
+  );
+
+  /**
+   * Schiebt den Streifen um seine eigene Breite weiter.
+   * @param {number} direction -1 = zurück, 1 = vor
+   */
+  const scrollReel = (direction) => {
+    reel.scrollBy({ left: direction * reel.clientWidth, behavior: 'smooth' });
+  };
+
+  const prevButton = el('button.reel-arrow.prev', {
+    type: 'button',
+    text: '‹',
+    title: 'Zurück',
+    'aria-label': 'Vorherige Titel',
+    onClick: () => scrollReel(-1),
+  });
+
+  const nextButton = el('button.reel-arrow.next', {
+    type: 'button',
+    text: '›',
+    title: 'Weitere Titel',
+    'aria-label': 'Weitere Titel',
+    onClick: () => scrollReel(1),
+  });
+
+  /**
+   * Blendet die Pfeile passend zur Scrollposition ein und aus.
+   *
+   * Ein Pfeil, der nichts mehr zu tun hat, ist irreführend – am linken Rand
+   * gibt es kein Zurück, am rechten kein Weiter. Und passen ohnehin alle
+   * Titel nebeneinander, braucht es überhaupt keine Pfeile.
+   */
+  const updateArrows = () => {
+    // Ein Zahl-Puffer gegen Rundungsfehler: Browser liefern scrollLeft als
+    // Bruchzahl, ein exakter Vergleich schlüge deshalb manchmal fehl.
+    const atStart = reel.scrollLeft <= 2;
+    const atEnd = reel.scrollLeft + reel.clientWidth >= reel.scrollWidth - 2;
+    const fitsCompletely = reel.scrollWidth <= reel.clientWidth + 2;
+
+    prevButton.hidden = fitsCompletely || atStart;
+    nextButton.hidden = fitsCompletely || atEnd;
+  };
+
+  reel.addEventListener('scroll', updateArrows);
+
+  // Beim Größerziehen des Fensters ändert sich, wie viel hineinpasst.
+  window.addEventListener('resize', updateArrows);
+
+  const reelWrap = el('div.reel-wrap', {}, [prevButton, reel, nextButton]);
+
+  // --- Das ausgeklappte Raster ---------------------------------------------
+  const grid = el(
+    'div.grid',
+    {},
+    group.items.map((entry) => posterCard(entry, { action: actions(entry) })),
+  );
+
+  // --- Der Umschalter -------------------------------------------------------
+  const toggle = el('button.collection-toggle', {
+    type: 'button',
+    onClick: () => {
+      isOpen = !isOpen;
+
+      if (isOpen) expanded.add(group.collectionId);
+      else expanded.delete(group.collectionId);
+
+      saveExpanded(expanded);
+      applyState();
+    },
+  });
+
+  /** Setzt Sichtbarkeit und Beschriftung passend zum aktuellen Zustand. */
+  function applyState() {
+    reelWrap.hidden = isOpen;
+    grid.hidden = !isOpen;
+
+    // Das Dreieck zeigt, was ein Klick bewirkt: nach rechts = aufklappen,
+    // nach unten = zuklappen.
+    toggle.textContent = isOpen ? '▾' : '▸';
+    toggle.title = isOpen ? 'Reihe einklappen' : 'Reihe ausklappen';
+    toggle.setAttribute('aria-expanded', String(isOpen));
+
+    // Die Pfeile erst berechnen, wenn der Streifen sichtbar ist – an einem
+    // ausgeblendeten Element sind alle Breiten null.
+    if (!isOpen) updateArrows();
+  }
+
+  const section = el('section.collection-section', {}, [
+    el('div.collection-head', {}, [
+      toggle,
+
+      // Die Überschrift klappt ebenfalls um – ein größeres Ziel als das
+      // kleine Dreieck, gerade auf dem Handy.
+      el('h2', {
+        text: group.name,
+        style: { margin: 0, cursor: 'pointer' },
+        onClick: () => toggle.click(),
+      }),
+
+      el('span.muted.small', {
+        text:
+          `${group.ownedParts} von ${group.totalParts} Teilen` +
+          (group.watchedParts > 0 ? ` · ${group.watchedParts} gesehen` : ''),
+      }),
+
+      // Führt zur Reihe selbst – dort stehen auch die Teile, die man
+      // noch nicht hat.
+      el('a', {
+        href: `/collections/${group.collectionId}`,
+        'data-link': '',
+        class: 'small',
+        text: 'Zur Reihe →',
+      }),
+    ]),
+
+    reelWrap,
+    grid,
+  ]);
+
+  applyState();
+
+  // Noch einmal nachrechnen, sobald der Abschnitt wirklich im Dokument hängt:
+  // Vorher sind clientWidth und scrollWidth null und die Pfeile lägen falsch.
+  requestAnimationFrame(updateArrows);
+
+  return section;
+}
+
 /**
  * Zeichnet die Bibliothek.
  * @param {HTMLElement} container
@@ -30,6 +258,32 @@ import { navigateTo } from '../router.js';
  * @param {URLSearchParams} query Die aktiven Filter
  */
 export async function render_(container, _params, query) {
+  // ------------------------------------------------------------------------
+  // Die zuletzt benutzten Filter wiederherstellen
+  // ------------------------------------------------------------------------
+  // Die Filter stehen in der Adresse – das ist richtig so, denn dadurch ist
+  // eine gefilterte Ansicht verlinkbar und der Zurück-Knopf funktioniert.
+  // Nur waren sie damit auch sofort wieder weg: Ein Klick auf eine Serie und
+  // zurück über "Bibliothek" in der Kopfzeile führte auf ein nacktes
+  // /library, und man durfte alles neu einstellen.
+  //
+  // Deshalb wird die zuletzt benutzte Filterzeile gemerkt. Wird /library ohne
+  // jeden Parameter aufgerufen, springt Streamo einmal auf die gemerkte
+  // Adresse um. Eine Endlosschleife kann daraus nicht werden: Danach sind
+  // Parameter vorhanden, und dieser Zweig greift nicht mehr.
+  //
+  // "Filter zurücksetzen" merkt sich ausdrücklich die leere Zeile – sonst
+  // käme der alte Filter beim nächsten Aufruf zurück und das Zurücksetzen
+  // wäre wirkungslos.
+  if (query.toString() === '') {
+    const saved = loadSavedFilters();
+
+    if (saved) {
+      navigateTo(`/library?${saved}`);
+      return;
+    }
+  }
+
   // Aktuelle Filter aus der Adresse lesen.
   const filters = {
     status: query.get('status') || '',
@@ -59,7 +313,22 @@ export async function render_(container, _params, query) {
     }
 
     const search = next.toString();
+
+    // Merken, bevor navigiert wird – dann steht die Einstellung auch nach
+    // einem Umweg über eine Detailseite wieder bereit.
+    saveFilters(search);
+
     navigateTo(`/library${search ? `?${search}` : ''}`);
+  };
+
+  /**
+   * Setzt alle Filter zurück – und merkt sich ausdrücklich, dass keine
+   * gesetzt sind. Ohne dieses Merken käme beim nächsten Aufruf der alte
+   * Filter zurück.
+   */
+  const resetFilters = () => {
+    saveFilters('');
+    navigateTo('/library');
   };
 
   // Bibliothek und Abo-Liste parallel holen.
@@ -168,7 +437,7 @@ export async function render_(container, _params, query) {
     Object.entries(filters).some(([k, v]) => v && k !== 'sort') &&
       el('button.btn.btn-sm.btn-ghost', {
         text: 'Filter zurücksetzen',
-        onClick: () => navigateTo('/library'),
+        onClick: resetFilters,
       }),
   ]);
 
@@ -193,7 +462,7 @@ export async function render_(container, _params, query) {
             'Mit diesen Filtern bleibt nichts übrig.',
             el('button.btn.btn-primary', {
               text: 'Filter zurücksetzen',
-              onClick: () => navigateTo('/library'),
+              onClick: resetFilters,
             }),
           )
         : empty(
@@ -267,44 +536,12 @@ export async function render_(container, _params, query) {
   if (data.grouped) {
     const sections = [];
 
+    // Welche Reihen waren zuletzt ausgeklappt? Die Vorgabe ist eingeklappt:
+    // Der Sinn der Gruppierung ist ja, aus acht Kacheln eine Zeile zu machen.
+    const expanded = loadExpanded();
+
     for (const group of data.groups) {
-      sections.push(
-        el('section', { style: { marginBottom: '30px' } }, [
-          el(
-            'div',
-            {
-              style: {
-                display: 'flex',
-                alignItems: 'baseline',
-                gap: '11px',
-                marginBottom: '12px',
-                flexWrap: 'wrap',
-              },
-            },
-            [
-              el('h2', { style: { margin: 0 }, text: group.name }),
-              el('span.muted.small', {
-                text:
-                  `${group.ownedParts} von ${group.totalParts} Teilen` +
-                  (group.watchedParts > 0 ? ` · ${group.watchedParts} gesehen` : ''),
-              }),
-              // Führt zur Reihe selbst – dort stehen auch die Teile, die man
-              // noch nicht hat.
-              el('a', {
-                href: `/collections/${group.collectionId}`,
-                'data-link': '',
-                class: 'small',
-                text: 'Zur Reihe →',
-              }),
-            ],
-          ),
-          el(
-            'div.grid',
-            {},
-            group.items.map((entry) => posterCard(entry, { action: actions(entry) })),
-          ),
-        ]),
-      );
+      sections.push(collectionSection(group, expanded, actions));
     }
 
     // Alles ohne Reihe.

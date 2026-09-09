@@ -114,6 +114,196 @@ export function toast(message, type = 'info', ms = 3200) {
 }
 
 /**
+ * Legt einen Text in die Zwischenablage – auch dort, wo das eigentlich nicht
+ * vorgesehen ist.
+ *
+ * navigator.clipboard gibt es nur in einem "sicheren Kontext", also unter
+ * HTTPS oder auf localhost. Wer Streamo im Heimnetz unter einer nackten
+ * IP-Adresse aufruft, hat den nicht – und genau dort wurde bisher nur ein
+ * nacktes prompt() angezeigt.
+ *
+ * Deshalb der zweite Weg: ein unsichtbares Textfeld, dessen Inhalt markiert
+ * und über den alten execCommand('copy') kopiert wird. Der Befehl gilt als
+ * veraltet, funktioniert aber in jedem Browser und ohne sicheren Kontext.
+ *
+ * @param {string} text
+ * @returns {Promise<boolean>} true, wenn es geklappt hat
+ */
+export async function copyToClipboard(text) {
+  // Der moderne Weg, wenn er zur Verfügung steht.
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Fällt durch zum zweiten Weg – z. B. wenn die Berechtigung fehlt.
+    }
+  }
+
+  try {
+    const helper = document.createElement('textarea');
+    helper.value = text;
+
+    // Außerhalb des Sichtfelds, aber im Dokument: Ein Element, das gar nicht
+    // dargestellt wird, lässt sich nicht markieren.
+    helper.style.position = 'fixed';
+    helper.style.top = '-1000px';
+    helper.setAttribute('readonly', '');
+
+    document.body.append(helper);
+    helper.select();
+    helper.setSelectionRange(0, text.length); // iOS braucht das ausdrücklich
+
+    const ok = document.execCommand('copy');
+    helper.remove();
+
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Öffnet einen Dialog zum Weiterschicken eines Links.
+ *
+ * Warum überhaupt ein eigener Dialog? Weil die Teilen-Auswahl des Systems
+ * (navigator.share) nur unter HTTPS und praktisch nur auf Mobilgeräten
+ * existiert. Am Rechner und im Heimnetz unter einer IP-Adresse gibt es sie
+ * nicht – dort blieb bisher nur ein prompt()-Fenster, aus dem man den Link
+ * von Hand herauskopieren musste.
+ *
+ * Die Knöpfe hier sind deshalb ganz normale Links auf die Weiterleitungs-
+ * Adressen der Dienste. Die funktionieren überall: am Rechner öffnet sich
+ * WhatsApp Web, auf dem Handy die App.
+ *
+ * @param {object} options
+ * @param {string} options.url   Der zu teilende Link
+ * @param {string} options.title Überschrift des Dialogs
+ * @param {string} options.text  Begleittext für die Nachricht
+ */
+export async function shareSheet({ url, title, text }) {
+  // Wenn das System eine eigene Auswahl mitbringt, ist sie die bessere: Dort
+  // stehen alle installierten Apps, nicht nur die drei, die wir kennen.
+  if (navigator.share) {
+    try {
+      await navigator.share({ title, text, url });
+      return;
+    } catch (error) {
+      // Ein Abbruch ist kein Fehler – wer die Auswahl schließt, wollte eben
+      // doch nicht teilen. Nur bei echten Problemen unseren Dialog zeigen.
+      if (error.name === 'AbortError') return;
+    }
+  }
+
+  const message = `${text} ${url}`;
+
+  /**
+   * Ein Knopf, der zu einem Dienst führt.
+   * @param {string} label Beschriftung samt Symbol
+   * @param {string} href  Zieladresse des Dienstes
+   * @returns {HTMLElement}
+   */
+  const target = (label, href) =>
+    el('a.btn.btn-ghost', {
+      href,
+      target: '_blank',
+      rel: 'noopener noreferrer',
+      text: label,
+      style: { flex: '1 1 130px', textAlign: 'center' },
+      // Nach dem Klick schließt sich der Dialog – die Aufgabe ist erledigt.
+      onClick: () => setTimeout(close, 150),
+    });
+
+  // Das Feld mit dem Link. readonly, damit niemand versehentlich hineintippt,
+  // aber markierbar – manche kopieren lieber selbst.
+  const linkField = el('input', {
+    value: url,
+    readonly: true,
+    onClick: (event) => event.currentTarget.select(),
+    style: { width: '100%', fontSize: '13px' },
+  });
+
+  const copyButton = el('button.btn.btn-primary', {
+    type: 'button',
+    text: 'Link kopieren',
+    style: { width: '100%' },
+    onClick: async () => {
+      const ok = await copyToClipboard(url);
+
+      if (ok) {
+        copyButton.textContent = '✓ Kopiert';
+        toast('Link kopiert – jetzt einfach einfügen und verschicken.', 'success');
+        setTimeout(close, 800);
+      } else {
+        // Auch der zweite Weg kann scheitern. Dann wenigstens markieren,
+        // damit Strg+C reicht.
+        linkField.select();
+        toast('Kopieren nicht möglich – der Link ist markiert, jetzt Strg+C.', 'info');
+      }
+    },
+  });
+
+  const box = el('div.share-box', {}, [
+    el('h3', { text: title, style: { margin: '0 0 4px' } }),
+    el('p.muted', {
+      style: { margin: '0 0 16px', fontSize: '13px' },
+      text: 'Wer den Link hat, sieht die Liste – ohne Konto und ohne Anmeldung.',
+    }),
+
+    el('div.share-targets', {}, [
+      target('WhatsApp', `https://wa.me/?text=${encodeURIComponent(message)}`),
+      target(
+        'Telegram',
+        `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`,
+      ),
+      target(
+        'E-Mail',
+        `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(message)}`,
+      ),
+    ]),
+
+    el('div.field', { style: { marginTop: '18px' } }, [
+      el('label', { text: 'Oder den Link selbst weitergeben' }),
+      linkField,
+    ]),
+
+    copyButton,
+
+    el('button.btn.btn-ghost', {
+      type: 'button',
+      text: 'Schließen',
+      style: { width: '100%', marginTop: '8px' },
+      onClick: () => close(),
+    }),
+  ]);
+
+  const overlay = el('div.share-overlay', {
+    // Klick auf den dunklen Hintergrund schließt – aber nur dort, nicht wenn
+    // der Klick aus dem Kasten kommt und nur nach oben durchgereicht wird.
+    onClick: (event) => {
+      if (event.target === overlay) close();
+    },
+  }, [box]);
+
+  /** Schließt den Dialog und räumt den Tastatur-Merker wieder ab. */
+  function close() {
+    overlay.remove();
+    document.removeEventListener('keydown', onKey);
+  }
+
+  /** Escape schließt – das erwartet man von jedem Dialog. */
+  function onKey(event) {
+    if (event.key === 'Escape') close();
+  }
+
+  document.addEventListener('keydown', onKey);
+  document.body.append(overlay);
+
+  // Den Link gleich markieren, damit Strg+C ohne Umweg funktioniert.
+  linkField.select();
+}
+
+/**
  * Meldet frisch freigeschaltete Erfolge.
  *
  * Bekommt die `unlocked`-Liste, die mehrere Endpunkte mitliefern (Episode

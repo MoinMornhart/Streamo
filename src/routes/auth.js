@@ -61,7 +61,20 @@ import {
 // Einladungen: der Weg, jemanden ohne eigenen TMDB-Zugang mitmachen zu lassen.
 import { checkInvite, consumeInvite } from '../invites.js';
 
-import { run } from '../db.js';
+// Zwei-Faktor-Anmeldung. Die Rechnung dahinter steht in src/totp.js, die
+// Verwaltung (Ersatzcodes, halbfertige Anmeldungen) in src/twofactor.js.
+import {
+  requiresTwoFactor,
+  createPendingLogin,
+  completePendingLogin,
+  getTwoFactorState,
+  beginTwoFactorSetup,
+  enableTwoFactor,
+  disableTwoFactor,
+  replaceBackupCodes,
+} from '../twofactor.js';
+
+import { run, get } from '../db.js';
 
 const router = express.Router();
 
@@ -110,6 +123,9 @@ router.get('/status', (req, res) => {
     hasApiKey: tmdb.hasApiKey(),
     // Dürfen sich weitere Personen registrieren?
     allowRegistration: config.allowRegistration,
+    // Zustand des zweiten Faktors – nur für angemeldete Konten. Die
+    // Einstellungsseite zeigt danach "eingeschaltet" oder "einrichten".
+    twoFactor: req.user ? getTwoFactorState(req.user.id) : null,
     // req.user kommt aus der globalen Middleware attachUser (src/auth.js).
     user: req.user,
     version: config.version,
@@ -204,6 +220,24 @@ router.post('/login', async (req, res) => {
   // Gute Gelegenheit, alte Sessions loszuwerden.
   pruneSessions();
 
+  // ------------------------------------------------------------------------
+  // Zweiter Faktor
+  // ------------------------------------------------------------------------
+  // Ist er eingeschaltet, entsteht hier bewusst noch KEINE Sitzung. Sonst
+  // wäre die Anmeldung bereits gültig und der Code nur noch Zierde: Wer das
+  // Passwort hat, käme mit einer abgefangenen Sitzungskennung daran vorbei.
+  //
+  // Stattdessen gibt es einen kurzlebigen Zwischen-Token, der nichts weiter
+  // bedeutet als "diese Person kennt das Passwort". Erst der zweite Aufruf
+  // auf /login/2fa macht daraus eine Sitzung.
+  if (requiresTwoFactor(user.id)) {
+    return res.json({
+      ok: true,
+      needsTwoFactor: true,
+      pendingToken: createPendingLogin(user.id),
+    });
+  }
+
   const token = createSession(user.id, {
     userAgent: req.headers['user-agent'],
     ip: clientIp(req),
@@ -211,6 +245,143 @@ router.post('/login', async (req, res) => {
   setSessionCookie(res, token);
 
   res.json({ ok: true, user: getUserById(user.id) });
+});
+
+/**
+ * POST /api/auth/login/2fa
+ *
+ * Der zweite Schritt einer Anmeldung mit zweitem Faktor.
+ * Body: { pendingToken, code }
+ *
+ * Angenommen werden der sechsstellige Code aus der Authenticator-App und die
+ * Ersatzcodes. Ein Ersatzcode wird dabei verbraucht; die Antwort sagt das
+ * ausdrücklich, damit die Oberfläche darauf hinweisen kann, wie viele noch
+ * übrig sind.
+ */
+router.post('/login/2fa', (req, res) => {
+  const { pendingToken, code } = req.body ?? {};
+
+  const result = completePendingLogin(pendingToken, code);
+
+  if (!result.ok) {
+    return res.status(401).json({ error: result.error, code: result.code });
+  }
+
+  const token = createSession(result.userId, {
+    userAgent: req.headers['user-agent'],
+    ip: clientIp(req),
+  });
+  setSessionCookie(res, token);
+
+  res.json({
+    ok: true,
+    user: getUserById(result.userId),
+    // Damit die Oberfläche warnen kann: "Du hast einen Ersatzcode benutzt."
+    usedBackupCode: Boolean(result.usedBackupCode),
+    backupCodesLeft: getTwoFactorState(result.userId).backupCodesLeft,
+  });
+});
+
+// ==========================================================================
+// Zwei-Faktor-Anmeldung verwalten
+// ==========================================================================
+// Alle folgenden Endpunkte setzen eine bestehende Anmeldung voraus: Man
+// richtet den zweiten Faktor für das eigene Konto ein, während man
+// angemeldet ist.
+
+/**
+ * GET /api/auth/2fa
+ * Zustand für die Einstellungsseite.
+ */
+router.get('/2fa', requireAuth, (req, res) => {
+  res.json(getTwoFactorState(req.user.id));
+});
+
+/**
+ * POST /api/auth/2fa/setup
+ *
+ * Beginnt die Einrichtung und gibt das Geheimnis EINMALIG heraus – als
+ * otpauth-Adresse für die App und als abtippbare Zeichenfolge.
+ *
+ * Eingeschaltet ist danach noch nichts: Das geschieht erst über
+ * /2fa/enable, nachdem ein gültiger Code bewiesen hat, dass die App das
+ * Geheimnis wirklich hat. Ohne diesen Zwischenschritt könnte man sich beim
+ * Übertragen vertun und wäre anschließend ausgesperrt.
+ */
+router.post('/2fa/setup', requireAuth, (req, res) => {
+  try {
+    res.json(beginTwoFactorSetup(req.user.id, req.user.username));
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/auth/2fa/enable
+ * Body: { code }
+ *
+ * Schaltet ein und liefert die Ersatzcodes zurück – genau dieses eine Mal.
+ * Danach liegen nur noch ihre Prüfsummen in der Datenbank; niemand kann sie
+ * erneut anzeigen, auch der Betreiber nicht.
+ */
+router.post('/2fa/enable', requireAuth, (req, res) => {
+  const result = enableTwoFactor(req.user.id, req.body?.code);
+
+  if (!result.ok) return res.status(400).json({ error: result.error });
+
+  res.json({ ok: true, backupCodes: result.backupCodes });
+});
+
+/**
+ * POST /api/auth/2fa/disable
+ * Body: { password }
+ *
+ * Ausschalten verlangt das Passwort. Der Grund: Wer sich an einem offen
+ * stehenden Rechner zu schaffen macht, soll den Schutz nicht mit zwei Klicks
+ * abräumen können.
+ */
+router.post('/2fa/disable', requireAuth, async (req, res) => {
+  const stored = get('SELECT password_hash FROM users WHERE id = ?', req.user.id);
+
+  // Konten, die ausschließlich über Passkeys angemeldet werden, haben keinen
+  // Hash. Dort gibt es kein Passwort abzufragen.
+  if (stored?.password_hash) {
+    const ok = await verifyPassword(String(req.body?.password ?? ''), stored.password_hash);
+
+    if (!ok) {
+      return res.status(401).json({ error: 'Das Passwort stimmt nicht.' });
+    }
+  }
+
+  disableTwoFactor(req.user.id);
+
+  res.json({ ok: true });
+});
+
+/**
+ * POST /api/auth/2fa/backup-codes
+ * Body: { password }
+ *
+ * Erzeugt einen frischen Satz Ersatzcodes; die alten verlieren dabei ihre
+ * Gültigkeit. Gedacht für den Fall, dass der Zettel verloren gegangen ist
+ * oder die Codes zur Neige gehen.
+ */
+router.post('/2fa/backup-codes', requireAuth, async (req, res) => {
+  if (!getTwoFactorState(req.user.id).enabled) {
+    return res.status(400).json({ error: 'Der zweite Faktor ist nicht eingeschaltet.' });
+  }
+
+  const stored = get('SELECT password_hash FROM users WHERE id = ?', req.user.id);
+
+  if (stored?.password_hash) {
+    const ok = await verifyPassword(String(req.body?.password ?? ''), stored.password_hash);
+
+    if (!ok) {
+      return res.status(401).json({ error: 'Das Passwort stimmt nicht.' });
+    }
+  }
+
+  res.json({ ok: true, backupCodes: replaceBackupCodes(req.user.id) });
 });
 
 /**
@@ -229,7 +400,12 @@ router.post('/logout', (req, res) => {
  * Body: { username, password, displayName? }
  */
 router.post('/register', async (req, res) => {
-  const { username, password, displayName, invite } = req.body ?? {};
+  // Die E-Mail ist freiwillig und dient nur als zweiter Anmeldename – Streamo
+  // verschickt keine Post und braucht keinen Mailserver. Sie hier
+  // entgegenzunehmen ist wichtig, weil die Anmeldemaske Benutzername ODER
+  // E-Mail akzeptiert: Wer sich mit einer E-Mail anmelden können will, muss
+  // sie schon beim Anlegen des Kontos angeben dürfen.
+  const { username, password, email, displayName, invite } = req.body ?? {};
 
   // Zwei Wege hinein: die offene Registrierung (falls freigeschaltet) oder
   // eine gültige Einladung. Die Einladung ist der übliche Fall – sie erlaubt
@@ -253,7 +429,7 @@ router.post('/register', async (req, res) => {
   }
 
   try {
-    const user = await createUser({ username, password, displayName, isAdmin: false });
+    const user = await createUser({ username, password, email, displayName, isAdmin: false });
 
     // Erst nach dem erfolgreichen Anlegen einlösen – scheitert die
     // Registrierung an einem belegten Namen, soll die Einladung nicht

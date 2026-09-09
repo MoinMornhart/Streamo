@@ -126,6 +126,33 @@ export const api = {
     login: (username, password) =>
       request('/api/auth/login', { method: 'POST', body: { username, password } }),
     logout: () => request('/api/auth/logout', { method: 'POST' }),
+
+    /**
+     * Der zweite Schritt einer Anmeldung mit zweitem Faktor.
+     *
+     * Der erste Schritt (login) liefert bei eingeschaltetem Faktor keine
+     * Sitzung, sondern needsTwoFactor:true und einen kurzlebigen
+     * pendingToken. Erst hiermit entsteht die Sitzung.
+     * -> POST /api/auth/login/2fa (src/routes/auth.js)
+     */
+    loginTwoFactor: (pendingToken, code) =>
+      request('/api/auth/login/2fa', { method: 'POST', body: { pendingToken, code } }),
+
+    // --- Zweiten Faktor verwalten  -> src/twofactor.js -------------------
+    twoFactor: {
+      /** Zustand: eingeschaltet? Wie viele Ersatzcodes sind übrig? */
+      state: () => request('/api/auth/2fa'),
+      /** Erzeugt ein Geheimnis und gibt es einmalig heraus. */
+      setup: () => request('/api/auth/2fa/setup', { method: 'POST' }),
+      /** Schaltet ein – gegen einen gültigen Code. Liefert die Ersatzcodes. */
+      enable: (code) => request('/api/auth/2fa/enable', { method: 'POST', body: { code } }),
+      /** Schaltet aus. Verlangt das Passwort. */
+      disable: (password) =>
+        request('/api/auth/2fa/disable', { method: 'POST', body: { password } }),
+      /** Erzeugt frische Ersatzcodes; die alten verfallen. */
+      newBackupCodes: (password) =>
+        request('/api/auth/2fa/backup-codes', { method: 'POST', body: { password } }),
+    },
     register: (body) => request('/api/auth/register', { method: 'POST', body }),
     changePassword: (currentPassword, newPassword) =>
       request('/api/auth/password', {

@@ -18,7 +18,7 @@
  */
 
 import { api } from '../api.js';
-import { el, render, toast, timeAgo, errorBox, formatDate } from '../ui.js';
+import { el, render, toast, timeAgo, errorBox, formatDate, copyToClipboard } from '../ui.js';
 import { refreshStatus } from '../app.js';
 import { isSupported, hasPlatformAuthenticator, createPasskey } from '../passkey.js';
 
@@ -347,6 +347,277 @@ export async function render_(container) {
   // Die Liste lädt im Hintergrund nach, damit die Einstellungsseite sofort da ist.
   drawPasskeys().catch(() =>
     render(passkeyList, el('p.muted', { text: 'Passkeys konnten nicht geladen werden.' })),
+  );
+
+  // ========================================================================
+  // 1c. Zwei-Faktor-Anmeldung
+  // ========================================================================
+  // Ein Passwort kann gestohlen werden, ohne dass man es merkt. Der zweite
+  // Faktor sorgt dafür, dass ein gestohlenes Passwort allein nicht reicht:
+  // zusätzlich braucht es einen sechsstelligen Code, den eine App auf dem
+  // Telefon alle 30 Sekunden neu erzeugt.
+  //
+  // Streamo verschickt dafür nichts und ruft nichts ab – Server und App
+  // teilen sich ein Geheimnis und rechnen danach unabhängig dasselbe aus.
+  // Deshalb funktioniert es auch im Flugmodus. Das Verfahren steht in
+  // src/totp.js, die Endpunkte in src/routes/auth.js.
+  const twoFactorBody = el('div');
+
+  const twoFactorCard = el('div.card', { style: { marginBottom: '20px' } }, [
+    el('h2', { text: 'Zwei-Faktor-Anmeldung' }),
+    el('p.muted.small', {
+      text: 'Zusätzlich zum Passwort ein Code aus einer App auf deinem Telefon. Selbst wer dein Passwort kennt, kommt damit nicht in dein Konto.',
+    }),
+    twoFactorBody,
+  ]);
+
+  /**
+   * Zeichnet den Bereich neu – je nachdem, ob der zweite Faktor an oder aus
+   * ist. Wird nach jeder Änderung erneut aufgerufen.
+   */
+  const drawTwoFactor = async () => {
+    const state = await api.auth.twoFactor.state();
+
+    // ----------------------------------------------------------------------
+    // Eingeschaltet
+    // ----------------------------------------------------------------------
+    if (state.enabled) {
+      render(
+        twoFactorBody,
+
+        el('p', {}, [
+          el('strong', { text: '✓ Eingeschaltet' }),
+          state.enabledAt ? el('span.muted.small', { text: ` seit ${formatDate(state.enabledAt)}` }) : null,
+        ]),
+
+        // Der Zähler ist wichtiger, als er aussieht: Wer alle Ersatzcodes
+        // verbraucht hat und das Telefon verliert, kommt nicht mehr hinein.
+        el('p.muted.small', {
+          text: `Noch ${state.backupCodesLeft} von 10 Ersatzcodes übrig.`,
+        }),
+
+        state.backupCodesLeft <= 2 &&
+          el('p.hint', {
+            style: { color: 'var(--warning, #f6b93b)' },
+            text: 'Die Ersatzcodes gehen zur Neige. Erzeuge einen neuen Satz, solange du noch Zugriff hast.',
+          }),
+
+        el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px' } }, [
+          el('button.btn.btn-sm.btn-ghost', {
+            text: 'Neue Ersatzcodes',
+            onClick: async () => {
+              const password = window.prompt(
+                'Zur Sicherheit dein Passwort. Die bisherigen Ersatzcodes verlieren damit ihre Gültigkeit.',
+              );
+              if (password === null) return;
+
+              try {
+                const result = await api.auth.twoFactor.newBackupCodes(password);
+                showBackupCodes(result.backupCodes);
+                drawTwoFactor();
+              } catch (error) {
+                toast(error.message, 'error');
+              }
+            },
+          }),
+
+          el('button.btn.btn-sm.btn-danger', {
+            text: 'Ausschalten',
+            onClick: async () => {
+              const password = window.prompt(
+                'Zum Ausschalten der Zwei-Faktor-Anmeldung dein Passwort:',
+              );
+              if (password === null) return;
+
+              try {
+                await api.auth.twoFactor.disable(password);
+                toast('Zwei-Faktor-Anmeldung ausgeschaltet.');
+                drawTwoFactor();
+              } catch (error) {
+                toast(error.message, 'error');
+              }
+            },
+          }),
+        ]),
+      );
+      return;
+    }
+
+    // ----------------------------------------------------------------------
+    // Ausgeschaltet – der Weg zum Einrichten
+    // ----------------------------------------------------------------------
+    render(
+      twoFactorBody,
+      el('p.muted.small', { text: 'Zurzeit ausgeschaltet.' }),
+      el('button.btn.btn-primary.btn-sm', {
+        text: 'Einrichten',
+        onClick: (event) => startSetup(event.currentTarget),
+      }),
+    );
+  };
+
+  /**
+   * Führt durch die Einrichtung.
+   *
+   * Zwei Schritte mit Absicht: Erst wird das Geheimnis herausgegeben, dann
+   * muss ein gültiger Code beweisen, dass die App es wirklich bekommen hat.
+   * Ohne diesen Beweis könnte man sich beim Übertragen vertun und wäre
+   * anschließend aus dem eigenen Konto ausgesperrt.
+   *
+   * @param {HTMLButtonElement} button
+   */
+  const startSetup = async (button) => {
+    button.disabled = true;
+    button.textContent = 'Wird vorbereitet …';
+
+    let setup;
+    try {
+      setup = await api.auth.twoFactor.setup();
+    } catch (error) {
+      toast(error.message, 'error');
+      button.disabled = false;
+      button.textContent = 'Einrichten';
+      return;
+    }
+
+    const codeInput = el('input', {
+      inputmode: 'numeric',
+      autocomplete: 'one-time-code',
+      placeholder: '123456',
+      style: { fontSize: '19px', letterSpacing: '3px', textAlign: 'center' },
+    });
+
+    render(
+      twoFactorBody,
+
+      el('ol.setup-steps', {}, [
+        el('li', {}, [
+          'Installiere eine Authenticator-App, falls noch keine da ist – etwa ',
+          el('strong', { text: 'Aegis' }),
+          ', ',
+          el('strong', { text: '2FAS' }),
+          ' oder ',
+          el('strong', { text: 'Google Authenticator' }),
+          '.',
+        ]),
+
+        el('li', {}, [
+          // Auf dem Telefon öffnet dieser Verweis die App direkt. Am Rechner
+          // passiert nichts – dort ist das Abtippen darunter der Weg.
+          'Auf dem Telefon: ',
+          el('a', {
+            href: setup.otpauthUrl,
+            text: 'In der App öffnen',
+            style: { fontWeight: '600' },
+          }),
+          el('br'),
+          'Am Rechner: dieses Geheimnis in der App eintragen.',
+
+          el('div.secret-box', {}, [
+            el('code', { text: setup.formatted }),
+            el('button.btn.btn-sm.btn-ghost', {
+              text: 'Kopieren',
+              onClick: async () => {
+                const ok = await copyToClipboard(setup.secret);
+                toast(ok ? 'Geheimnis kopiert.' : 'Kopieren nicht möglich.', ok ? 'success' : 'error');
+              },
+            }),
+          ]),
+        ]),
+
+        el('li', {}, [
+          'Gib den Code ein, den die App jetzt anzeigt:',
+          el('div.field', { style: { maxWidth: '220px', marginTop: '8px' } }, [codeInput]),
+        ]),
+      ]),
+
+      el('div', { style: { display: 'flex', gap: '8px' } }, [
+        el('button.btn.btn-primary', {
+          text: 'Einschalten',
+          onClick: async (event) => {
+            event.currentTarget.disabled = true;
+
+            try {
+              const result = await api.auth.twoFactor.enable(codeInput.value);
+
+              // Die Ersatzcodes gibt es genau einmal zu sehen. Deshalb ein
+              // eigener Kasten, den man nicht übersieht – und kein Toast,
+              // der nach drei Sekunden weg wäre.
+              showBackupCodes(result.backupCodes);
+              toast('Zwei-Faktor-Anmeldung eingeschaltet.', 'success');
+              drawTwoFactor();
+            } catch (error) {
+              toast(error.message, 'error');
+              event.currentTarget.disabled = false;
+              codeInput.value = '';
+              codeInput.focus();
+            }
+          },
+        }),
+
+        el('button.btn.btn-ghost', {
+          text: 'Abbrechen',
+          onClick: () => drawTwoFactor(),
+        }),
+      ]),
+    );
+
+    codeInput.focus();
+  };
+
+  /**
+   * Zeigt die Ersatzcodes an.
+   *
+   * Sie erscheinen genau einmal: Danach liegen nur noch ihre Prüfsummen in
+   * der Datenbank, niemand kann sie erneut anzeigen. Deshalb ein Dialog, der
+   * stehen bleibt, bis man ihn schließt – und ein Knopf zum Kopieren.
+   *
+   * @param {string[]} codes
+   */
+  const showBackupCodes = (codes) => {
+    const text = codes.join('\n');
+
+    const overlay = el(
+      'div.share-overlay',
+      {
+        onClick: (event) => {
+          if (event.target === overlay) overlay.remove();
+        },
+      },
+      [
+        el('div.share-box', {}, [
+          el('h3', { text: 'Deine Ersatzcodes', style: { margin: '0 0 4px' } }),
+          el('p.muted', {
+            style: { margin: '0 0 14px', fontSize: '13px' },
+            text: 'Bewahre sie an einem sicheren Ort auf – ausgedruckt oder im Passwortmanager. Jeder gilt einmal. Ohne sie kommst du nicht mehr in dein Konto, wenn das Telefon weg ist. Du siehst sie nur dieses eine Mal.',
+          }),
+
+          el('div.backup-codes', {}, codes.map((code) => el('code', { text: code }))),
+
+          el('button.btn.btn-primary', {
+            text: 'Codes kopieren',
+            style: { width: '100%', marginTop: '16px' },
+            onClick: async (event) => {
+              const ok = await copyToClipboard(text);
+              event.currentTarget.textContent = ok ? '✓ Kopiert' : 'Kopieren nicht möglich';
+            },
+          }),
+
+          el('button.btn.btn-ghost', {
+            text: 'Ich habe sie gesichert',
+            style: { width: '100%', marginTop: '8px' },
+            onClick: () => overlay.remove(),
+          }),
+        ]),
+      ],
+    );
+
+    document.body.append(overlay);
+  };
+
+  // Im Hintergrund laden, damit die Einstellungsseite sofort steht.
+  drawTwoFactor().catch(() =>
+    render(twoFactorBody, el('p.muted', { text: 'Zustand konnte nicht geladen werden.' })),
   );
 
   // ========================================================================
@@ -740,6 +1011,9 @@ export async function render_(container) {
     accountCard,
     inviteCard,
     passkeyCard,
+    // Direkt hinter den Passkeys: Beide beantworten dieselbe Frage – wie
+    // komme ich sicher in mein Konto.
+    twoFactorCard,
     tmdbCard,
     syncCard,
     passwordCard,

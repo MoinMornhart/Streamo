@@ -688,6 +688,77 @@ const MIGRATIONS = [
       CREATE INDEX IF NOT EXISTS idx_invites_creator ON invites(created_by);
     `);
   },
+
+  // -------------------------------------------------------------------------
+  // Version 8 -> Zwei-Faktor-Anmeldung
+  // -------------------------------------------------------------------------
+  // Ein Passwort kann gestohlen werden, ohne dass man es merkt. Der zweite
+  // Faktor sorgt dafür, dass ein gestohlenes Passwort allein nicht reicht:
+  // zusätzlich braucht es einen sechsstelligen Code aus einer App auf dem
+  // Telefon, der alle 30 Sekunden wechselt.
+  //
+  // Streamo verschickt dafür nichts und ruft nichts ab. Server und App teilen
+  // sich ein Geheimnis, das einmal beim Einrichten übertragen wird; danach
+  // rechnen beide unabhängig dasselbe aus. Das Verfahren steht in src/totp.js.
+  //
+  // Freiwillig: Wer keinen zweiten Faktor will, merkt von alledem nichts.
+  // Passkeys bleiben davon unberührt – sie sind selbst schon zwei Faktoren
+  // (Gerät plus Fingerabdruck oder PIN) und verlangen deshalb keinen Code.
+  () => {
+    // ALTER TABLE kennt kein "IF NOT EXISTS". Deshalb erst nachsehen, welche
+    // Spalten es schon gibt – sonst scheitert die Migration mit "duplicate
+    // column name", sobald sie ein zweites Mal über dieselbe Datenbank läuft.
+    // Genauso halten es die Migrationen 2, 5 und 6 weiter oben.
+    const columns = db.prepare('PRAGMA table_info(users)').all();
+    const has = (name) => columns.some((column) => column.name === name);
+
+    // Das gemeinsame Geheimnis, Base32. NULL = nie eingerichtet.
+    if (!has('totp_secret')) {
+      db.exec('ALTER TABLE users ADD COLUMN totp_secret TEXT');
+    }
+
+    // Erst 1, wenn die Einrichtung mit einem gültigen Code bestätigt wurde.
+    // Zwei Spalten statt einer, damit ein angefangenes, aber nie bestätigtes
+    // Geheimnis niemanden aussperrt: Es steht dann zwar da, gilt aber nicht.
+    if (!has('totp_enabled')) {
+      db.exec('ALTER TABLE users ADD COLUMN totp_enabled INTEGER NOT NULL DEFAULT 0');
+    }
+
+    // Wann eingeschaltet? Nur zur Anzeige in den Einstellungen.
+    if (!has('totp_enabled_at')) {
+      db.exec('ALTER TABLE users ADD COLUMN totp_enabled_at TEXT');
+    }
+
+    db.exec(`
+      -- Ersatzcodes für den Fall, dass das Telefon weg ist.
+      --
+      -- Ohne sie wäre ein verlorenes Telefon gleichbedeutend mit einem
+      -- verlorenen Konto: Streamo verschickt keine E-Mails, es gäbe also
+      -- keinen Weg zurück.
+      CREATE TABLE IF NOT EXISTS totp_backup_codes (
+        id        INTEGER PRIMARY KEY AUTOINCREMENT,
+
+        -- Verknüpfung zu users. Beim Löschen des Kontos verschwinden die
+        -- Codes mit.
+        user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+
+        -- SHA-256 des Codes, nie der Klartext. Ein Ersatzcode ist ein
+        -- Passwort; im Klartext gespeichert wäre er wertlos als Schutz.
+        code_hash TEXT NOT NULL,
+
+        -- Wann verbraucht? NULL = noch nutzbar. Jeder Code gilt genau einmal,
+        -- deshalb wird er nicht gelöscht, sondern entwertet: So lässt sich in
+        -- den Einstellungen anzeigen, wie viele noch übrig sind.
+        used_at   TEXT,
+
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      -- Beim Anmelden wird nach Benutzer und Prüfsumme gesucht.
+      CREATE INDEX IF NOT EXISTS idx_backup_codes_user
+        ON totp_backup_codes(user_id, code_hash);
+    `);
+  },
 ];
 
 /**

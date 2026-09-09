@@ -384,6 +384,37 @@ export function getEditableCollection(collectionId, userId) {
   return collection ?? null;
 }
 
+/**
+ * Prüft, ob eine Reihe geteilt werden darf.
+ *
+ * Bewusst großzügiger als getEditableCollection. Ursprünglich ließen sich nur
+ * eigene Reihen teilen, mit der Begründung, eine offizielle TMDB-Reihe kenne
+ * der Empfänger ohnehin. Das war falsch gedacht: Wer einen Link verschickt,
+ * teilt keine Neuigkeit, sondern einen Vorschlag – "schau dir die Reihe an,
+ * am besten in dieser Reihenfolge". Ob TMDB die Liste kennt, spielt dafür
+ * keine Rolle. In der Oberfläche fehlte deshalb bei genau den Reihen ein
+ * Teilen-Knopf, die man am ehesten weiterschickt.
+ *
+ * Erlaubt sind daher:
+ *   - die eigenen Reihen (user_id = ich)
+ *   - die offiziellen Reihen von TMDB (user_id IS NULL)
+ *
+ * Nicht erlaubt sind fremde eigene Reihen anderer Leute.
+ *
+ * @param {number} collectionId
+ * @param {number} userId
+ * @returns {object|null} die Reihe, oder null wenn nicht erlaubt
+ */
+export function getShareableCollection(collectionId, userId) {
+  const collection = get(
+    'SELECT * FROM collections WHERE id = ? AND (user_id = ? OR user_id IS NULL)',
+    collectionId,
+    userId,
+  );
+
+  return collection ?? null;
+}
+
 // --------------------------------------------------------------------------
 // Teilen
 // --------------------------------------------------------------------------

@@ -45,6 +45,8 @@ import {
   reorderItems,
   shareCollection,
   unshareCollection,
+  // Großzügiger als getEditableCollection: erlaubt auch offizielle Reihen.
+  getShareableCollection,
 } from '../collections.js';
 
 const router = express.Router();
@@ -300,19 +302,29 @@ router.delete('/:id/items/:showId', (req, res) => {
  * führen danach ins Leere. Das ist der Weg, eine versehentliche Weitergabe
  * rückgängig zu machen, ohne die Reihe ganz zu sperren.
  *
- * Nur eigene Reihen: Eine offizielle TMDB-Reihe zu "teilen" hätte keinen
- * Sinn – die kennt der Empfänger ohnehin.
+ * Geteilt werden dürfen eigene UND offizielle Reihen – gerade die offiziellen
+ * ("Kingsman", "Der Herr der Ringe") sind das, was man weiterschickt.
+ *
+ * Eine Einschränkung gibt es dabei: Eine offizielle Reihe ist EINE Zeile in
+ * der Datenbank, die allen gehört. Ihren Token zu erneuern würde deshalb auch
+ * die Links kaputt machen, die andere Leute längst verschickt haben. Deshalb
+ * wirkt renew nur bei eigenen Reihen; bei offiziellen wird der vorhandene
+ * Token weiterverwendet. Für den Absender ändert das nichts – er bekommt
+ * einen funktionierenden Link.
  */
 router.post('/:id/share', (req, res) => {
-  const collection = getEditableCollection(Number(req.params.id), req.user.id);
+  const collection = getShareableCollection(Number(req.params.id), req.user.id);
 
   if (!collection) {
     return res.status(404).json({
-      error: 'Nur deine eigenen Reihen lassen sich teilen.',
+      error: 'Diese Reihe gibt es nicht, oder sie gehört jemand anderem.',
     });
   }
 
-  const token = shareCollection(collection.id, req.body?.renew === true);
+  // Nur bei eigenen Reihen darf ein neuer Token erzwungen werden.
+  const mayRenew = collection.user_id !== null;
+
+  const token = shareCollection(collection.id, mayRenew && req.body?.renew === true);
 
   res.json({
     ok: true,
@@ -327,12 +339,18 @@ router.post('/:id/share', (req, res) => {
 /**
  * DELETE /api/collections/:id/share
  * Nimmt die Freigabe zurück. Verschickte Links führen danach ins Leere.
+ *
+ * Anders als beim Erzeugen bleibt es hier bei den eigenen Reihen: Eine
+ * offizielle Reihe gehört allen, und ihre Freigabe zurückzunehmen würde die
+ * Links kaputt machen, die andere verschickt haben.
  */
 router.delete('/:id/share', (req, res) => {
   const collection = getEditableCollection(Number(req.params.id), req.user.id);
 
   if (!collection) {
-    return res.status(404).json({ error: 'Diese Reihe gehört dir nicht.' });
+    return res.status(404).json({
+      error: 'Nur die Freigabe deiner eigenen Reihen lässt sich zurücknehmen.',
+    });
   }
 
   unshareCollection(collection.id);
