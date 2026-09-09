@@ -359,7 +359,9 @@ img {
 input[type="text"],
 input[type="password"],
 input[type="search"],
+input[type="email"],
 input[type="number"],
+input[type="file"],
 select,
 textarea {
   width: 100%;
@@ -371,12 +373,111 @@ textarea {
   font: inherit;
   font-size: 14px;
   outline: none;
+  /* Sanfter Übergang beim Hineinklicken statt eines harten Umschlags. */
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }
+
+/* Beim Überfahren leicht aufhellen – zeigt, dass das Feld anklickbar ist. */
+input:hover:not(:focus),
+select:hover:not(:focus),
+textarea:hover:not(:focus) {
+  border-color: #333c52;
+}
+
 input:focus,
 select:focus,
 textarea:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-glow);
+  /* Im Fokus etwas dunkler, damit sich das aktive Feld deutlich abhebt. */
+  background: var(--surface);
+}
+
+/* Platzhaltertexte deutlich zurücknehmen, sonst wirken leere Felder gefüllt. */
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-faint);
+}
+
+/* --------------------------------------------------------------------------
+   Automatisch ausgefüllte Felder
+   --------------------------------------------------------------------------
+   Chrome, Edge und Safari übermalen automatisch ausgefüllte Felder mit einem
+   hellen Hintergrund und schwarzer Schrift – auf einer dunklen Oberfläche
+   sehen sie dadurch aus wie aus einem anderen Programm.
+
+   Die Farbe selbst lässt sich nicht überschreiben: Der Browser setzt sie mit
+   höchster Priorität. Der einzige Weg ist ein nach innen gelegter Schatten,
+   der die Fläche vollständig überdeckt, plus -webkit-text-fill-color für die
+   Schrift. Die absurd lange Übergangszeit verhindert, dass die gelbliche
+   Einfärbung beim Ausfüllen kurz aufblitzt.
+   -------------------------------------------------------------------------- */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-text-fill-color: var(--text);
+  -webkit-box-shadow: 0 0 0 1000px var(--surface-2) inset;
+  box-shadow: 0 0 0 1000px var(--surface-2) inset;
+  caret-color: var(--text);
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+/* Im Fokus zusätzlich der violette Ring – der Schatten oben würde ihn sonst
+   verdrängen, weil beide dieselbe Eigenschaft benutzen. */
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--surface) inset, 0 0 0 3px var(--accent-glow);
+  box-shadow: 0 0 0 1000px var(--surface) inset, 0 0 0 3px var(--accent-glow);
+}
+
+/* Firefox hat einen eigenen Weg – dort genügt eine normale Regel. */
+input:autofill {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* Das Kalender-, Datei- und Suchsymbol in Eingabefeldern ist standardmäßig
+   dunkel und damit auf dunklem Grund fast unsichtbar. Der Filter dreht es um. */
+input[type="search"]::-webkit-search-cancel-button,
+input[type="file"]::-webkit-file-upload-button {
+  filter: invert(0.85);
+  cursor: pointer;
+}
+
+/* Dateiauswahl an das übrige Aussehen angleichen. */
+input[type="file"] {
+  padding: 8px 10px;
+  cursor: pointer;
+}
+input[type="file"]::-webkit-file-upload-button {
+  margin-right: 11px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  background: var(--surface-3);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+
+/* Auswahlfelder: Der eingebaute Pfeil ist je nach System hell oder dunkel.
+   Ein eigener sorgt für ein einheitliches Bild. */
+select {
+  appearance: none;
+  /* Kleines Dreieck als eingebettete Grafik, in der Textfarbe der Oberfläche. */
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath fill='%2397a2b8' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  /* Platz für das Dreieck, damit langer Text nicht darunterläuft. */
+  padding-right: 34px;
+}
+
+/* Die Auswahlliste selbst wird vom System gezeichnet; wenigstens die Einträge
+   lassen sich einfärben, damit sie nicht weiß aufblitzen. */
+select option {
+  background: var(--surface);
+  color: var(--text);
 }
 textarea {
   resize: vertical;
@@ -415,6 +516,13 @@ textarea {
   height: 34px;
   padding: 0 10px;
   font-size: 13.5px;
+}
+
+/* Auswahlfelder in der Filterleiste brauchen rechts Platz für das Dreieck –
+   die Regel darüber setzt das Innenmaß sonst auf allen Seiten zurück. */
+.filters select {
+  padding-right: 30px;
+  background-position: right 10px center;
 }
 
 /* Umschalt-Knöpfe (Status-Reiter in der Bibliothek) */

@@ -65,8 +65,15 @@ Sind sie nicht erfüllt, blendet Streamo den Passkey-Knopf aus und nennt auf der
 
 **So erfüllst du sie:**
 
-- **Reverse Proxy mit eigener Domain** (empfohlen): Nginx Proxy Manager, Traefik o. Ä. mit Let's-Encrypt-Zertifikat, Ziel `http://<container-ip>:3000`. Im Container dann `TRUST_PROXY=true` setzen.
-- **Streamo mit eigenem HTTPS**: `ENABLE_HTTPS=true` und `TLS_HOSTNAME=streamo.local` in der `.env`. Streamo erzeugt dann ein selbstsigniertes Zertifikat. Im Browser musst du es einmal bestätigen – die Desktop-App akzeptiert es auf Wunsch ohne Rückfrage.
+**Mit Reverse Proxy und eigener Domain** (empfohlen): Nginx Proxy Manager, Traefik o. Ä. mit Let's-Encrypt-Zertifikat, Ziel `http://<container-ip>:3000`. Danach im Container **einen Befehl**:
+
+```bash
+streamo domain streamo.deine-domain.de
+```
+
+Der trägt `TRUST_PROXY`, `WEBAUTHN_RP_ID` und `WEBAUTHN_ORIGIN` ein und startet den Dienst neu. Nötig ist er, weil viele Proxys den `Host`-Header nicht durchreichen, sondern ihre eigene Adresse schicken – Streamo sähe dann eine IP statt deiner Domain und würde Passkeys ablehnen. Die Einstellungsseite zeigt dir unter *Passkeys*, welche Adresse Streamo tatsächlich wahrnimmt.
+
+**Ohne Proxy, mit eigenem HTTPS**: `ENABLE_HTTPS=true` und `TLS_HOSTNAME=streamo.local` in der `.env`. Streamo erzeugt dann ein selbstsigniertes Zertifikat, und der HTTP-Port leitet auf HTTPS um. Im Browser musst du das Zertifikat einmal bestätigen – die Desktop-App akzeptiert es auf Wunsch ohne Rückfrage.
 
 > Ziehst du Streamo später auf eine andere Domain um, werden alle Passkeys ungültig. Das ist kein Fehler, sondern genau der Mechanismus, der Passkeys phishing-sicher macht: Sie sind fest an eine Domain gebunden. Das Passwort funktioniert weiterhin.
 
@@ -260,6 +267,7 @@ streamo status     # Läuft der Dienst?
 streamo logs       # Protokoll live mitlesen
 streamo restart    # Neu starten
 streamo config     # .env bearbeiten, startet danach automatisch neu
+streamo domain <d> # Domain eintragen – nötig für Passkeys hinter einem Proxy
 streamo backup     # Datenbank und Konfiguration sichern
 streamo info       # Version, Adresse, Zustand
 ```

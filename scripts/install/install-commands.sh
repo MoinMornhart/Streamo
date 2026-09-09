@@ -133,6 +133,61 @@ case "\${1:-help}" in
     fi
     ;;
 
+  domain)
+    # Trägt die öffentliche Domain ein – der Weg, um Passkeys hinter einem
+    # Reverse Proxy zum Laufen zu bringen.
+    #
+    # Warum drei Werte statt einem? TRUST_PROXY sorgt dafür, dass Streamo den
+    # Weiterleitungs-Kopfzeilen des Proxys glaubt. Viele Proxys reichen den
+    # Host-Header aber gar nicht durch, sondern schicken ihre eigene Adresse.
+    # Deshalb werden WEBAUTHN_RP_ID und WEBAUTHN_ORIGIN zusätzlich fest
+    # eingetragen: Damit steht die Domain unabhängig davon fest, was der Proxy
+    # meldet.
+    domain="\${2:-}"
+
+    if [[ -z "\$domain" ]]; then
+      echo ""
+      echo "  Aufruf: streamo domain <deine-domain>"
+      echo ""
+      echo "  Beispiel:"
+      echo -e "    \${GN}streamo domain streamo.example.de\${CL}"
+      echo ""
+      echo "  Trägt die Domain ein, unter der Streamo von außen erreichbar ist."
+      echo "  Nötig, damit Passkeys hinter einem Reverse Proxy funktionieren."
+      echo ""
+      exit 1
+    fi
+
+    # Ein versehentlich mitkopiertes "https://" oder ein Schrägstrich am Ende
+    # würde die Domain unbrauchbar machen – beides wird still entfernt.
+    domain="\${domain#http://}"
+    domain="\${domain#https://}"
+    domain="\${domain%%/*}"
+
+    # Bestehende Einträge entfernen, damit nichts doppelt in der Datei steht.
+    sed -i '/^TRUST_PROXY=/d;/^WEBAUTHN_RP_ID=/d;/^WEBAUTHN_ORIGIN=/d' "\$APP_DIR/.env"
+
+    {
+      echo ""
+      echo "# Von 'streamo domain' gesetzt am \$(date -Iseconds)"
+      echo "TRUST_PROXY=true"
+      echo "WEBAUTHN_RP_ID=\$domain"
+      echo "WEBAUTHN_ORIGIN=https://\$domain"
+    } >>"\$APP_DIR/.env"
+
+    systemctl restart "\$SERVICE"
+
+    echo ""
+    echo -e " \${GN}Domain eingetragen:\${CL} \$domain"
+    echo -e "   TRUST_PROXY=true"
+    echo -e "   WEBAUTHN_RP_ID=\$domain"
+    echo -e "   WEBAUTHN_ORIGIN=https://\$domain"
+    echo ""
+    echo -e " Passkeys sollten jetzt unter \${BL}https://\$domain\${CL} funktionieren."
+    echo -e " Prüfen kannst du das unter Einstellungen -> Passkeys."
+    echo ""
+    ;;
+
   backup)
     # Sichert Datenbank und Konfiguration in ein Archiv.
     target="/root/streamo-backup-\$(date +%Y%m%d-%H%M%S).tar.gz"
@@ -164,6 +219,7 @@ case "\${1:-help}" in
     echo -e "  \${GN}streamo logs\${CL}      Protokoll live mitlesen"
     echo -e "  \${GN}streamo restart\${CL}   Neu starten"
     echo -e "  \${GN}streamo config\${CL}    Konfiguration bearbeiten"
+    echo -e "  \${GN}streamo domain\${CL} <d> Domain eintragen (nötig für Passkeys)"
     echo -e "  \${GN}streamo backup\${CL}    Datenbank sichern"
     echo -e "  \${GN}streamo info\${CL}      Version und Adresse anzeigen"
     echo ""

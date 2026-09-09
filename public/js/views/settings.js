@@ -178,10 +178,20 @@ export async function render_(container) {
     if (!availability.available) {
       render(
         passkeyList,
-        el('div.error-box', {
-          style: { marginBottom: 0 },
-          text: `Passkeys sind hier nicht verfügbar: ${availability.reason}`,
-        }),
+        el('div.error-box', { style: { marginBottom: '12px' } }, [
+          el('strong', { text: 'Passkeys sind hier nicht verfügbar' }),
+          el('p', { style: { margin: '6px 0 0' }, text: availability.reason }),
+        ]),
+
+        // Was sieht der Server? Bei einem Proxy-Problem ist genau das die
+        // Information, die zur Lösung führt – ohne sie rätselt man herum.
+        availability.detectedHost &&
+          el('p.hint', {
+            style: { margin: 0 },
+            text:
+              `Streamo nimmt die Adresse "${availability.detectedProtocol}://${availability.detectedHost}" wahr` +
+              (availability.behindProxy ? ' (über einen Reverse Proxy).' : '.'),
+          }),
       );
       return;
     }

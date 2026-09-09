@@ -175,6 +175,7 @@ streamo status     # Läuft der Dienst?
 streamo logs       # Protokoll live mitlesen
 streamo restart    # Neu starten
 streamo config     # .env bearbeiten, startet danach automatisch neu
+streamo domain <d> # Domain eintragen – nötig für Passkeys hinter einem Proxy
 streamo backup     # Datenbank und Konfiguration sichern
 streamo info       # Version, Adresse, Zustand
 ```

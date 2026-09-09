@@ -335,9 +335,14 @@ router.get('/passkey/available', (req, res) => {
   res.json({
     available: context.available,
     reason: context.reason,
-    // Nur zur Anzeige in den Einstellungen, damit man bei Problemen sieht,
-    // unter welcher Domain die Passkeys angelegt würden.
+    // Alles Weitere dient der Fehlersuche auf der Einstellungsseite: Man sieht
+    // dort, welche Adresse Streamo tatsächlich wahrnimmt. Genau daran
+    // scheitert es hinter einem falsch eingestellten Reverse Proxy.
     rpId: context.rpID,
+    origin: context.origin,
+    detectedHost: context.detectedHost,
+    detectedProtocol: context.detectedProtocol,
+    behindProxy: context.behindProxy,
   });
 });
 

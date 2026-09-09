@@ -167,19 +167,44 @@ export function getWebAuthnContext(req) {
   // eckige-Klammer-Schreibweise von IPv6 ab.
   const isIpAddress = /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname) || hostname.startsWith('[');
 
+  // Kommt die Anfrage erkennbar über einen Reverse Proxy? Dann liegt bei
+  // einem Problem fast immer eine Fehlkonfiguration vor und nicht ein
+  // grundsätzlich ungeeigneter Zugang – die Hinweise unten unterscheiden das.
+  const behindProxy = Boolean(
+    req.headers['x-forwarded-for'] || req.headers['x-forwarded-proto'] || req.headers['x-forwarded-host'],
+  );
+
   let reason = null;
 
   if (!hostHeader) {
     reason = 'Die Adresse konnte nicht bestimmt werden.';
   } else if (isIpAddress) {
-    reason =
-      'Passkeys funktionieren nicht über eine IP-Adresse. Richte einen Hostnamen ein, zum Beispiel streamo.deine-domain.de.';
+    // Der häufigste Fall in der Praxis: Ein Reverse Proxy leitet zwar von
+    // einer Domain weiter, schickt aber seine eigene Adresse im Host-Header.
+    // Streamo sieht dann eine IP, obwohl der Browser eine Domain aufgerufen
+    // hat. Der alte Hinweis "richte einen Hostnamen ein" führte hier in die
+    // Irre – der Hostname existiert ja bereits.
+    reason = behindProxy
+      ? `Streamo sieht als Adresse "${hostname}" statt deiner Domain. Dein Reverse Proxy reicht den Host-Header nicht durch. ` +
+        'Setze in der .env TRUST_PROXY=true und zusätzlich WEBAUTHN_RP_ID sowie WEBAUTHN_ORIGIN auf deine Domain.'
+      : 'Passkeys funktionieren nicht über eine IP-Adresse. Richte einen Hostnamen ein, zum Beispiel streamo.deine-domain.de.';
   } else if (protocol !== 'https' && !isLocalhost) {
-    reason =
-      'Passkeys brauchen HTTPS. Stelle einen Reverse Proxy mit Zertifikat davor oder aktiviere HTTPS in Streamo.';
+    reason = behindProxy
+      ? 'Streamo hält die Verbindung für unverschlüsselt. Wenn dein Reverse Proxy HTTPS ausliefert, setze in der .env TRUST_PROXY=true.'
+      : 'Passkeys brauchen HTTPS. Stelle einen Reverse Proxy mit Zertifikat davor oder aktiviere HTTPS in Streamo (ENABLE_HTTPS=true).';
   }
 
-  return { rpID, origin, available: reason === null, reason };
+  return {
+    rpID,
+    origin,
+    available: reason === null,
+    reason,
+    // Für die Anzeige auf der Einstellungsseite: Was sieht Streamo eigentlich?
+    // Ohne diese Angabe rätselt man bei einem Proxy-Problem im Dunkeln.
+    detectedHost: hostHeader,
+    detectedProtocol: protocol,
+    behindProxy,
+  };
 }
 
 // --------------------------------------------------------------------------
