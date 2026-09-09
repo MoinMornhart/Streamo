@@ -29,6 +29,8 @@ import { checkAchievements } from '../achievements.js';
 // Gehört ein Film zu einer Reihe, wird sie beim Öffnen der Detailseite
 // einmalig übernommen – siehe unten bei GET /:mediaType/:tmdbId.
 import { ensureOfficialCollection, findOfficialCollection, findCollectionForShow } from '../collections.js';
+// Sehplaene: 'jeden Montag zwei Folgen' - siehe src/watchplan.js.
+import { getPlan, savePlan, deletePlan } from '../watchplan.js';
 
 import {
   ensureShow,
@@ -234,6 +236,9 @@ router.get('/:mediaType/:tmdbId', async (req, res, next) => {
         ? { ...entry, favorite: Boolean(entry.favorite), inLibrary: true }
         : { inLibrary: false },
       progress: getProgress(req.user.id, show),
+      // Der Sehplan zu dieser Serie, oder null. Die Detailseite zeigt danach
+      // entweder den eingestellten Rhythmus oder das Angebot, einen zu setzen.
+      plan: getPlan(req.user.id, show.id),
       seasonStats: seasons,
       // null, wenn der Titel zu keiner Reihe gehoert.
       collection,
@@ -517,6 +522,65 @@ router.put('/:showId/until', (req, res) => {
     ok: true,
     availability: buildAvailabilityView(show.id, region, getSubscribedProviderIds(req.user.id)),
   });
+});
+
+/**
+ * PUT /api/shows/:showId/plan
+ * Body: { weekdays: [1,4], episodesPerRun: 2, active?: true }
+ *
+ * Legt einen Sehplan an oder ändert ihn: "jeden Montag zwei Folgen".
+ *
+ * Streamo hakt an diesen Tagen die nächsten UNGESEHENEN Folgen ab. Das ist
+ * der entscheidende Punkt: Der Plan merkt sich nicht, wo er steht. Wer
+ * zwischendurch selbst weiterschaut und von Hand abhakt, bekommt am nächsten
+ * Plantag nicht dieselben Folgen noch einmal – der Plan macht dort weiter, wo
+ * man tatsächlich ist.
+ */
+router.put('/:showId/plan', (req, res) => {
+  const show = findShowById(Number(req.params.showId));
+  if (!show) return res.status(404).json({ error: 'Serie unbekannt.' });
+
+  // Ein Plan ergibt nur für Serien Sinn – ein Film hat keine Folgen.
+  if (show.media_type !== 'tv') {
+    return res.status(400).json({ error: 'Ein Sehplan geht nur bei Serien.' });
+  }
+
+  // Nur für Titel in der eigenen Bibliothek: Ein Plan für etwas, das man gar
+  // nicht auf der Liste hat, hätte nichts abzuhaken.
+  const inLibrary = get(
+    'SELECT 1 FROM library WHERE user_id = ? AND show_id = ?',
+    req.user.id,
+    show.id,
+  );
+
+  if (!inLibrary) {
+    return res.status(400).json({ error: 'Nimm die Serie zuerst in deine Bibliothek auf.' });
+  }
+
+  try {
+    const plan = savePlan(req.user.id, show.id, {
+      weekdays: req.body?.weekdays,
+      episodesPerRun: req.body?.episodesPerRun,
+      active: req.body?.active,
+    });
+
+    res.json({ ok: true, plan });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/shows/:showId/plan
+ *
+ * Entfernt den Sehplan. Bereits abgehakte Folgen bleiben abgehakt – der Plan
+ * hat sie ja tatsächlich gesehen gemacht.
+ */
+router.delete('/:showId/plan', (req, res) => {
+  const show = findShowById(Number(req.params.showId));
+  if (!show) return res.status(404).json({ error: 'Serie unbekannt.' });
+
+  res.json({ ok: true, removed: deletePlan(req.user.id, show.id) });
 });
 
 export default router;

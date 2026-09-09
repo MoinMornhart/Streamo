@@ -2392,6 +2392,11 @@ input[type='date']::-webkit-calendar-picker-indicator:hover {
 .dot.episode {
   background: var(--success);
 }
+/* Sehplan: kein einzelnes Ereignis, sondern ein Rhythmus - deshalb eine
+   eigene Farbe neben den drei anderen Arten. */
+.dot.schedule {
+  background: var(--accent-soft);
+}
 
 /* --- Die Spaltenköpfe --- */
 /* Sie stehen außerhalb des Rasters, damit sie beim Blättern nicht mitwandern.
@@ -2490,6 +2495,9 @@ input[type='date']::-webkit-calendar-picker-indicator:hover {
 .cal-chip.episode {
   border-left-color: var(--success);
 }
+.cal-chip.schedule {
+  border-left-color: var(--accent-soft);
+}
 
 /* --- Kleine Bildschirme --- */
 /* Sieben Spalten bleiben – ein Kalender ohne Wochenraster ist keiner. Nur
@@ -2525,4 +2533,9 @@ input[type='date']::-webkit-calendar-picker-indicator:hover {
   .cal-chip.episode {
     background: var(--success);
   }
+
+  .cal-chip.schedule {
+    background: var(--accent-soft);
+  }
 }
+

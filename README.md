@@ -123,6 +123,13 @@ Jede Kachel zeigt die Anbieter-Logos direkt auf dem Poster. Grün umrandet heiß
 **Ein Termin, wenn du willst**
 Auf der Merkliste lässt sich zu jedem Titel ein Tag eintragen – Freitagabend, das Wochenende, wenn die letzte Staffel erscheint. Freiwillig: Ohne Datum verhält sich die Liste wie bisher. Auf der Kachel steht dann *„Morgen"* oder *„Freitag"*, nach dem Termin *„überfällig"*, und die Bibliothek lässt sich nach *Geplanter Termin* sortieren. Aus einer langen Merkliste wird so eine Reihenfolge statt eines Friedhofs guter Vorsätze.
 
+**Sehplan – jeden Montag zwei Folgen**
+So schaut man Serien tatsächlich: nicht irgendwann, sondern in einem Rhythmus. Stell bei einer Serie ein, an welchen Tagen du sie siehst und wie viele Folgen – Streamo hakt sie an diesen Tagen selbst ab.
+
+Der Plan merkt sich dabei **nicht**, wo er steht, sondern nimmt jedes Mal die nächsten ungesehenen Folgen. Wer an einem Abend spontan fünf Folgen schaut und von Hand abhakt, bekommt am nächsten Montag nicht dieselben noch einmal – der Plan macht dort weiter, wo du bist. Specials und noch nicht ausgestrahlte Folgen bleiben außen vor.
+
+War der Server an einem Plantag aus, wird nachgeholt – gedeckelt auf drei Termine, damit nach dem Urlaub nicht eine halbe Staffel als gesehen dasteht. Die kommenden Termine stehen im Kalender.
+
 **Episoden-Fortschritt**
 Staffeln und Episoden abhaken, einzeln, staffelweise oder „alles bis hierhin". Der Status wechselt automatisch von *Will ich sehen* auf *Schaue ich* und am Ende auf *Gesehen*.
 

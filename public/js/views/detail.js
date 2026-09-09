@@ -39,6 +39,40 @@ import {
 } from '../ui.js';
 
 /**
+ * Die Wochentage für den Sehplan.
+ *
+ * 1 = Montag bis 7 = Sonntag nach ISO-8601 – dieselbe Zählung wie in der
+ * Datenbank und in src/watchplan.js. Montag zuerst, so ist es hierzulande
+ * üblich.
+ */
+const WOCHENTAGE = [
+  [1, 'Mo'],
+  [2, 'Di'],
+  [3, 'Mi'],
+  [4, 'Do'],
+  [5, 'Fr'],
+  [6, 'Sa'],
+  [7, 'So'],
+];
+
+/**
+ * Fasst einen Sehplan in einer Zeile zusammen: "Mo, Do · 2 Folgen".
+ *
+ * @param {object} plan
+ * @returns {string}
+ */
+function planKurz(plan) {
+  const tage = plan.weekdays
+    .map((nummer) => WOCHENTAGE.find(([n]) => n === nummer)?.[1])
+    .filter(Boolean)
+    .join(', ');
+
+  const folgen = `${plan.episodesPerRun} ${plan.episodesPerRun === 1 ? 'Folge' : 'Folgen'}`;
+
+  return `${tage} · ${folgen}`;
+}
+
+/**
  * Baut den Verfügbarkeits-Block: "Wo kann ich das sehen?"
  *
  * Die Angebote sind nach Art gruppiert. Angebote bei einem eigenen Abo werden
@@ -406,6 +440,19 @@ export async function render_(container, params) {
         ),
       ),
 
+      // --- Sehplan ---
+      //
+      // Nur bei Serien: Ein Film hat keine Folgen, die man in einem Rhythmus
+      // abhaken könnte.
+      show.mediaType === 'tv' &&
+        el('button.btn', {
+          text: data.plan ? `🔁 ${planKurz(data.plan)}` : '🔁 Sehplan',
+          title: data.plan
+            ? 'Rhythmus ändern oder Plan beenden'
+            : 'Zum Beispiel: jeden Montag zwei Folgen – Streamo hakt sie dann selbst ab',
+          onClick: () => sehplanEinstellen(),
+        }),
+
       // --- Wann willst du es sehen? ---
       //
       // Nur bei "Will ich sehen", und ausdrücklich freiwillig: Ohne Datum
@@ -526,6 +573,103 @@ export async function render_(container, params) {
         },
       }),
     );
+  };
+
+  /**
+   * Stellt den Sehplan ein: "jeden Montag zwei Folgen".
+   *
+   * Streamo hakt an diesen Tagen die nächsten UNGESEHENEN Folgen ab. Der Plan
+   * merkt sich nicht, wo er steht – wer zwischendurch selbst weiterschaut,
+   * bekommt am nächsten Termin nicht dieselben Folgen noch einmal, sondern
+   * die danach.
+   */
+  const sehplanEinstellen = async () => {
+    // Ausgewählt ist, was schon eingestellt war – sonst müsste man den Plan
+    // beim Ändern von vorn zusammenklicken.
+    const gewaehlt = new Set(data.plan?.weekdays ?? []);
+
+    const werte = await modal({
+      title: 'Sehplan',
+      subtitle:
+        'An diesen Tagen hakt Streamo die nächsten Folgen selbst ab. Wenn du zwischendurch mehr schaust, macht der Plan einfach dort weiter, wo du stehst.',
+      body: (close) => {
+        // Die Wochentage als Umschalter. 1 = Montag bis 7 = Sonntag (ISO),
+        // dieselbe Zählung wie in der Datenbank.
+        const tagKnoepfe = WOCHENTAGE.map(([nummer, kurz]) =>
+          el('button.chip' + (gewaehlt.has(nummer) ? '.active' : ''), {
+            type: 'button',
+            text: kurz,
+            onClick: (event) => {
+              if (gewaehlt.has(nummer)) gewaehlt.delete(nummer);
+              else gewaehlt.add(nummer);
+
+              event.currentTarget.classList.toggle('active', gewaehlt.has(nummer));
+            },
+          }),
+        );
+
+        const anzahl = el(
+          'select',
+          { style: { width: '100%' } },
+          [1, 2, 3, 4, 5].map((n) =>
+            el('option', {
+              value: String(n),
+              text: `${n} ${n === 1 ? 'Folge' : 'Folgen'}`,
+              selected: (data.plan?.episodesPerRun ?? 1) === n,
+            }),
+          ),
+        );
+
+        return [
+          el('div.field', {}, [
+            el('label', { text: 'An welchen Tagen?' }),
+            el('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap' } }, tagKnoepfe),
+          ]),
+
+          el('div.field', {}, [
+            el('label', { text: 'Wie viele Folgen je Termin?' }),
+            anzahl,
+            el('div.hint', {
+              text: 'Specials und noch nicht ausgestrahlte Folgen bleiben außen vor.',
+            }),
+          ]),
+
+          el('div.modal-actions', {}, [
+            // Nur anbieten, wenn es etwas zu beenden gibt.
+            data.plan &&
+              el('button.btn.btn-danger', {
+                text: 'Plan beenden',
+                style: { marginRight: 'auto' },
+                onClick: () => close({ entfernen: true }),
+              }),
+            el('button.btn.btn-ghost', { text: 'Abbrechen', onClick: () => close(null) }),
+            el('button.btn.btn-primary', {
+              text: 'Speichern',
+              onClick: () =>
+                close({ weekdays: [...gewaehlt], episodesPerRun: Number(anzahl.value) }),
+            }),
+          ]),
+        ];
+      },
+    });
+
+    if (!werte) return;
+
+    try {
+      if (werte.entfernen) {
+        await api.shows.deletePlan(show.showId);
+        data.plan = null;
+        toast('Sehplan beendet. Abgehakte Folgen bleiben abgehakt.', 'success');
+      } else {
+        const result = await api.shows.setPlan(show.showId, werte);
+        data.plan = result.plan;
+        toast(`Sehplan gesetzt: ${planKurz(result.plan)}.`, 'success');
+      }
+
+      renderActions();
+    } catch (error) {
+      toast(error.message, 'error');
+    }
   };
 
   /**

@@ -37,6 +37,8 @@
 
 import crypto from 'node:crypto';
 import { all, get, run } from './db.js';
+// Sehplaene liefern wiederkehrende Termine - siehe src/watchplan.js.
+import { parseWeekdays, nextOccurrences } from './watchplan.js';
 
 /**
  * Wie weit der Kalender in die Zukunft blickt.
@@ -232,6 +234,56 @@ export function collectEvents(userId, region) {
       description: row.name ? `${nummer} – ${row.name}` : `${nummer} erscheint heute.`,
       showId: row.show_id,
     });
+  }
+
+  // -------------------------------------------------------------------------
+  // 4. Die Sehpläne
+  // -------------------------------------------------------------------------
+  // "Jeden Montag zwei Folgen" ist ein wiederkehrender Termin – und genau der
+  // gehört in einen Kalender. Anders als die drei Punkte davor steht er nicht
+  // als Datum in einer Tabelle, sondern muss aus dem Rhythmus gerechnet werden.
+  //
+  // Bewusst ohne echte Wiederholungsregel (RRULE) im ICS: Eine Serie ist
+  // irgendwann zu Ende, und ein Kalendereintrag, der bis in alle Ewigkeit
+  // "zwei Folgen" behauptet, wäre falsch. Deshalb eine begrenzte Zahl
+  // einzelner Termine – so weit, wie die Serie überhaupt reicht.
+  for (const row of all(
+    `SELECT p.show_id, p.weekdays, p.episodes_per_run, s.title,
+            -- Wie viele ungesehene Folgen gibt es überhaupt noch? Mehr
+            -- Termine als Folgen wären eine Luftbuchung.
+            (SELECT COUNT(*) FROM episodes e
+              WHERE e.show_id = p.show_id
+                AND e.season_number > 0
+                AND (e.air_date IS NULL OR e.air_date <= date('now'))
+                AND NOT EXISTS (
+                  SELECT 1 FROM watched_episodes w
+                   WHERE w.user_id = p.user_id AND w.episode_id = e.id
+                )) AS offen
+       FROM watch_plans p
+       JOIN shows s ON s.id = p.show_id
+      WHERE p.user_id = ? AND p.active = 1`,
+    userId,
+  )) {
+    const weekdays = parseWeekdays(row.weekdays);
+    if (weekdays.length === 0 || row.offen === 0) continue;
+
+    // So viele Termine, wie die verbleibenden Folgen hergeben – höchstens
+    // aber ein halbes Jahr voraus, sonst füllt eine lange Serie den Kalender.
+    const termine = Math.min(Math.ceil(row.offen / row.episodes_per_run), 26);
+
+    for (const datum of nextOccurrences(weekdays, termine)) {
+      events.push({
+        // Das Datum gehört in die Kennung: Jeder Termin ist ein eigener
+        // Eintrag, und ohne das Datum hätten alle dieselbe.
+        uid: `sehplan-${row.show_id}-${datum}`,
+        date: datum,
+        kind: 'schedule',
+        title: row.title,
+        summary: `📅 ${row.title}: ${row.episodes_per_run} ${row.episodes_per_run === 1 ? 'Folge' : 'Folgen'}`,
+        description: `Nach deinem Sehplan. Streamo hakt die Folgen an diesem Tag automatisch ab.`,
+        showId: row.show_id,
+      });
+    }
   }
 
   return events.sort((a, b) => a.date.localeCompare(b.date));

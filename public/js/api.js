@@ -291,6 +291,16 @@ export const api = {
         body: { providerId, availableUntil },
       }),
 
+    /**
+     * Sehplan setzen: "jeden Montag zwei Folgen".
+     * -> PUT /api/shows/:showId/plan (src/watchplan.js)
+     */
+    setPlan: (showId, plan) =>
+      request(`/api/shows/${showId}/plan`, { method: 'PUT', body: plan }),
+
+    /** Sehplan beenden. Abgehakte Folgen bleiben abgehakt. */
+    deletePlan: (showId) => request(`/api/shows/${showId}/plan`, { method: 'DELETE' }),
+
     /** Verfügbarkeiten für eine Trefferliste nachladen */
     availability: (items) =>
       request('/api/shows/availability', { method: 'POST', body: { items } }),

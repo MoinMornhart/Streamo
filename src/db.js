@@ -909,6 +909,64 @@ const MIGRATIONS = [
         ON users(calendar_token) WHERE calendar_token IS NOT NULL
     `);
   },
+
+  // -------------------------------------------------------------------------
+  // Version 13 -> Sehpläne ("jeden Montag zwei Folgen")
+  // -------------------------------------------------------------------------
+  // So schaut man Serien tatsächlich: nicht irgendwann, sondern in einem
+  // Rhythmus. Montags zwei Folgen, sonntags eine, jeden zweiten Abend drei.
+  //
+  // Ein Sehplan nimmt einem die Buchführung ab: An den festgelegten Tagen
+  // hakt Streamo die nächsten Folgen selbst ab. Wer an einem Abend mehr
+  // schaut, hakt zusätzlich von Hand ab – der Plan macht danach einfach dort
+  // weiter, wo man steht, und zählt nichts doppelt. Genau deshalb merkt sich
+  // der Plan NICHT, bei welcher Folge er ist, sondern nimmt jedes Mal die
+  // nächsten ungesehenen.
+  //
+  // Verknüpfungen:
+  //   - src/watchplan.js -> die Logik, das automatische Abhaken
+  //   - src/routes/shows.js -> anlegen und ändern
+  //   - src/calendar.js -> die kommenden Termine im Kalender
+  //   - public/js/views/detail.js -> die Einstellung dazu
+  () => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS watch_plans (
+        id       INTEGER PRIMARY KEY AUTOINCREMENT,
+
+        -- Ein Plan gehört einer Person und einer Serie. Zwei Leute können
+        -- dieselbe Serie in unterschiedlichem Takt schauen.
+        user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        show_id  INTEGER NOT NULL REFERENCES shows(id) ON DELETE CASCADE,
+
+        -- An welchen Wochentagen? Als Komma-Liste von Zahlen, 1 = Montag bis
+        -- 7 = Sonntag (ISO-8601). Eine Liste statt eines Bitfelds, weil man
+        -- sie in der Datenbank lesen kann, ohne zu rechnen: "1,4" ist
+        -- offensichtlich Montag und Donnerstag.
+        weekdays TEXT NOT NULL,
+
+        -- Wie viele Folgen an so einem Tag.
+        episodes_per_run INTEGER NOT NULL DEFAULT 1
+                         CHECK (episodes_per_run BETWEEN 1 AND 20),
+
+        -- Pausieren, ohne den Plan zu verlieren – etwa im Urlaub.
+        active   INTEGER NOT NULL DEFAULT 1,
+
+        -- Der letzte Tag, an dem der Plan gelaufen ist. Verhindert, dass ein
+        -- Montag zweimal abgehakt wird, und erlaubt das Nachholen: War der
+        -- Server am Montag aus, wird am Dienstag nachgeholt.
+        last_run_on TEXT,
+
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+
+        -- Ein Plan je Person und Serie.
+        UNIQUE (user_id, show_id)
+      );
+
+      -- Für den Durchlauf "welche Pläne sind heute fällig?".
+      CREATE INDEX IF NOT EXISTS idx_watch_plans_active
+        ON watch_plans(active, last_run_on);
+    `);
+  },
 ];
 
 /**

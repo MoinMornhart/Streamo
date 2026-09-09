@@ -34,6 +34,8 @@ import config from './config.js';
 import { attachUser, pruneSessions } from './auth.js';
 import { hasApiKey } from './tmdb.js';
 import { startSyncScheduler, stopSyncScheduler } from './sync.js';
+// Sehplaene: hakt an den eingestellten Tagen die naechsten Folgen ab.
+import { runDuePlans } from './watchplan.js';
 // Nur gebraucht, wenn ENABLE_HTTPS gesetzt ist – siehe startServer() unten.
 import { getTlsOptions } from './tls.js';
 
@@ -437,6 +439,42 @@ function onListening() {
 
   // Erst starten, wenn der Server wirklich lauscht.
   startSyncScheduler();
+  startWatchPlanScheduler();
+}
+
+/**
+ * Lässt die Sehpläne laufen: "jeden Montag zwei Folgen".
+ *
+ * Stündlich, nicht täglich – und zwar aus zwei Gründen. Erstens läuft der
+ * Plan dann auch, wenn der Server erst mittags eingeschaltet wird. Zweitens
+ * wäre "einmal um Mitternacht" die schlechteste aller Zeiten: Genau dann ist
+ * ein Heimserver oft aus.
+ *
+ * Doppelte Läufe kann das nicht auslösen – jeder Plan merkt sich den Tag
+ * seines letzten Laufs und rührt sich danach bis zum nächsten Tag nicht mehr.
+ * Ohne diesen Schutz wären am Abend 24 Folgen abgehakt.
+ *
+ * Verknüpfung: src/watchplan.js -> runDuePlans()
+ */
+function startWatchPlanScheduler() {
+  /** Einmal ausführen und Fehler nicht durchschlagen lassen. */
+  const lauf = () => {
+    try {
+      runDuePlans();
+    } catch (error) {
+      // Ein Fehler hier darf den Server nicht mitreißen. Beim nächsten
+      // stündlichen Lauf wird es ohnehin erneut versucht.
+      console.error('[plan] Sehpläne fehlgeschlagen:', error?.message ?? error);
+    }
+  };
+
+  // Nach einer Minute einmal nachholen, was während einer Abschaltung liegen
+  // geblieben ist. Nicht sofort: Der Server soll erst erreichbar sein.
+  setTimeout(lauf, 60_000).unref?.();
+
+  setInterval(lauf, 3_600_000);
+
+  console.log('[plan] Sehpläne aktiv – stündliche Prüfung.');
 }
 
 const server = startServer();
