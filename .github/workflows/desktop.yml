@@ -99,14 +99,66 @@ jobs:
           retention-days: 90
           if-no-files-found: error
 
+      # ---------------------------------------------------------------------
+      # Prüfung: Heißt die Datei wirklich so, wie latest.yml es behauptet?
+      # ---------------------------------------------------------------------
+      # Genau daran ist die Selbstaktualisierung lange gescheitert, ohne dass
+      # es jemand gemerkt hat:
+      #
+      # electron-builder nannte den Installer von sich aus
+      # "Streamo Setup 1.1.0.exe" – mit Leerzeichen. In die latest.yml schrieb
+      # es aber "Streamo-Setup-1.1.0.exe" mit Bindestrichen. GitHub wiederum
+      # ersetzt beim Hochladen jedes Leerzeichen durch einen Punkt, sodass auf
+      # der Veröffentlichung "Streamo.Setup.1.1.0.exe" landete. Die App fragte
+      # nach der Fassung mit Bindestrichen und bekam ein 404 – im Hintergrund,
+      # also unsichtbar.
+      #
+      # Behoben ist das über "artifactName" in desktop/package.json: Ein Name
+      # ohne Leerzeichen lässt GitHub unverändert. Dieser Schritt sorgt dafür,
+      # dass der Fehler nicht unbemerkt zurückkommt – er bricht den Bau ab,
+      # bevor eine kaputte Veröffentlichung entsteht.
+      - name: Dateinamen gegen latest.yml prüfen
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd desktop/dist
+
+          # Der Name, den die App später anfragen wird.
+          erwartet="$(grep -m1 '^path:' latest.yml | sed 's/^path:[[:space:]]*//' | tr -d '\r')"
+          echo "latest.yml verweist auf: $erwartet"
+
+          if [ ! -f "$erwartet" ]; then
+            echo "::error::latest.yml verweist auf '$erwartet', diese Datei gibt es aber nicht."
+            echo "Vorhanden ist stattdessen:"
+            ls -1
+            exit 1
+          fi
+
+          # Leerzeichen im Namen sind der eigentliche Ausloeser – GitHub macht
+          # daraus Punkte, und die Adresse stimmt nicht mehr.
+          case "$erwartet" in
+            *" "*)
+              echo "::error::Der Dateiname enthaelt ein Leerzeichen. GitHub wuerde daraus einen Punkt machen."
+              exit 1
+              ;;
+          esac
+
+          echo "Passt: $erwartet liegt bereit und traegt keine Leerzeichen."
+
       - name: An die Veröffentlichung hängen
         # Nur bei einem Tag – dann entsteht eine dauerhafte Download-Seite.
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
+        # Angehängt werden drei Dinge: der Installer selbst, die latest.yml
+        # (daraus liest die App, ob es etwas Neues gibt) und die Blockmap.
+        # Letztere ist neu dabei – mit ihr lädt electron-updater beim nächsten
+        # Mal nur die geänderten Teile statt der vollen 110 MB. Fehlt sie,
+        # meldet die App einen Fehler und lädt alles noch einmal.
         with:
           files: |
             desktop/dist/*.exe
             desktop/dist/latest.yml
+            desktop/dist/*.exe.blockmap
           # Der Text der Veröffentlichung wird aus den Commits erzeugt.
           generate_release_notes: true
           body: |

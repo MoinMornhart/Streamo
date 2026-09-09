@@ -159,6 +159,35 @@ msg_info "Suche nach Aktualisierungen"
 # ---------------------------------------------------------------------------
 git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
 
+# ---------------------------------------------------------------------------
+# Die Versionsnummer aus package.json lesen
+# ---------------------------------------------------------------------------
+# Frueher stand hier ein Aufruf von "node -p". Das ist genau an der Stelle
+# unzuverlaessig, an der die Nummer gebraucht wird: Der Dienst ist beim Update
+# angehalten, und ob "node" im PATH dieser Sitzung liegt, haengt davon ab, wie
+# das Skript gestartet wurde. Fehlte es, stand ueberall ein Fragezeichen statt
+# der Version - und man konnte nicht mehr erkennen, ob das Update angekommen
+# ist.
+#
+# sed kommt mit jeder Shell mit. Gesucht wird die erste Zeile der Form
+#   "version": "1.2.3"
+# und daraus die Nummer herausgeschnitten.
+#
+# Verknuepfung: Die Nummer stammt aus package.json und ist dieselbe, die
+# src/config.js meldet und die Oberflaeche unten anzeigt.
+read_version() {
+  local file="${APP_DIR}/package.json"
+
+  [ -f "$file" ] || { echo '?'; return; }
+
+  local version
+  version="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$file" | head -1)"
+
+  # Leer bedeutet: Die Datei sieht anders aus als erwartet. Dann lieber ein
+  # ehrliches Fragezeichen als eine falsche Nummer.
+  echo "${version:-?}"
+}
+
 # Erst den aktuellen Stand merken – auf ihn wird notfalls zurückgerollt.
 if ! CURRENT_COMMIT="$(git -C "$APP_DIR" rev-parse HEAD 2>/tmp/streamo-git.log)"; then
   msg_error "Das Repository unter ${APP_DIR} ist nicht lesbar."
@@ -166,7 +195,7 @@ if ! CURRENT_COMMIT="$(git -C "$APP_DIR" rev-parse HEAD 2>/tmp/streamo-git.log)"
   sed 's/^/     /' /tmp/streamo-git.log | tail -5
   exit 1
 fi
-CURRENT_VERSION="$(node -p "require('${APP_DIR}/package.json').version" 2>/dev/null || echo '?')"
+CURRENT_VERSION="$(read_version)"
 
 # --depth 1 holt nur den neuesten Stand, nicht die ganze Geschichte.
 # Fehler werden protokolliert statt verschluckt – ein stiller Abbruch an
@@ -255,7 +284,7 @@ msg_info "Neue Version wird geholt"
 # reset --hard verwirft lokale Änderungen an den Programmdateien. Datenbank
 # und .env sind davon nicht betroffen, weil sie in .gitignore stehen.
 git -C "$APP_DIR" reset --hard "origin/${BRANCH}" >/dev/null 2>&1
-NEW_VERSION="$(node -p "require('${APP_DIR}/package.json').version" 2>/dev/null || echo '?')"
+NEW_VERSION="$(read_version)"
 msg_ok "Quellen aktualisiert (Version ${NEW_VERSION})"
 
 msg_info "Abhängigkeiten werden installiert"

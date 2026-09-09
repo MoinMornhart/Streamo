@@ -396,6 +396,27 @@ function createTray() {
         }
       : { label: 'Nach Updates suchen', click: checkForUpdatesManually },
 
+    // Der direkte Weg zum Protokoll. Wenn die Selbstaktualisierung wieder
+    // einmal nicht tut, was sie soll, steht hier warum – ohne dass man erst
+    // %APPDATA% suchen muss.
+    {
+      label: 'Update-Protokoll öffnen',
+      click: () => {
+        // shell.openPath öffnet die Datei im Standardprogramm für .log,
+        // meistens dem Editor. Gibt es sie noch nicht, wird sie leer
+        // angelegt – eine Fehlermeldung wäre hier verwirrender.
+        try {
+          if (!fs.existsSync(UPDATE_LOG_FILE)) {
+            fs.writeFileSync(UPDATE_LOG_FILE, 'Noch keine Einträge.\n', 'utf8');
+          }
+        } catch {
+          /* nicht schreibbar – dann öffnet openPath eben nichts */
+        }
+
+        shell.openPath(UPDATE_LOG_FILE);
+      },
+    },
+
     { label: 'Anderen Server verbinden …', click: () => showConnectScreen() },
     {
       label: 'Beenden',
@@ -548,6 +569,51 @@ const UPDATE_CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000;
 let updateReady = false;
 
 /**
+ * Wohin das Update-Protokoll geschrieben wird.
+ *
+ * Unter Windows: %APPDATA%/Streamo/update.log
+ *
+ * Warum überhaupt eine Datei? Weil eine fertig gebaute App keine Konsole hat.
+ * Als die Selbstaktualisierung nicht funktionierte, war von außen überhaupt
+ * nichts zu sehen: Die Suche läuft im Hintergrund, der Fehler landete in einem
+ * console.error, das niemand je zu Gesicht bekam. Der eigentliche Grund – ein
+ * Dateiname, der auf GitHub anders hieß als in der latest.yml – wäre in einer
+ * einzigen Protokollzeile sofort sichtbar gewesen.
+ *
+ * Erreichbar über das Tray-Menü: "Update-Protokoll öffnen".
+ */
+const UPDATE_LOG_FILE = path.join(app.getPath('userData'), 'update.log');
+
+/**
+ * Schreibt eine Zeile ins Update-Protokoll – und zusätzlich auf die Konsole,
+ * damit sie im Entwicklungsmodus dort auftaucht.
+ *
+ * Die Datei wird bei 256 KB von vorn begonnen. Ohne diese Grenze wüchse sie
+ * über Monate unbemerkt, denn geschrieben wird alle vier Stunden.
+ *
+ * @param {string} level 'info' | 'warn' | 'error'
+ * @param {string} message
+ */
+function updateLog(level, message) {
+  const line = `${new Date().toISOString()} [${level}] ${message}`;
+
+  if (level === 'error') console.error(`[update] ${message}`);
+  else console.log(`[update] ${message}`);
+
+  try {
+    // Ab einer gewissen Größe von vorn anfangen. Das Alte ist dann weg –
+    // aber für die Fehlersuche zählt ohnehin nur der letzte Versuch.
+    if (fs.existsSync(UPDATE_LOG_FILE) && fs.statSync(UPDATE_LOG_FILE).size > 256 * 1024) {
+      fs.writeFileSync(UPDATE_LOG_FILE, '');
+    }
+
+    fs.appendFileSync(UPDATE_LOG_FILE, `${line}\n`, 'utf8');
+  } catch {
+    // Ein nicht schreibbares Protokoll darf die App nicht aufhalten.
+  }
+}
+
+/**
  * Richtet die Selbstaktualisierung ein.
  *
  * @param {boolean} [silent] true = keine Meldung, wenn es nichts Neues gibt.
@@ -560,16 +626,31 @@ function setupUpdater() {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
 
+  // electron-updater schreibt sein Innenleben in einen "logger", wenn man ihm
+  // einen gibt: welche Adresse es abfragt, welche Version es dort findet, und
+  // vor allem, woran ein Download scheitert. Genau diese Zeilen haben zuletzt
+  // gefehlt. Die Schnittstelle verlangt die vier Methoden.
+  autoUpdater.logger = {
+    info: (message) => updateLog('info', String(message)),
+    warn: (message) => updateLog('warn', String(message)),
+    error: (message) => updateLog('error', String(message)),
+    debug: () => {
+      /* zu gesprächig – würde das Protokoll fluten */
+    },
+  };
+
   // In der Entwicklung (npm start) gibt es keine installierte Anwendung, die
   // sich ersetzen ließe – dann würde jeder Aufruf nur eine Fehlermeldung
   // erzeugen.
   if (!app.isPackaged) {
-    console.log('[update] Entwicklungsmodus – Selbstaktualisierung ist aus.');
+    updateLog('info', 'Entwicklungsmodus – Selbstaktualisierung ist aus.');
     return;
   }
 
+  updateLog('info', `Start. Installierte Version: ${app.getVersion()}`);
+
   autoUpdater.on('update-available', (info) => {
-    console.log(`[update] Neue Version verfügbar: ${info.version}`);
+    updateLog('info', `Neue Version verfügbar: ${info.version}`);
 
     new Notification({
       title: 'Streamo wird aktualisiert',
@@ -579,7 +660,7 @@ function setupUpdater() {
   });
 
   autoUpdater.on('update-not-available', () => {
-    console.log('[update] Streamo ist aktuell.');
+    updateLog('info', 'Streamo ist aktuell.');
 
     // Nur melden, wenn jemand ausdrücklich gefragt hat.
     if (manualUpdateCheck) {
@@ -632,7 +713,9 @@ function setupUpdater() {
   });
 
   autoUpdater.on('error', (error) => {
-    console.error('[update] Fehlgeschlagen:', error?.message ?? error);
+    // Mit Stapelspur: Bei einem fehlgeschlagenen Download steht dort die
+    // Adresse, die nicht erreichbar war – die entscheidende Information.
+    updateLog('error', `Fehlgeschlagen: ${error?.stack || error?.message || error}`);
 
     if (manualUpdateCheck) {
       dialog.showMessageBox(mainWindow, {
