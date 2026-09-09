@@ -141,6 +141,11 @@ Jede Reihe – die eigenen wie die offiziellen von TMDB – lässt sich über ei
 **Auswertung, die eine Frage beantwortet**
 Wie verteilen sich deine Serien auf die Abos? Bei welchem Dienst läuft nichts von deiner Liste (Kündigungskandidat)? Welches zusätzliche Abo würde dir am meisten freischalten? Und wie viel Lebenszeit hast du eigentlich investiert?
 
+**Läuft bald aus**
+Ist bekannt, bis wann ein Titel bei einem Anbieter läuft, steht es direkt auf der Kachel: *„Noch 5 Tage"*, in den letzten drei Tagen rot. So sieht man beim Überfliegen der Bibliothek, was diese Woche noch drankommen sollte.
+
+> Diese Angabe kommt **nicht** von TMDB. Deren Schnittstelle liefert je Anbieter genau vier Felder – Logo, Kennung, Name und Sortierrang – und kein Enddatum, in keiner Form. Bekannt wird es nur, wenn es jemand einträgt, etwa aus dem Hinweis „Letzter Tag" beim Anbieter. Auf der Detailseite steht dafür *Enddatum eintragen*; der Eintrag gilt dann für alle auf der Instanz, denn wann ein Titel eine Plattform verlässt, ist eine Tatsache über die Plattform. Ist der Tag vorbei und der Titel immer noch da, verschwindet die Angabe von selbst – ein stiller Fehlalarm wäre schlimmer als gar keine Angabe.
+
 **Automatischer Abgleich**
 Streamo prüft **stündlich**, wo deine Serien inzwischen laufen. Streaming-Rechte wandern ständig – du merkst es, ohne nachzusehen. Abgeglichen wird nur, was tatsächlich in einer Bibliothek steht; bei 300 Titeln sind das rund 20 Sekunden Arbeit pro Durchgang. Den Takt stellst du unter *Einstellungen → Abgleich* ein, von stündlich bis „gar nicht" – die Änderung gilt sofort, ohne Neustart.
 

@@ -2230,3 +2230,39 @@ footer p {
   font-weight: 700;
   font-size: 18px;
 }
+
+/* ==========================================================================
+   "Läuft bald aus" auf der Poster-Kachel
+   ==========================================================================
+   Gesetzt von ui.js -> posterCard(), wenn zu einem Titel ein Enddatum
+   bekannt ist. Das Datum kommt nicht von TMDB (dort gibt es kein solches
+   Feld), sondern wurde von Hand eingetragen – es erscheint also nur bei
+   wenigen Titeln.
+
+   Oben links: "Im Abo" sitzt oben rechts, die Anbieter-Logos unten links. */
+.expiry-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 2;
+
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+
+  background: var(--warning);
+  color: #2a1d00;
+
+  /* Ein Schatten, damit sich die Blase auch von einem hellen Poster abhebt. */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Die letzten drei Tage. Rot ist hier keine Fehlermeldung, sondern eine
+   Frist – deshalb dieselbe Farbe wie beim Entfernen, aber ohne Ausrufezeichen
+   im Text. */
+.expiry-badge.urgent {
+  background: var(--danger);
+  color: #2a0000;
+}

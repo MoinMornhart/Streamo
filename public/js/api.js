@@ -270,6 +270,19 @@ export const api = {
     /** Episode, ganze Staffel oder "alles bis hierhin" ab-/anhaken */
     setWatched: (showId, payload) =>
       request(`/api/shows/${showId}/watched`, { method: 'POST', body: payload }),
+    /**
+     * Traegt ein, bis wann ein Titel bei einem Anbieter laeuft.
+     *
+     * TMDB liefert kein Ablaufdatum - diese Angabe kommt nur von Hand.
+     * availableUntil = null entfernt einen vorhandenen Eintrag.
+     * -> PUT /api/shows/:showId/until (src/routes/shows.js)
+     */
+    setAvailableUntil: (showId, providerId, availableUntil) =>
+      request(`/api/shows/${showId}/until`, {
+        method: 'PUT',
+        body: { providerId, availableUntil },
+      }),
+
     /** Verfügbarkeiten für eine Trefferliste nachladen */
     availability: (items) =>
       request('/api/shows/availability', { method: 'POST', body: { items } }),

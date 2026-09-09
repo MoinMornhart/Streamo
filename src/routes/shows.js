@@ -438,4 +438,83 @@ router.post('/:showId/refresh', async (req, res, next) => {
   }
 });
 
+/**
+ * PUT /api/shows/:showId/until
+ * Body: { providerId, availableUntil }   availableUntil = null löscht
+ *
+ * Trägt ein, bis wann ein Titel bei einem Anbieter läuft.
+ *
+ * Warum von Hand? Weil es keine andere Quelle gibt. TMDB liefert je Anbieter
+ * genau vier Felder – logo_path, provider_id, provider_name und
+ * display_priority – und kein Enddatum, in keiner Form. Bekannt wird so ein
+ * Datum also nur, wenn es jemand sieht: Netflix zeigt "Letzter Tag: 30.
+ * September", ein Anbieter kündigt es an, es steht in der Presse.
+ *
+ * Der Eintrag gilt für die ganze Instanz, nicht je Person: "Bis wann läuft
+ * das bei Netflix" ist eine Tatsache über die Plattform, keine persönliche
+ * Einstellung. Wer sie einträgt, hilft allen anderen mit – deshalb darf das
+ * jedes angemeldete Konto und nicht nur ein Administrator.
+ */
+router.put('/:showId/until', (req, res) => {
+  const show = findShowById(Number(req.params.showId));
+  if (!show) return res.status(404).json({ error: 'Serie unbekannt.' });
+
+  const { region } = getRuntimeSettings(req.user);
+
+  const providerId = Number(req.body?.providerId);
+
+  if (!Number.isInteger(providerId)) {
+    return res.status(400).json({ error: 'Es fehlt der Anbieter.' });
+  }
+
+  const value = req.body?.availableUntil;
+
+  // Leerer Wert = Eintrag entfernen. Das ist der Weg zurück, wenn sich ein
+  // Datum als falsch herausstellt oder der Anbieter verlängert.
+  if (value === null || value === undefined || value === '') {
+    run(
+      'DELETE FROM availability_until WHERE show_id = ? AND region = ? AND provider_id = ?',
+      show.id,
+      region,
+      providerId,
+    );
+
+    return res.json({ ok: true, removed: true });
+  }
+
+  const date = String(value).slice(0, 10);
+
+  // Format prüfen, statt zu hoffen. Ein "31.09.2026" oder "morgen" würde
+  // sonst als Zeichenkette in der Datenbank landen und jede Berechnung
+  // stillschweigend verfälschen.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date))) {
+    return res.status(400).json({ error: 'Bitte ein Datum im Format JJJJ-MM-TT angeben.' });
+  }
+
+  // Ein Datum in der Vergangenheit ist keine Ankündigung, sondern ein
+  // Tippfehler – und es würde ohnehin nie angezeigt.
+  if (date < new Date().toISOString().slice(0, 10)) {
+    return res.status(400).json({ error: 'Das Datum liegt in der Vergangenheit.' });
+  }
+
+  run(
+    `INSERT INTO availability_until (show_id, region, provider_id, available_until, noted_by)
+     VALUES (?,?,?,?,?)
+     ON CONFLICT(show_id, region, provider_id) DO UPDATE SET
+        available_until = excluded.available_until,
+        noted_by        = excluded.noted_by,
+        noted_at        = datetime('now')`,
+    show.id,
+    region,
+    providerId,
+    date,
+    req.user.id,
+  );
+
+  res.json({
+    ok: true,
+    availability: buildAvailabilityView(show.id, region, getSubscribedProviderIds(req.user.id)),
+  });
+});
+
 export default router;

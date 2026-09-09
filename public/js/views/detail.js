@@ -35,6 +35,7 @@ import {
   OFFER_LABELS,
   // Fenster im Stil der Seite statt der grauen Browser-Dialoge.
   askConfirm,
+  modal,
 } from '../ui.js';
 
 /**
@@ -44,11 +45,16 @@ import {
  * grün umrandet und mit dem Zusatz "dein Abo" versehen – das ist die konkrete
  * Antwort auf die Ausgangsfrage des Projekts.
  *
+ * Ein bekanntes Enddatum ("noch 5 Tage") steht als Zusatz am jeweiligen
+ * Anbieter. Es kommt nicht von TMDB - dort gibt es kein solches Feld -,
+ * sondern wurde von Hand eingetragen.
+ *
  * @param {object} availability Ergebnis von buildAvailabilityView (Server)
  * @param {string} region       Für welches Land die Angaben gelten
+ * @param {Function} [onSetUntil] Öffnet den Dialog zum Eintragen eines Datums
  * @returns {HTMLElement}
  */
-function availabilityBlock(availability, region) {
+function availabilityBlock(availability, region, onSetUntil) {
   const groups = Object.entries(availability.offers || {});
 
   if (groups.length === 0) {
@@ -92,12 +98,42 @@ function availabilityBlock(availability, region) {
                 offer.subscribed &&
                   ['flatrate', 'free', 'ads'].includes(offerType) &&
                   el('span.offer-tag', { text: 'dein Abo' }),
+
+                // Das bekannte Enddatum, falls jemand eines eingetragen hat.
+                offer.availableUntil &&
+                  el('span.offer-tag.until', {
+                    text:
+                      offer.daysLeft <= 0
+                        ? 'letzter Tag'
+                        : offer.daysLeft === 1
+                          ? 'noch 1 Tag'
+                          : `noch ${offer.daysLeft} Tage`,
+                    title: `Bis ${formatDate(offer.availableUntil)}`,
+                  }),
               ],
             ),
           ),
         ),
       ]),
     ),
+
+    // ------------------------------------------------------------------
+    // Ein Enddatum eintragen
+    // ------------------------------------------------------------------
+    // Der einzige Weg, an diese Information zu kommen: TMDB liefert kein
+    // Ablaufdatum, in keiner Form. Bekannt wird es nur, wenn es jemand
+    // irgendwo sieht – Netflix zeigt "Letzter Tag: 30. September", ein
+    // Anbieter kündigt es an, es steht in der Presse.
+    //
+    // Der Eintrag gilt für alle auf dieser Instanz: Wann ein Titel eine
+    // Plattform verlässt, ist eine Tatsache über die Plattform.
+    onSetUntil &&
+      el('button.btn.btn-sm.btn-ghost', {
+        style: { marginTop: '12px' },
+        text: '⏳ Enddatum eintragen',
+        title: 'Bis wann läuft der Titel bei einem Anbieter?',
+        onClick: () => onSetUntil(),
+      }),
   ]);
 }
 
@@ -418,7 +454,8 @@ export async function render_(container, params) {
           event.target.textContent = 'Prüfe …';
           try {
             const result = await api.shows.refresh(show.showId);
-            render(availabilitySlot, availabilityBlock(result.availability, data.region));
+            data.availability = result.availability;
+            render(availabilitySlot, availabilityBlock(result.availability, data.region, setUntil));
             toast('Verfügbarkeit aktualisiert.', 'success');
           } catch (error) {
             toast(error.message, 'error');
@@ -454,7 +491,105 @@ export async function render_(container, params) {
     );
   };
 
-  const availabilitySlot = el('div', {}, [availabilityBlock(data.availability, data.region)]);
+  /**
+   * Fragt nach Anbieter und Enddatum und trägt beides ein.
+   *
+   * Zwei Angaben in einem Fenster: bei welchem Anbieter, und bis wann. Zur
+   * Auswahl stehen nur die Anbieter, bei denen der Titel tatsächlich läuft –
+   * alles andere wäre eine Behauptung ins Blaue.
+   */
+  const setUntil = async () => {
+    // Jeden Anbieter nur einmal anbieten, auch wenn er unter mehreren
+    // Angebotsarten auftaucht (im Abo UND zur Leihe).
+    const providers = [];
+    const seen = new Set();
+
+    for (const list of Object.values(data.availability.offers || {})) {
+      for (const offer of list) {
+        if (seen.has(offer.provider_id)) continue;
+        seen.add(offer.provider_id);
+        providers.push(offer);
+      }
+    }
+
+    if (providers.length === 0) {
+      toast('Für diesen Titel ist kein Anbieter bekannt.', 'error');
+      return;
+    }
+
+    const values = await modal({
+      title: 'Bis wann ist der Titel verfügbar?',
+      subtitle:
+        'Diese Angabe gibt es bei TMDB nicht – sie muss von Hand kommen, etwa aus dem Hinweis „Letzter Tag" beim Anbieter. Eingetragen gilt sie für alle auf dieser Instanz.',
+      body: (close) => {
+        const providerSelect = el(
+          'select',
+          { style: { width: '100%' } },
+          providers.map((offer) =>
+            el('option', {
+              value: String(offer.provider_id),
+              text: offer.name,
+              selected: Boolean(offer.availableUntil),
+            }),
+          ),
+        );
+
+        // Ein vorhandenes Datum vorbelegen, damit man es korrigieren kann,
+        // statt es neu zu suchen.
+        const vorhanden = providers.find((offer) => offer.availableUntil);
+
+        const dateInput = el('input', {
+          type: 'date',
+          value: vorhanden?.availableUntil ?? '',
+          // Rückwirkend ergibt die Angabe keinen Sinn; der Server lehnt sie
+          // ohnehin ab, aber der Kalender soll es gar nicht erst anbieten.
+          min: new Date().toISOString().slice(0, 10),
+          style: { width: '100%' },
+        });
+
+        return [
+          el('div.field', {}, [el('label', { text: 'Anbieter' }), providerSelect]),
+          el('div.field', {}, [
+            el('label', { text: 'Letzter Tag' }),
+            dateInput,
+            el('div.hint', { text: 'Leer lassen und speichern entfernt ein vorhandenes Datum.' }),
+          ]),
+          el('div.modal-actions', {}, [
+            el('button.btn.btn-ghost', { text: 'Abbrechen', onClick: () => close(null) }),
+            el('button.btn.btn-primary', {
+              text: 'Speichern',
+              onClick: () =>
+                close({ providerId: Number(providerSelect.value), until: dateInput.value }),
+            }),
+          ]),
+        ];
+      },
+    });
+
+    if (!values) return;
+
+    try {
+      const result = await api.shows.setAvailableUntil(
+        show.showId,
+        values.providerId,
+        values.until || null,
+      );
+
+      // Die Antwort enthält die frische Verfügbarkeit – damit lässt sich der
+      // Block neu zeichnen, ohne die ganze Seite zu laden.
+      if (result.availability) data.availability = result.availability;
+
+      render(availabilitySlot, availabilityBlock(data.availability, data.region, setUntil));
+
+      toast(values.until ? 'Enddatum eingetragen.' : 'Enddatum entfernt.', 'success');
+    } catch (error) {
+      toast(error.message, 'error');
+    }
+  };
+
+  const availabilitySlot = el('div', {}, [
+    availabilityBlock(data.availability, data.region, setUntil),
+  ]);
 
   renderActions();
 

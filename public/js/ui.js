@@ -732,6 +732,32 @@ export function posterCard(item, options = {}) {
     badge = el('span.corner-badge.in-library', { text: '✓' });
   }
 
+  // --- "Läuft bald aus" ----------------------------------------------------
+  // Die dringendste Information überhaupt, deshalb direkt auf dem Poster und
+  // nicht erst auf der Detailseite: Wer die Bibliothek überfliegt, soll sehen,
+  // was er diese Woche noch schauen sollte.
+  //
+  // Das Datum stammt nicht von TMDB – dort gibt es kein solches Feld –,
+  // sondern wurde von Hand eingetragen (siehe src/routes/shows.js). Es gibt
+  // es also nur zu wenigen Titeln, und die Kachel muss ohne genauso aussehen.
+  const expiring = item.availability?.expiring;
+
+  const expiryBadge = expiring
+    ? el(
+        // Ab drei Tagen wird es dringend – dann rot statt gelb.
+        `span.expiry-badge${expiring.daysLeft <= 3 ? '.urgent' : ''}`,
+        {
+          title: `Bei ${expiring.providerName} nur noch bis zum ${formatDate(expiring.availableUntil)}`,
+          text:
+            expiring.daysLeft <= 0
+              ? 'Letzter Tag'
+              : expiring.daysLeft === 1
+                ? 'Noch 1 Tag'
+                : `Noch ${expiring.daysLeft} Tage`,
+        },
+      )
+    : null;
+
   const progress = item.progress;
 
   return el(
@@ -749,6 +775,9 @@ export function posterCard(item, options = {}) {
           ? el('img', { src: poster, alt: item.title, loading: 'lazy' })
           : el('div.poster-placeholder', { text: item.title }),
         badge,
+        // Oben links: "Im Abo" sitzt oben rechts, die Anbieter-Logos unten
+        // links – so verdeckt nichts etwas anderes.
+        expiryBadge,
         providerStrip,
       ]),
 

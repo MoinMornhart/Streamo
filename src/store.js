@@ -298,6 +298,28 @@ export function getAvailability(showId, region) {
 export function buildAvailabilityView(showId, region, subscribedIds = new Set()) {
   const rows = getAvailability(showId, region);
 
+  // Bekannte Ablaufdaten dazuholen: "bis wann läuft das bei Netflix".
+  //
+  // Sie stammen NICHT von TMDB – dort gibt es kein solches Feld –, sondern
+  // sind von Hand eingetragen (Tabelle availability_until, Migration 10).
+  // Deshalb kann es sie geben oder auch nicht; die Anzeige muss ohne
+  // genauso funktionieren.
+  //
+  // Abgelaufene Einträge werden übergangen statt gelöscht: Steht ein Titel
+  // nach dem genannten Tag immer noch beim Anbieter, war die Angabe eben
+  // falsch oder wurde verlängert. Ein stiller Fehlalarm ist schlimmer als
+  // gar keine Angabe.
+  const untilRows = all(
+    `SELECT provider_id, available_until, noted_at
+       FROM availability_until
+      WHERE show_id = ? AND region = ?
+        AND available_until >= date('now')`,
+    showId,
+    region,
+  );
+
+  const untilByProvider = new Map(untilRows.map((row) => [row.provider_id, row]));
+
   /** Nach Angebotsart gruppiert: { flatrate: [...], rent: [...] } */
   const offers = {};
   /** Nur die Anbieter, bei denen der Benutzer ein Abo hat. */
@@ -307,9 +329,21 @@ export function buildAvailabilityView(showId, region, subscribedIds = new Set())
   for (const row of rows) {
     link ||= row.link;
 
+    const until = untilByProvider.get(row.provider_id);
+
     // Jede Zeile bekommt die Information, ob sie zu einem Abo des Benutzers
     // gehört. Das Frontend hebt diese Kacheln farblich hervor.
-    const entry = { ...row, subscribed: subscribedIds.has(row.provider_id) };
+    const entry = {
+      ...row,
+      subscribed: subscribedIds.has(row.provider_id),
+
+      // Das bekannte Enddatum, oder null.
+      availableUntil: until?.available_until ?? null,
+
+      // Die verbleibenden Tage gleich mitrechnen – das Frontend soll nicht
+      // mit Zeitzonen hantieren müssen. 0 heißt "heute ist der letzte Tag".
+      daysLeft: until ? daysUntil(until.available_until) : null,
+    };
 
     (offers[row.offer_type] ||= []).push(entry);
 
@@ -320,6 +354,26 @@ export function buildAvailabilityView(showId, region, subscribedIds = new Set())
     }
   }
 
+  // ---------------------------------------------------------------------
+  // Das dringendste Ablaufdatum, direkt oben angehängt
+  // ---------------------------------------------------------------------
+  // Damit die Poster-Kachel es zeigen kann, ohne die Angebotsliste
+  // durchsuchen zu müssen. Genau dort gehört es hin: "Noch 5 Tage bei
+  // Netflix" ist eine Information, die man beim Überfliegen der Bibliothek
+  // braucht – nicht erst, nachdem man den Titel angeklickt hat.
+  //
+  // Bei mehreren Anbietern gewinnt der dringendste. Angebote aus einem
+  // eigenen Abo zählen dabei zuerst: Dass eine Leihfassung ausläuft, ist
+  // gleichgültig, solange man den Titel im Abo weiterhin sehen kann.
+  const withDate = [...included, ...(offers.flatrate ?? []), ...Object.values(offers).flat()].filter(
+    (entry) => entry.daysLeft !== null,
+  );
+
+  const expiring =
+    withDate.length === 0
+      ? null
+      : withDate.reduce((soonest, entry) => (entry.daysLeft < soonest.daysLeft ? entry : soonest));
+
   return {
     link,
     offers,
@@ -328,7 +382,37 @@ export function buildAvailabilityView(showId, region, subscribedIds = new Set())
     // überhaupt – das ist es, was auf der Kachel als Logo erscheint.
     bestOffer: included[0] || offers.flatrate?.[0] || null,
     isIncluded: included.length > 0,
+
+    // Gesetzt, wenn zu diesem Titel ein Enddatum bekannt ist.
+    expiring: expiring
+      ? {
+          providerId: expiring.provider_id,
+          providerName: expiring.name,
+          availableUntil: expiring.availableUntil,
+          daysLeft: expiring.daysLeft,
+          subscribed: expiring.subscribed,
+        }
+      : null,
   };
+}
+
+/**
+ * Wie viele Tage bleiben bis zu einem Datum?
+ *
+ * Gerechnet wird in ganzen Tagen ab Mitternacht, nicht in 24-Stunden-
+ * Schritten: Wer am Abend nachsieht, soll für morgen "1 Tag" lesen und nicht
+ * "0", nur weil rechnerisch keine vollen 24 Stunden mehr übrig sind.
+ *
+ * @param {string} isoDate "YYYY-MM-DD"
+ * @returns {number} 0 = heute ist der letzte Tag; negativ = vorbei
+ */
+function daysUntil(isoDate) {
+  const target = new Date(`${isoDate}T00:00:00`);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return Math.round((target - today) / 86_400_000);
 }
 
 /**

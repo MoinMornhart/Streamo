@@ -784,6 +784,64 @@ const MIGRATIONS = [
       db.exec('ALTER TABLE users ADD COLUMN theme TEXT');
     }
   },
+
+  // -------------------------------------------------------------------------
+  // Version 10 -> "Verfügbar bis": wann ein Titel eine Plattform verlässt
+  // -------------------------------------------------------------------------
+  // Die wichtigste Angabe vorweg: TMDB liefert kein Ablaufdatum. Je Anbieter
+  // kommen genau vier Felder zurück – logo_path, provider_id, provider_name
+  // und display_priority. Kein Enddatum, in keiner Form. Nachgeprüft in der
+  // API-Referenz, nicht aus dem Gedächtnis behauptet.
+  //
+  // Bekannt wird ein solches Datum also nur, wenn es jemand einträgt – etwa
+  // weil Netflix "Letzter Tag: 30. September" anzeigt oder es in der Presse
+  // stand. Genau dafür ist diese Tabelle da.
+  //
+  // Warum eine eigene Tabelle statt einer Spalte in `availability`?
+  // Weil src/store.js -> saveAvailability() bei jedem Abgleich zuerst
+  // "DELETE FROM availability WHERE show_id = ? AND region = ?" ausführt und
+  // danach neu einfügt. Eine Spalte dort wäre stündlich weg. Hier überlebt
+  // der Eintrag jeden Abgleich.
+  //
+  // Der Eintrag gilt für die ganze Instanz, nicht je Person: "Bis wann läuft
+  // das bei Netflix" ist eine Tatsache über die Plattform, keine persönliche
+  // Einstellung. Wer ihn einträgt, hilft allen anderen mit.
+  //
+  // Verknüpfungen:
+  //   - src/store.js -> buildAvailabilityView() hängt das Datum an die Angebote
+  //   - src/routes/shows.js -> Eintragen und Löschen
+  //   - public/js/views/detail.js -> die Anzeige samt Countdown
+  () => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS availability_until (
+        show_id     INTEGER NOT NULL REFERENCES shows(id) ON DELETE CASCADE,
+
+        -- Dieselbe Aufteilung wie in availability: Ein Titel kann in
+        -- Deutschland im Oktober verschwinden und in Österreich bleiben.
+        region      TEXT NOT NULL,
+        provider_id INTEGER NOT NULL,
+
+        -- Das Datum selbst, als ISO-Tag (YYYY-MM-DD). Bewusst ohne Uhrzeit:
+        -- Anbieter nennen einen Tag, keine Minute.
+        available_until TEXT NOT NULL,
+
+        -- Wer hat es eingetragen? Nur zur Anzeige ("von morni ergänzt").
+        -- Beim Löschen des Kontos bleibt der Eintrag – die Information über
+        -- die Plattform ist ja weiterhin richtig.
+        noted_by    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        noted_at    TEXT NOT NULL DEFAULT (datetime('now')),
+
+        -- Ein Datum je Titel, Region und Anbieter. Ob der Titel dort im Abo
+        -- steckt oder zur Leihe steht, spielt keine Rolle: Er verschwindet
+        -- als Ganzes von der Plattform.
+        PRIMARY KEY (show_id, region, provider_id)
+      );
+
+      -- Für die Abfrage "was läuft demnächst aus?" über alle Titel hinweg.
+      CREATE INDEX IF NOT EXISTS idx_until_date
+        ON availability_until(available_until);
+    `);
+  },
 ];
 
 /**
