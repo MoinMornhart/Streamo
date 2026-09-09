@@ -210,6 +210,21 @@ img {
   flex-shrink: 0;
 }
 
+/* ---------------------------------------------------------------------------
+   Untere Navigationsleiste – auf großen Bildschirmen ausgeblendet.
+   ---------------------------------------------------------------------------
+   Diese Regel ist wichtiger, als sie aussieht: public/js/app.js nimmt der
+   Leiste nach dem Anmelden das hidden-Attribut, damit sie auf Telefonen
+   erscheinen kann. Ohne das display:none hier stünde sie danach auch auf dem
+   Desktop da – und zwar völlig unformatiert, weil ihre Gestaltung
+   ausschließlich im Handy-Media-Query steht.
+
+   Eingeblendet wird sie erst unter 720 px Breite, siehe weiter unten.
+   --------------------------------------------------------------------------- */
+#mobile-nav {
+  display: none;
+}
+
 .icon-button {
   width: 34px;
   height: 34px;
