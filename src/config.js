@@ -209,6 +209,47 @@ export const config = Object.freeze({
   /** Dürfen sich fremde Personen selbst registrieren? */
   allowRegistration: envBool('ALLOW_REGISTRATION', false),
 
+  // --- Passkeys (WebAuthn), siehe src/passkeys.js -------------------------
+  /**
+   * Die Domain, an die Passkeys gebunden werden ("Relying Party ID").
+   * Leer lassen: Streamo leitet sie aus der aufgerufenen Adresse ab, was in
+   * fast allen Fällen richtig ist. Fest eintragen sollte man sie, wenn
+   * mehrere Hostnamen auf dieselbe Instanz zeigen – dann entscheidet dieser
+   * Wert, unter welchem Namen die Passkeys gelten.
+   *
+   * Achtung: Ein späterer Wechsel macht alle vorhandenen Passkeys ungültig.
+   * Das ist Absicht und der Grund, warum Passkeys phishing-sicher sind.
+   */
+  webauthnRpId: envString('WEBAUTHN_RP_ID', ''),
+  /**
+   * Die vollständige Adresse inklusive Schema, z. B. https://streamo.example.de.
+   * Ebenfalls nur nötig, wenn die automatische Erkennung nicht passt.
+   */
+  webauthnOrigin: envString('WEBAUTHN_ORIGIN', ''),
+
+  // --- HTTPS --------------------------------------------------------------
+  /**
+   * Streamo selbst per HTTPS ausliefern. Nur nötig, wenn KEIN Reverse Proxy
+   * davorsteht, der das Zertifikat übernimmt – und dann vor allem deshalb,
+   * weil Passkeys ohne HTTPS nicht funktionieren.
+   *
+   * Ist kein Zertifikat hinterlegt, erzeugt Streamo beim Start ein
+   * selbstsigniertes (siehe src/tls.js). Der Browser zeigt dafür einmal eine
+   * Warnung; die Desktop-App akzeptiert es ohne Rückfrage.
+   */
+  https: envBool('ENABLE_HTTPS', false),
+  /** Port für HTTPS. Der HTTP-Port bleibt daneben bestehen und leitet um. */
+  httpsPort: envNumber('HTTPS_PORT', 3443),
+  /** Pfad zum Zertifikat im PEM-Format. Leer = selbst erzeugen. */
+  tlsCertFile: envString('TLS_CERT_FILE', ''),
+  /** Pfad zum privaten Schlüssel im PEM-Format. Leer = selbst erzeugen. */
+  tlsKeyFile: envString('TLS_KEY_FILE', ''),
+  /**
+   * Hostname, auf den ein selbst erzeugtes Zertifikat ausgestellt wird.
+   * Muss zu der Adresse passen, unter der Streamo aufgerufen wird.
+   */
+  tlsHostname: envString('TLS_HOSTNAME', 'streamo.local'),
+
   // --- TMDB / Streaming-Daten ---------------------------------------------
   /** API-Key oder v4-Read-Token für api.themoviedb.org (src/tmdb.js) */
   tmdbApiKey: envString('TMDB_API_KEY', ''),

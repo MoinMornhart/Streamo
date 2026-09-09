@@ -98,6 +98,46 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- ===========================================================================
+-- credentials – Passkeys. Verknüpfung: credentials.user_id -> users.id
+-- ===========================================================================
+-- Ein Passkey ist ein Schlüsselpaar, das im Gerät des Benutzers entsteht
+-- (Windows Hello, Face ID, Android, oder ein Sicherheitsschlüssel wie YubiKey).
+-- Der PRIVATE Teil verlässt dieses Gerät nie. Streamo speichert deshalb nur
+-- den öffentlichen Teil – selbst wenn jemand diese Datenbank vollständig
+-- stiehlt, kann er sich damit nicht anmelden. Genau das ist der Vorteil
+-- gegenüber einem Passwort-Hash.
+CREATE TABLE IF NOT EXISTS credentials (
+  -- Die vom Gerät vergebene Anmeldedaten-Kennung, Base64URL-kodiert.
+  -- Sie ist global eindeutig und wird beim Anmelden vom Browser mitgeschickt.
+  id            TEXT PRIMARY KEY,
+  user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  -- Der öffentliche Schlüssel im COSE-Format, Base64URL-kodiert.
+  public_key    TEXT NOT NULL,
+  -- Signaturzähler des Geräts. Steigt bei jeder Anmeldung. Fällt er, ist das
+  -- ein Hinweis auf einen geklonten Schlüssel – die Bibliothek prüft das.
+  -- Moderne Plattform-Passkeys melden hier oft dauerhaft 0, das ist normal.
+  counter       INTEGER NOT NULL DEFAULT 0,
+  -- Wie ist das Gerät erreichbar? JSON-Array wie ["internal","hybrid"].
+  -- Der Browser nutzt das beim nächsten Mal, um passende Hinweise zu zeigen
+  -- ("Passkey von einem anderen Gerät verwenden").
+  transports    TEXT,
+  -- Vom Benutzer vergebener Name, damit er in der Liste weiß, welches Gerät
+  -- gemeint ist: "Arbeitslaptop", "iPhone", "YubiKey am Schlüsselbund".
+  name          TEXT,
+  -- 1 = auffindbarer Passkey (Resident Key). Nur damit ist eine Anmeldung
+  -- ganz ohne Benutzernamen möglich.
+  discoverable  INTEGER NOT NULL DEFAULT 0,
+  -- Woher stammt der Schlüssel? "platform" = im Gerät (Windows Hello),
+  -- "cross-platform" = externer Sicherheitsschlüssel.
+  device_type   TEXT,
+  -- 1 = der Passkey wird zwischen Geräten synchronisiert (iCloud, Google).
+  backed_up     INTEGER NOT NULL DEFAULT 0,
+  created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+  last_used_at  TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_credentials_user ON credentials(user_id);
+
+-- ===========================================================================
 -- sessions – aktive Anmeldungen. Verknüpfung: sessions.user_id -> users.id
 -- ===========================================================================
 -- Warum eine Tabelle statt eines rein signierten Cookies? Damit "Abmelden"
@@ -368,6 +408,34 @@ const MIGRATIONS = [
   // dieser Eintrag hebt nur den Zähler an, damit künftige Migrationen eine
   // definierte Ausgangslage haben.
   () => {},
+
+  // -------------------------------------------------------------------------
+  // Version 2 -> Passkeys und E-Mail-Adressen
+  // -------------------------------------------------------------------------
+  // Ab hier kann man sich auf zwei Wegen anmelden: mit Benutzername bzw.
+  // E-Mail und Passwort wie bisher, ODER mit einem Passkey (WebAuthn/FIDO2,
+  // also Windows Hello, Face ID, Fingerabdruck oder ein Sicherheitsschlüssel).
+  //
+  // Die Spalte `email` kommt per ALTER TABLE dazu. Bestehende Konten behalten
+  // NULL – die E-Mail ist optional und dient nur als zweiter Anmeldename.
+  () => {
+    // Die Tabellen werden bei einer NEUEN Installation bereits durch SCHEMA
+    // angelegt. Deshalb wird hier geprüft, ob die Spalte schon existiert –
+    // sonst würde ALTER TABLE mit "duplicate column name" scheitern.
+    const columns = db.prepare('PRAGMA table_info(users)').all();
+
+    if (!columns.some((c) => c.name === 'email')) {
+      db.exec('ALTER TABLE users ADD COLUMN email TEXT');
+    }
+
+    // Teilweiser eindeutiger Index: E-Mail-Adressen müssen eindeutig sein,
+    // aber beliebig viele Konten dürfen gar keine haben (NULL). Ein normaler
+    // UNIQUE-Index würde in SQLite zwar auch mehrere NULL erlauben, der
+    // WHERE-Zusatz macht die Absicht aber unmissverständlich.
+    db.exec(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL',
+    );
+  },
 ];
 
 /**

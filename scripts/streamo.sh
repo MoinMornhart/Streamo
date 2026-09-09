@@ -366,11 +366,16 @@ create_container() {
   fi
 
   # Die Optionen im Einzelnen:
-  #   --features nesting=1  erlaubt es, im Container weitere Namensräume zu
-  #                         öffnen. Node.js braucht das nicht zwingend, aber
-  #                         ohne diese Option scheitern viele apt-Hooks.
-  #   --onboot 1            startet den Container mit dem Host automatisch
-  #   --unprivileged        Root im Container ist nicht Root auf dem Host
+  #   --onboot 1     startet den Container zusammen mit dem Host
+  #   --unprivileged Root im Container ist nicht Root auf dem Host
+  #   --swap 512     etwas Luft, falls der Sync-Lauf mehr Speicher braucht
+  #
+  # Bewusst OHNE "--features nesting=1": Streamo ist ein einzelner
+  # Node-Prozess und braucht keine verschachtelten Namensräume. Auf manchen
+  # Systemen – vor allem auf ARM und unter Proxmox 9 – führt nesting bei
+  # unprivilegierten Containern dazu, dass der Start mit
+  # "sync_wait ... Failed to spawn container" abbricht. Weglassen kostet hier
+  # nichts und erspart genau diesen Fehler.
   pct create "$CTID" "${TEMPLATE_STORAGE}:vztmpl/${TEMPLATE_FILE}" \
     --hostname "$HOSTNAME" \
     --cores "$CORE_COUNT" \
@@ -379,7 +384,6 @@ create_container() {
     --rootfs "${CONTAINER_STORAGE}:${DISK_SIZE}" \
     --net0 "$net" \
     --unprivileged "$var_unprivileged" \
-    --features nesting=1 \
     --onboot 1 \
     --ostype "$var_os" \
     --description "Streamo – alle Streaming-Abos an einem Ort. ${REPO_URL}" \
@@ -396,7 +400,35 @@ create_container() {
   fi
 
   msg_info "Container wird gestartet"
-  pct start "$CTID"
+
+  # Der Start ist der Schritt, der auf ungewöhnlichen Wirtssystemen am ehesten
+  # scheitert (ARM-Hardware, frische Proxmox-Versionen, strenge AppArmor-
+  # Profile). Deshalb wird die Ausgabe aufgefangen und im Fehlerfall etwas
+  # Brauchbares daraus gemacht, statt nur abzubrechen.
+  if ! start_output="$(pct start "$CTID" 2>&1)"; then
+    msg_error "Der Container ${CTID} lässt sich nicht starten."
+    echo ""
+    echo -e " ${DGN}Meldung von Proxmox:${CL}"
+    echo "$start_output" | sed 's/^/   /'
+    echo ""
+    echo -e " ${YW}So kommst du weiter${CL}"
+    echo -e "   1. Ausführliches Protokoll erzeugen:"
+    echo -e "      ${DGN}lxc-start -n ${CTID} -F -l DEBUG -o /tmp/lxc-${CTID}.log${CL}"
+    echo -e "      ${DGN}tail -40 /tmp/lxc-${CTID}.log${CL}"
+    echo ""
+    echo -e "   2. Häufige Ursache – ein privilegierter Container hilft oft,"
+    echo -e "      wenn der unprivilegierte nicht startet:"
+    echo -e "      ${DGN}pct destroy ${CTID}${CL}"
+    echo -e "      ${DGN}var_unprivileged=0 bash -c \"\$(curl -fsSL ${INSTALL_SCRIPT_URL%/install/*}/streamo.sh)\"${CL}"
+    echo ""
+    echo -e "   3. Bleibt es dabei, hilf uns mit dem Protokoll aus Schritt 1:"
+    echo -e "      ${BL}${REPO_URL}/issues${CL}"
+    echo ""
+
+    # Der Container existiert bereits – die Abbruchbehandlung fragt gleich,
+    # ob er entfernt werden soll.
+    exit 1
+  fi
 
   # Auf das Netzwerk warten. Ohne Verbindung schlägt apt sofort fehl, und die
   # Fehlermeldung wäre irreführend ("Paketquellen nicht erreichbar").
