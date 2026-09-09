@@ -30,6 +30,48 @@ Alle Werte lassen sich im Installationsdialog unter „Erweitert" ändern.
 
 ---
 
+## Streamo für den PC
+
+Neben der Weboberfläche gibt es eine Windows-App: **[Installer herunterladen](https://github.com/MoinMornhart/Streamo/releases)**
+
+Sie zeigt dieselbe Oberfläche in einem eigenen Programmfenster und kann dazu, was der Browser nicht kann: im Infobereich weiterlaufen, bei neuen Episoden benachrichtigen, mit Windows starten und die Suche per `Strg`+`Umschalt`+`S` öffnen. Details in [desktop/README.md](desktop/README.md).
+
+---
+
+## Anmelden – Passwort oder Passkey
+
+Drei Wege, die nebeneinander bestehen:
+
+| Weg | Womit |
+| --- | --- |
+| Benutzername + Passwort | funktioniert immer, überall |
+| E-Mail + Passwort | die E-Mail ist optional und dient nur als zweiter Anmeldename |
+| **Passkey** | Windows Hello, Face ID, Fingerabdruck oder Sicherheitsschlüssel |
+
+Bei einem Passkey entsteht ein Schlüsselpaar auf deinem Gerät. Der private Teil verlässt es nie – Streamo speichert nur den öffentlichen. Selbst wer die gesamte Datenbank stiehlt, kann sich damit nicht anmelden.
+
+Eingerichtet werden Passkeys unter *Einstellungen → Passkeys*. Du kannst mehrere anlegen (Rechner, Handy, Sicherheitsschlüssel) und danach optional das Passwort entfernen – Streamo lässt das nur zu, solange mindestens ein Passkey übrig bleibt.
+
+> **Streamo verschickt keine E-Mails** und braucht keinen Mailserver. Die Adresse ist ausschließlich ein zweiter Anmeldename.
+
+### Voraussetzungen für Passkeys
+
+Zwei Regeln setzt der Browser, an denen sich nichts ändern lässt:
+
+1. **HTTPS ist Pflicht.** Über `http://` funktionieren Passkeys nicht (Ausnahme: `localhost`).
+2. **Ein Hostname ist Pflicht.** Eine IP-Adresse ist nicht erlaubt – `https://192.168.1.50:3000` scheidet also aus.
+
+Sind sie nicht erfüllt, blendet Streamo den Passkey-Knopf aus und nennt auf der Einstellungsseite den Grund. Der Passwortweg bleibt in jedem Fall.
+
+**So erfüllst du sie:**
+
+- **Reverse Proxy mit eigener Domain** (empfohlen): Nginx Proxy Manager, Traefik o. Ä. mit Let's-Encrypt-Zertifikat, Ziel `http://<container-ip>:3000`. Im Container dann `TRUST_PROXY=true` setzen.
+- **Streamo mit eigenem HTTPS**: `ENABLE_HTTPS=true` und `TLS_HOSTNAME=streamo.local` in der `.env`. Streamo erzeugt dann ein selbstsigniertes Zertifikat. Im Browser musst du es einmal bestätigen – die Desktop-App akzeptiert es auf Wunsch ohne Rückfrage.
+
+> Ziehst du Streamo später auf eine andere Domain um, werden alle Passkeys ungültig. Das ist kein Fehler, sondern genau der Mechanismus, der Passkeys phishing-sicher macht: Sie sind fest an eine Domain gebunden. Das Passwort funktioniert weiterhin.
+
+---
+
 ## Was Streamo kann
 
 **Anbieter verknüpfen**
