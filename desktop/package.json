@@ -1,0 +1,63 @@
+{
+  "name": "streamo-desktop",
+  "version": "1.0.0",
+  "description": "Streamo für den PC – eigenes Fenster, Tray-Symbol, Benachrichtigungen bei neuen Episoden.",
+  "main": "main.js",
+  "license": "MIT",
+  "author": "MoinMornhart",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MoinMornhart/Streamo.git",
+    "directory": "desktop"
+  },
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --publish never",
+    "build:win": "electron-builder --win --publish never",
+    "build:linux": "electron-builder --linux --publish never",
+    "build:mac": "electron-builder --mac --publish never"
+  },
+  "devDependencies": {
+    "electron": "^44.3.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "de.mornhart.streamo",
+    "productName": "Streamo",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "assets/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Streamo"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "AudioVideo",
+      "icon": "assets/icon.png"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.entertainment",
+      "icon": "assets/icon.icns"
+    }
+  }
+}

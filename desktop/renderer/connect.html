@@ -1,0 +1,339 @@
+<!doctype html>
+<!--
+  ---------------------------------------------------------------------------
+  desktop/renderer/connect.html – "Mit deinem Server verbinden"
+  ---------------------------------------------------------------------------
+  Der erste Bildschirm der Desktop-App. Er erscheint beim allerersten Start
+  und immer dann, wenn der Server nicht erreichbar ist.
+
+  Diese Seite ist die EINZIGE, die aus der App selbst kommt – alles andere
+  lädt vom Server. Deshalb liegt sie hier lokal und funktioniert auch ohne
+  jede Netzwerkverbindung.
+
+  Sie spricht nur über window.streamoDesktop mit der App; was dort verfügbar
+  ist, legt desktop/preload.js fest.
+
+  Verknüpfungen:
+    - desktop/preload.js -> testConnection(), connect(), getSettings()
+    - desktop/main.js    -> die Gegenstellen und das Laden der Oberfläche
+    - src/server.js      -> /api/health, das hier abgefragt wird
+  ---------------------------------------------------------------------------
+-->
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Streamo verbinden</title>
+
+    <!--
+      Eigene Kopie der Gestaltung statt eines Verweises auf den Server:
+      Dieser Bildschirm muss auch dann richtig aussehen, wenn der Server
+      gerade nicht erreichbar ist - das ist ja der häufigste Grund, warum man
+      ihn überhaupt zu Gesicht bekommt.
+    -->
+    <style>
+      :root {
+        --bg: #0b0e14;
+        --surface: #131822;
+        --surface-2: #1b2130;
+        --surface-3: #252c3d;
+        --text: #e8ecf4;
+        --text-dim: #97a2b8;
+        --text-faint: #5f6b83;
+        --accent: #6c5ce7;
+        --accent-soft: #8b7cf0;
+        --danger: #ff6b6b;
+        --success: #2ecc8f;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: var(--bg);
+        color: var(--text);
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        font-size: 15px;
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+        /* Das Fenster lässt sich am oberen Rand verschieben, obwohl es keine
+           eigene Titelleiste zeichnet. */
+        user-select: none;
+      }
+
+      .box {
+        width: 100%;
+        max-width: 460px;
+        background: var(--surface);
+        border: 1px solid var(--surface-3);
+        border-radius: 18px;
+        padding: 34px;
+        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+      }
+
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        font-size: 23px;
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+
+      .mark {
+        width: 40px;
+        height: 40px;
+        border-radius: 11px;
+        background: linear-gradient(135deg, var(--accent), #a55eea);
+        display: grid;
+        place-items: center;
+        font-size: 20px;
+        color: #fff;
+      }
+
+      .sub {
+        color: var(--text-dim);
+        margin: 0 0 26px;
+        font-size: 14px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 7px;
+        font-size: 13px;
+        font-weight: 550;
+        color: var(--text-dim);
+      }
+
+      input[type='text'] {
+        width: 100%;
+        padding: 11px 14px;
+        border-radius: 9px;
+        border: 1px solid var(--surface-3);
+        background: var(--surface-2);
+        color: var(--text);
+        font: inherit;
+        font-size: 14px;
+        outline: none;
+        user-select: text;
+      }
+
+      input[type='text']:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.35);
+      }
+
+      .hint {
+        font-size: 12.5px;
+        color: var(--text-faint);
+        margin-top: 7px;
+      }
+
+      .check {
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        margin: 18px 0;
+        font-size: 13.5px;
+        color: var(--text-dim);
+        cursor: pointer;
+      }
+
+      .check input {
+        margin-top: 3px;
+        accent-color: var(--accent);
+      }
+
+      button {
+        width: 100%;
+        height: 44px;
+        border-radius: 9px;
+        border: none;
+        background: var(--accent);
+        color: #fff;
+        font: inherit;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+
+      button:hover:not(:disabled) {
+        background: var(--accent-soft);
+      }
+
+      button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      .message {
+        padding: 12px 15px;
+        border-radius: 9px;
+        font-size: 13.5px;
+        margin-bottom: 18px;
+      }
+
+      .message.error {
+        background: rgba(255, 107, 107, 0.12);
+        border: 1px solid rgba(255, 107, 107, 0.35);
+        color: #ffb0b0;
+      }
+
+      .message.success {
+        background: rgba(46, 204, 143, 0.12);
+        border: 1px solid rgba(46, 204, 143, 0.35);
+        color: #9ff0cf;
+      }
+
+      .footer {
+        margin-top: 24px;
+        padding-top: 18px;
+        border-top: 1px solid var(--surface-3);
+        font-size: 12.5px;
+        color: var(--text-faint);
+      }
+
+      .footer code {
+        background: var(--surface-2);
+        padding: 2px 6px;
+        border-radius: 5px;
+        user-select: text;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="box">
+      <div class="logo"><span class="mark">S</span> Streamo</div>
+      <p class="sub">Verbinde dich mit deinem Server.</p>
+
+      <!-- Hier landen Fehler- und Erfolgsmeldungen. -->
+      <div id="message"></div>
+
+      <div>
+        <label for="url">Adresse deines Servers</label>
+        <input
+          type="text"
+          id="url"
+          placeholder="https://streamo.deine-domain.de"
+          spellcheck="false"
+          autocomplete="off"
+        />
+        <div class="hint">
+          Die Adresse, unter der du Streamo im Browser aufrufst. Mit
+          <code>https://</code> davor, wenn du Passkeys nutzen möchtest.
+        </div>
+      </div>
+
+      <label class="check">
+        <input type="checkbox" id="selfsigned" />
+        <span>
+          Selbstsigniertes Zertifikat akzeptieren – nötig, wenn Streamo HTTPS
+          ohne offizielles Zertifikat ausliefert. Gilt nur für genau diesen
+          Server.
+        </span>
+      </label>
+
+      <button id="connect">Verbinden</button>
+
+      <div class="footer">
+        Läuft Streamo noch nicht? Der Installationsbefehl für Proxmox steht auf
+        <code>github.com/MoinMornhart/Streamo</code>
+      </div>
+    </div>
+
+    <script>
+      // Die Elemente einmal holen statt bei jedem Zugriff neu zu suchen.
+      const urlInput = document.getElementById('url');
+      const selfSignedBox = document.getElementById('selfsigned');
+      const connectButton = document.getElementById('connect');
+      const messageBox = document.getElementById('message');
+
+      /**
+       * Zeigt eine Meldung über dem Formular.
+       * @param {string} text
+       * @param {'error'|'success'} type
+       */
+      function showMessage(text, type = 'error') {
+        messageBox.innerHTML = '';
+
+        if (!text) return;
+
+        const node = document.createElement('div');
+        node.className = `message ${type}`;
+        // textContent statt innerHTML: Die Meldung enthält Serverantworten,
+        // die kein Markup einschleusen dürfen.
+        node.textContent = text;
+        messageBox.append(node);
+      }
+
+      /**
+       * Felder mit den gespeicherten Werten vorbelegen und eine eventuelle
+       * Fehlermeldung anzeigen, die main.js als Query-Parameter mitgibt.
+       */
+      async function init() {
+        const params = new URLSearchParams(window.location.search);
+
+        if (params.get('error')) showMessage(params.get('error'), 'error');
+
+        const settings = await window.streamoDesktop.getSettings();
+
+        urlInput.value = params.get('url') || settings.serverUrl || '';
+        selfSignedBox.checked = settings.allowSelfSignedCert;
+
+        urlInput.focus();
+        urlInput.select();
+      }
+
+      /**
+       * Prüft die Adresse und verbindet bei Erfolg.
+       *
+       * Zwei Schritte, damit der Benutzer bei einem Tippfehler sofort eine
+       * klare Auskunft bekommt statt eines leeren Fensters:
+       *   1. /api/health abfragen – antwortet dort Streamo?
+       *   2. Erst dann speichern und die Oberfläche laden.
+       */
+      async function connect() {
+        const url = urlInput.value.trim();
+
+        connectButton.disabled = true;
+        connectButton.textContent = 'Verbinde …';
+        showMessage('');
+
+        // Die Einstellung muss VOR dem Test gespeichert sein, sonst lehnt die
+        // Zertifikatsprüfung in main.js das selbstsignierte Zertifikat noch ab.
+        if (selfSignedBox.checked) {
+          await window.streamoDesktop.connect(url, true).catch(() => {});
+        }
+
+        const result = await window.streamoDesktop.testConnection(url);
+
+        if (!result.ok) {
+          showMessage(result.error, 'error');
+          connectButton.disabled = false;
+          connectButton.textContent = 'Verbinden';
+          return;
+        }
+
+        showMessage(`Streamo ${result.version} gefunden. Wird geladen …`, 'success');
+
+        await window.streamoDesktop.connect(result.url, selfSignedBox.checked);
+      }
+
+      connectButton.addEventListener('click', connect);
+
+      // Enter im Adressfeld verbindet ebenfalls.
+      urlInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') connect();
+      });
+
+      init();
+    </script>
+  </body>
+</html>
