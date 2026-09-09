@@ -31,6 +31,7 @@ import {
   formatRuntime,
   timeAgo,
   STATUS_LABELS,
+  announceAchievements,
   OFFER_LABELS,
 } from '../ui.js';
 
@@ -150,6 +151,7 @@ function seasonsBlock(data, refs) {
               watched: !allWatched,
             });
             refs.updateProgress(result.progress);
+            announceAchievements(result.unlocked);
             loadSeason(seasonNumber); // neu zeichnen
           } catch (error) {
             toast(error.message, 'error');
@@ -211,6 +213,7 @@ function seasonsBlock(data, refs) {
                 watched: next,
               });
               refs.updateProgress(result.progress);
+              announceAchievements(result.unlocked);
             } catch (error) {
               // Fehlgeschlagen -> Anzeige zurückdrehen.
               check.classList.toggle('checked', !next);
@@ -231,6 +234,7 @@ function seasonsBlock(data, refs) {
                 watched: true,
               });
               refs.updateProgress(result.progress);
+              announceAchievements(result.unlocked);
               toast(`${result.affected} Episoden als gesehen markiert.`, 'success');
               loadSeason(seasonNumber);
             } catch (error) {

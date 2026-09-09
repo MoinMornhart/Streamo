@@ -1055,6 +1055,88 @@ textarea {
 }
 
 /* ===========================================================================
+   9b. Erfolge
+   =========================================================================== */
+
+.achievement-grid {
+  display: grid;
+  /* Breit genug für Symbol, Titel und eine Zeile Beschreibung nebeneinander. */
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.achievement {
+  display: flex;
+  gap: 14px;
+  padding: 15px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--surface-3);
+  /* Offene Erfolge treten zurück, ohne unlesbar zu werden. */
+  opacity: 0.62;
+  transition: opacity 0.15s, border-color 0.15s;
+}
+
+.achievement:hover {
+  opacity: 1;
+}
+
+/* Freigeschaltet: volle Deckkraft und ein farbiger Rahmen – der Unterschied
+   soll auf einen Blick erkennbar sein, auch ohne den Text zu lesen. */
+.achievement.unlocked {
+  opacity: 1;
+  border-color: rgba(108, 92, 231, 0.55);
+  background: linear-gradient(135deg, rgba(108, 92, 231, 0.1), var(--surface) 60%);
+}
+
+.achievement-icon {
+  font-size: 30px;
+  line-height: 1;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.achievement.unlocked .achievement-icon {
+  background: rgba(108, 92, 231, 0.2);
+}
+
+.achievement-body {
+  flex: 1;
+  min-width: 0; /* erlaubt dem Text, umzubrechen statt die Kachel zu sprengen */
+}
+
+.achievement-title {
+  font-weight: 650;
+  font-size: 14.5px;
+  margin-bottom: 3px;
+}
+
+.achievement-desc {
+  font-size: 12.5px;
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+
+.achievement-progress {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  margin-top: 5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.achievement-date {
+  font-size: 11.5px;
+  color: var(--accent-soft);
+  margin-top: 6px;
+}
+
+/* ===========================================================================
    10. Rückmeldungen: Banner, Toasts, Spinner, Leerzustände
    =========================================================================== */
 

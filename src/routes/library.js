@@ -29,6 +29,9 @@ import express from 'express';
 import { all, get, run, transaction } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { getRuntimeSettings } from '../tmdb.js';
+// Ein neuer Bibliothekseintrag oder ein Statuswechsel kann einen Erfolg
+// freischalten – etwa "erste Serie vollständig gesehen".
+import { checkAchievements } from '../achievements.js';
 import {
   ensureShow,
   findShow,
@@ -252,7 +255,13 @@ router.post('/', async (req, res, next) => {
       status,
     );
 
-    res.json({ ok: true, showId: show.id, title: show.title });
+    res.json({
+      ok: true,
+      showId: show.id,
+      title: show.title,
+      // "Der Anfang" wird schon mit dem ersten Eintrag verdient.
+      unlocked: checkAchievements(req.user.id),
+    });
   } catch (error) {
     next(error);
   }
@@ -321,7 +330,9 @@ router.patch('/:showId', (req, res) => {
     ...params,
   );
 
-  res.json({ ok: true });
+  // Ein Statuswechsel auf "completed" schaltet unter Umständen einen
+  // serienbezogenen Erfolg frei – etwa den für Dr. House.
+  res.json({ ok: true, unlocked: checkAchievements(req.user.id) });
 });
 
 /**

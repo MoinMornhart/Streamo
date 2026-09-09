@@ -131,7 +131,25 @@ console.log('\nNach dem Update');
 // Migrationen erneut zu durchlaufen.
 const fresh = await import(`../src/db.js?migrated=${Date.now()}`);
 
-check('Schema steht jetzt auf Version 2', fresh.db.prepare('PRAGMA user_version').get().user_version, 2);
+// Gegen die vom Programm gemeldete Schemaversion prüfen statt gegen eine fest
+// eingetragene Zahl. So muss dieser Test bei jeder neuen Migration nicht
+// angefasst werden – geprüft wird ja, dass die Migration ANKOMMT, nicht
+// welche Nummer sie trägt.
+const EXPECTED_VERSION = fresh.SCHEMA_VERSION;
+
+check(
+  `Schema steht jetzt auf Version ${EXPECTED_VERSION}`,
+  fresh.db.prepare('PRAGMA user_version').get().user_version,
+  EXPECTED_VERSION,
+);
+
+check(
+  'Die Erfolgs-Tabelle wurde angelegt',
+  fresh.db
+    .prepare("SELECT COUNT(*) n FROM sqlite_master WHERE type='table' AND name='user_achievements'")
+    .get().n,
+  1,
+);
 
 check(
   'Die E-Mail-Spalte ist dazugekommen',
@@ -185,7 +203,11 @@ check(
 console.log('\nWiederholtes Update');
 
 const again = await import(`../src/db.js?migrated=${Date.now()}-2`);
-check('Version bleibt bei 2', again.db.prepare('PRAGMA user_version').get().user_version, 2);
+check(
+  `Version bleibt bei `,
+  again.db.prepare('PRAGMA user_version').get().user_version,
+  EXPECTED_VERSION,
+);
 check('Keine doppelten Benutzer', again.get('SELECT COUNT(*) n FROM users').n, 1);
 check('Bibliothek unverändert', again.get('SELECT COUNT(*) n FROM library').n, 1);
 

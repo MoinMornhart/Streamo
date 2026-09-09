@@ -23,6 +23,8 @@
 
 import { get, all, run, transaction } from './db.js';
 import * as tmdb from './tmdb.js';
+// Fasst Anbieter-Varianten zusammen ("Netflix basic with Ads" -> "Netflix").
+import { mergeProviders, mergeOffers } from './providers-canonical.js';
 
 /**
  * Die fünf Angebotsarten, die TMDB im /watch/providers-Endpunkt liefert.
@@ -196,8 +198,12 @@ export function saveAvailability(showId, region, regionData) {
 
     // 2. Einfügen, gruppiert nach Angebotsart
     for (const offerType of OFFER_TYPES) {
-      const offers = regionData?.[offerType];
-      if (!Array.isArray(offers)) continue;
+      // Varianten desselben Dienstes zusammenfassen. Läuft eine Serie bei
+      // "Netflix basic with Ads", soll sie unter "Netflix" erscheinen –
+      // sonst würde sie bei jemandem mit Netflix-Abo nicht als enthalten
+      // erkannt, obwohl er sie sehen kann.
+      const offers = mergeOffers(regionData?.[offerType]);
+      if (offers.length === 0) continue;
 
       for (const offer of offers) {
         run(
@@ -474,31 +480,32 @@ export async function syncProviderCatalog(region, language) {
     tmdb.getProviderCatalog('movie', { region, language }),
   ]);
 
-  // Zusammenführen über eine Map: Doppelte Anbieter-IDs erscheinen nur einmal;
-  // die niedrigere (= bessere) display_priority gewinnt.
-  const merged = new Map();
+  // Beide Listen in eine einheitliche Form bringen.
+  const raw = [...(tvCatalog.results || []), ...(movieCatalog.results || [])].map(
+    (provider) => ({
+      id: provider.provider_id,
+      name: provider.provider_name,
+      logo_path: provider.logo_path,
+      // display_priorities enthält je Land einen eigenen Wert; der ist
+      // aussagekräftiger als die weltweite Vorgabe.
+      display_priority:
+        provider.display_priorities?.[region] ?? provider.display_priority ?? 9999,
+    }),
+  );
 
-  for (const provider of [...(tvCatalog.results || []), ...(movieCatalog.results || [])]) {
-    const priority =
-      provider.display_priorities?.[region] ?? provider.display_priority ?? 9999;
-
-    const existing = merged.get(provider.provider_id);
-    if (!existing || priority < existing.display_priority) {
-      merged.set(provider.provider_id, {
-        id: provider.provider_id,
-        name: provider.provider_name,
-        logo_path: provider.logo_path,
-        display_priority: priority,
-      });
-    }
-  }
+  // Varianten zusammenfassen: Aus "Netflix", "Netflix basic with Ads" und
+  // "Netflix Standard with Ads" wird ein einziger Eintrag. Sonst stünde man
+  // in der Anbieter-Auswahl vor drei Netflix-Kacheln und wüsste nicht,
+  // welche gemeint ist.
+  const merged = mergeProviders(raw);
 
   transaction(() => {
     // Region komplett neu aufbauen: Anbieter, die es nicht mehr gibt, sollen
     // auch nicht mehr zur Auswahl stehen.
     run('DELETE FROM providers WHERE region = ?', region);
 
-    for (const p of merged.values()) {
+    // mergeProviders() liefert ein fertig sortiertes Array.
+    for (const p of merged) {
       run(
         `INSERT INTO providers (id, name, logo_path, display_priority, region, updated_at)
          VALUES (?,?,?,?,?, datetime('now'))

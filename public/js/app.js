@@ -153,6 +153,7 @@ route('/search', view(() => import('./views/search.js')));
 route('/library', view(() => import('./views/library.js')));
 route('/providers', view(() => import('./views/providers.js')));
 route('/stats', view(() => import('./views/stats.js')));
+route('/achievements', view(() => import('./views/achievements.js')));
 route('/settings', view(() => import('./views/settings.js')));
 // Detailseite: /show/tv/1399 – mediaType und tmdbId landen in params.
 route('/show/:mediaType/:tmdbId', view(() => import('./views/detail.js')));

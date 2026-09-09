@@ -436,7 +436,35 @@ const MIGRATIONS = [
       'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL',
     );
   },
+
+  // -------------------------------------------------------------------------
+  // Version 3 -> Erfolge
+  // -------------------------------------------------------------------------
+  // Gespeichert wird nur, WER WELCHEN Erfolg WANN bekommen hat. Was es für
+  // Erfolge gibt, steht im Code (src/achievements.js) – so kommen neue mit
+  // einem Update dazu, ohne dass jemand Datensätze pflegen müsste.
+  () => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS user_achievements (
+        user_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        -- Die Kennung aus src/achievements.js, z. B. "house" oder "binge_10".
+        -- Bewusst Text und kein Fremdschlüssel: Die Erfolge leben im Code.
+        achievement_id TEXT NOT NULL,
+        earned_at      TEXT NOT NULL DEFAULT (datetime('now')),
+        -- Jeder Erfolg wird je Person höchstens einmal vergeben.
+        PRIMARY KEY (user_id, achievement_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_achievements_user ON user_achievements(user_id);
+    `);
+  },
 ];
+
+/**
+ * Die Schemaversion, auf die dieser Programmstand die Datenbank bringt.
+ * Entspricht der Anzahl der Migrationen. Exportiert, damit Tests dagegen
+ * prüfen können, ohne bei jeder neuen Migration angepasst werden zu müssen.
+ */
+export const SCHEMA_VERSION = MIGRATIONS.length;
 
 /**
  * Führt alle noch nicht angewendeten Migrationen der Reihe nach aus.

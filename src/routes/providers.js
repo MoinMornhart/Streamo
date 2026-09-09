@@ -27,6 +27,8 @@ import { all, get, run, transaction } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { getRuntimeSettings } from '../tmdb.js';
 import { syncProviderCatalog } from '../store.js';
+// Erkennt Kauf- und Leihplattformen, die nicht in die Abo-Auswahl gehören.
+import { isPurchaseOnly } from '../providers-canonical.js';
 
 const router = express.Router();
 
@@ -66,9 +68,23 @@ router.get('/', async (req, res, next) => {
       ),
     );
 
+    // Kauf- und Leihplattformen aus der Auswahl nehmen. "Amazon Video" oder
+    // "Google Play" kann man nicht abonnieren – eine Kachel dafür stiftet nur
+    // Verwirrung, zumal direkt daneben die für "Amazon Prime Video" steht.
+    // In der Verfügbarkeitsanzeige einer Serie tauchen sie weiterhin auf,
+    // dort ist die Auskunft ja nützlich.
+    //
+    // Ausnahme: Wer einen solchen Dienst früher einmal angeklickt hat, sieht
+    // ihn weiter – sonst verschwände eine Auswahl kommentarlos.
+    const selectable = catalog.filter((p) => !isPurchaseOnly(p.name) || mine.has(p.id));
+
     res.json({
       region,
-      providers: catalog.map((p) => ({ ...p, subscribed: mine.has(p.id) })),
+      providers: selectable.map((p) => ({ ...p, subscribed: mine.has(p.id) })),
+      // Wie viele Einträge wurden ausgeblendet? Das Frontend erwähnt es in
+      // einem Nebensatz, damit niemand ein vermisstes Angebot für einen
+      // Fehler hält.
+      hiddenPurchaseOnly: catalog.length - selectable.length,
     });
   } catch (error) {
     next(error); // landet im zentralen Fehler-Handler in src/server.js

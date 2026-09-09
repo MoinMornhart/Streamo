@@ -245,6 +245,14 @@ export const api = {
   stats: {
     get: () => request('/api/stats'),
   },
+
+  // --- Erfolge  -> src/routes/achievements.js -----------------------------
+  achievements: {
+    /** Alle Erfolge mit Zustand und Fortschritt */
+    list: () => request('/api/achievements'),
+    /** Prüfung anstoßen; liefert die neu freigeschalteten zurück */
+    check: () => request('/api/achievements/check', { method: 'POST' }),
+  },
 };
 
 export default api;

@@ -21,7 +21,8 @@
     "test:update": "bash tests/update.test.sh",
     "test:migration": "node tests/migration.test.mjs",
     "test:template": "bash tests/template-choice.test.sh",
-    "test:all": "npm test && npm run test:migration && npm run test:template && npm run test:update"
+    "test:achievements": "node tests/achievements.test.mjs",
+    "test:all": "npm test && npm run test:migration && npm run test:achievements && npm run test:template && npm run test:update"
   },
   "dependencies": {
     "@simplewebauthn/server": "^14.0.1",

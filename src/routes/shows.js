@@ -23,6 +23,9 @@ import { all, get, run, transaction } from '../db.js';
 import { requireAuth } from '../auth.js';
 import * as tmdb from '../tmdb.js';
 import { getRuntimeSettings } from '../tmdb.js';
+// Nach dem Abhaken von Episoden kann ein Erfolg dazukommen – siehe unten.
+import { checkAchievements } from '../achievements.js';
+
 import {
   ensureShow,
   findShow,
@@ -373,7 +376,12 @@ router.post('/:showId/watched', (req, res) => {
     );
   }
 
-  res.json({ ok: true, affected: targets.length, progress });
+  // Jetzt kann ein Erfolg dazugekommen sein – etwa, weil damit die letzte
+  // Episode einer Serie gesehen wurde. Die Prüfung läuft ausschließlich auf
+  // der lokalen Datenbank und kostet wenige Millisekunden.
+  const unlocked = checkAchievements(req.user.id);
+
+  res.json({ ok: true, affected: targets.length, progress, unlocked });
 });
 
 /**

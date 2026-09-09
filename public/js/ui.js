@@ -114,6 +114,61 @@ export function toast(message, type = 'info', ms = 3200) {
 }
 
 /**
+ * Meldet frisch freigeschaltete Erfolge.
+ *
+ * Bekommt die `unlocked`-Liste, die mehrere Endpunkte mitliefern (Episode
+ * abhaken, Status ändern, Titel hinzufügen). Ist sie leer, passiert nichts –
+ * das ist der Normalfall, deshalb kann man diese Funktion bedenkenlos nach
+ * jeder Aktion aufrufen.
+ *
+ * Die Meldungen erscheinen nacheinander statt gleichzeitig: Wer nach dem
+ * Abhaken der letzten Folge drei Erfolge auf einmal bekommt, soll jeden davon
+ * einzeln wahrnehmen.
+ *
+ * @param {object[]|undefined} unlocked Einträge mit icon, title, description
+ */
+export function announceAchievements(unlocked) {
+  if (!Array.isArray(unlocked) || unlocked.length === 0) return;
+
+  unlocked.forEach((achievement, index) => {
+    setTimeout(() => {
+      const node = el('div.toast.success', {}, [
+        el('div', { style: { display: 'flex', gap: '11px', alignItems: 'center' } }, [
+          el('span', { style: { fontSize: '26px' }, text: achievement.icon || '🏆' }),
+          el('div', {}, [
+            el('div', {
+              style: { fontWeight: '650', fontSize: '11px', color: 'var(--text-dim)' },
+              text: 'ERFOLG FREIGESCHALTET',
+            }),
+            el('div', { style: { fontWeight: '600' }, text: achievement.title }),
+            el('div', {
+              style: { fontSize: '12.5px', color: 'var(--text-dim)', marginTop: '2px' },
+              text: achievement.description,
+            }),
+          ]),
+        ]),
+      ]);
+
+      // Anklickbar: führt zur Erfolgsseite.
+      node.style.cursor = 'pointer';
+      node.style.pointerEvents = 'auto';
+      node.addEventListener('click', () => window.navigateTo('/achievements'));
+
+      document.getElementById('toasts').append(node);
+
+      // Länger stehen lassen als eine gewöhnliche Meldung – hier gibt es
+      // etwas zu lesen, und es ist ein kleiner Moment der Belohnung.
+      setTimeout(() => {
+        node.style.transition = 'opacity .3s, transform .3s';
+        node.style.opacity = '0';
+        node.style.transform = 'translateX(24px)';
+        setTimeout(() => node.remove(), 320);
+      }, 6000);
+    }, index * 900);
+  });
+}
+
+/**
  * Ladeanzeige für eine ganze Ansicht.
  * @param {string} [message]
  * @returns {HTMLElement}

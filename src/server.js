@@ -45,6 +45,7 @@ import libraryRoutes from './routes/library.js';
 import showRoutes from './routes/shows.js';
 import settingsRoutes from './routes/settings.js';
 import statsRoutes from './routes/stats.js';
+import achievementRoutes from './routes/achievements.js';
 
 const app = express();
 
@@ -117,6 +118,7 @@ app.use('/api/library', libraryRoutes); // Die persönliche Serien-Datenbank
 app.use('/api/shows', showRoutes); //      Detailseite, Staffeln, Fortschritt
 app.use('/api/settings', settingsRoutes); // Einstellungen und Abgleich
 app.use('/api/stats', statsRoutes); //     Auswertungen
+app.use('/api/achievements', achievementRoutes); // Erfolge
 
 /**
  * GET /api/health

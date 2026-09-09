@@ -39,6 +39,9 @@ jobs:
       - name: Migration bestehender Datenbanken testen
         run: npm run test:migration
 
+      - name: Erfolge und Anbieter-Zusammenfassung testen
+        run: npm run test:achievements
+
       - name: Serverstart prüfen
         # Startet den Server im Hintergrund und fragt /api/health ab. Damit ist
         # sichergestellt, dass alle Module fehlerfrei laden und das Schema
