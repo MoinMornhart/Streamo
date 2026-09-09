@@ -95,6 +95,9 @@ jobs:
             echo "  ok $(basename "$f")"
           done
 
+      - name: Template-Auswahl testen
+        run: npm run test:template
+
       - name: Update-Vorgang testen
         # Spielt ein vollständiges Update gegen ein Attrappen-Repository durch,
         # inklusive Rollback bei fehlgeschlagenem Neustart.

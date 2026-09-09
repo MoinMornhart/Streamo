@@ -115,6 +115,7 @@ EOF
 # Ohne diese Falle bliebe bei einem Abbruch ein halb angelegter Container
 # zurück, der beim nächsten Versuch die ID blockiert.
 CTID=""
+HOST_ARCH=""
 CT_CREATED=0
 
 on_error() {
@@ -321,21 +322,40 @@ prepare_template() {
   pveam update &>/dev/null
   msg_ok "Template-Liste aktualisiert"
 
-  # Das neueste Debian-Standard-Template der gewünschten Version suchen.
+  # -------------------------------------------------------------------------
+  # Die Architektur des Hosts ermitteln – der wichtigste Schritt hier.
+  #
+  # pveam listet Templates für ALLE Architekturen auf, also amd64 UND arm64.
+  # Nimmt man einfach das zuletzt sortierte, erwischt man auf einem x86-Server
+  # das arm64-Template ("arm64" steht alphabetisch hinter "amd64"). Der
+  # Container lässt sich dann anlegen, scheitert aber beim Start mit
+  # "Exec format error - Failed to exec /sbin/init", weil die Programme darin
+  # für die falsche CPU übersetzt sind.
+  #
+  # dpkg --print-architecture liefert genau die Bezeichnung, die auch im
+  # Dateinamen des Templates steht: amd64, arm64, i386.
+  # -------------------------------------------------------------------------
+  # Global, weil die Fehlerbehandlung in create_container sie ebenfalls nennt.
+  HOST_ARCH="$(dpkg --print-architecture 2>/dev/null || echo amd64)"
+  msg_ok "Architektur des Hosts: ${HOST_ARCH}"
+
+  # Nur Templates der gewünschten Debian-Version UND der passenden Architektur.
   local template
   template="$(pveam available -section system | awk '{print $2}' \
-    | grep -E "^${var_os}-${var_version}-standard" | sort -V | tail -1)"
+    | grep -E "^${var_os}-${var_version}-standard.*_${HOST_ARCH}\." | sort -V | tail -1)"
 
   # Rückfall auf Debian 12, falls die gewünschte Version noch nicht in den
   # Spiegelservern liegt. So funktioniert das Skript auch auf älteren Hosts.
   if [[ -z "$template" ]]; then
-    msg_note "Debian ${var_version} nicht verfügbar – weiche auf Debian 12 aus."
+    msg_note "Debian ${var_version} für ${HOST_ARCH} nicht verfügbar – weiche auf Debian 12 aus."
     template="$(pveam available -section system | awk '{print $2}' \
-      | grep -E "^${var_os}-12-standard" | sort -V | tail -1)"
+      | grep -E "^${var_os}-12-standard.*_${HOST_ARCH}\." | sort -V | tail -1)"
   fi
 
   if [[ -z "$template" ]]; then
-    msg_error "Kein passendes ${var_os}-Template gefunden."
+    msg_error "Kein ${var_os}-Template für die Architektur ${HOST_ARCH} gefunden."
+    msg_note "Verfügbare Debian-Templates auf diesem Host:"
+    pveam available -section system | awk '{print $2}' | grep -E "^${var_os}-" | sed 's/^/   /'
     exit 1
   fi
 
@@ -366,16 +386,14 @@ create_container() {
   fi
 
   # Die Optionen im Einzelnen:
-  #   --onboot 1     startet den Container zusammen mit dem Host
-  #   --unprivileged Root im Container ist nicht Root auf dem Host
-  #   --swap 512     etwas Luft, falls der Sync-Lauf mehr Speicher braucht
-  #
-  # Bewusst OHNE "--features nesting=1": Streamo ist ein einzelner
-  # Node-Prozess und braucht keine verschachtelten Namensräume. Auf manchen
-  # Systemen – vor allem auf ARM und unter Proxmox 9 – führt nesting bei
-  # unprivilegierten Containern dazu, dass der Start mit
-  # "sync_wait ... Failed to spawn container" abbricht. Weglassen kostet hier
-  # nichts und erspart genau diesen Fehler.
+  #   --onboot 1            startet den Container zusammen mit dem Host
+  #   --unprivileged        Root im Container ist nicht Root auf dem Host
+  #   --swap 512            etwas Luft, falls der Sync-Lauf mehr Speicher braucht
+  #   --features nesting=1  Debian 13 bringt systemd 257 mit, und Proxmox weist
+  #                         beim Start ausdrücklich darauf hin, dass diese
+  #                         Version in unprivilegierten Containern nesting
+  #                         braucht. Ohne die Option laufen Teile von systemd
+  #                         (unter anderem die Namensraum-Verwaltung) nicht.
   pct create "$CTID" "${TEMPLATE_STORAGE}:vztmpl/${TEMPLATE_FILE}" \
     --hostname "$HOSTNAME" \
     --cores "$CORE_COUNT" \
@@ -384,6 +402,7 @@ create_container() {
     --rootfs "${CONTAINER_STORAGE}:${DISK_SIZE}" \
     --net0 "$net" \
     --unprivileged "$var_unprivileged" \
+    --features nesting=1 \
     --onboot 1 \
     --ostype "$var_os" \
     --description "Streamo – alle Streaming-Abos an einem Ort. ${REPO_URL}" \
@@ -414,14 +433,19 @@ create_container() {
     echo -e " ${YW}So kommst du weiter${CL}"
     echo -e "   1. Ausführliches Protokoll erzeugen:"
     echo -e "      ${DGN}lxc-start -n ${CTID} -F -l DEBUG -o /tmp/lxc-${CTID}.log${CL}"
-    echo -e "      ${DGN}tail -40 /tmp/lxc-${CTID}.log${CL}"
+    echo -e "      ${DGN}grep -iE 'ERROR|Exec format' /tmp/lxc-${CTID}.log${CL}"
     echo ""
-    echo -e "   2. Häufige Ursache – ein privilegierter Container hilft oft,"
-    echo -e "      wenn der unprivilegierte nicht startet:"
+    echo -e "   2. Steht dort ${DGN}Exec format error${CL}, passt das Template nicht zur"
+    echo -e "      CPU dieses Servers (${HOST_ARCH:-unbekannt}). Dann das falsche Template löschen:"
+    echo -e "      ${DGN}pveam list ${TEMPLATE_STORAGE}${CL}"
+    echo -e "      ${DGN}pveam remove ${TEMPLATE_STORAGE}:vztmpl/<falsches-template>${CL}"
+    echo ""
+    echo -e "   3. Ein privilegierter Container hilft, wenn der unprivilegierte"
+    echo -e "      an den Rechten scheitert:"
     echo -e "      ${DGN}pct destroy ${CTID}${CL}"
     echo -e "      ${DGN}var_unprivileged=0 bash -c \"\$(curl -fsSL ${INSTALL_SCRIPT_URL%/install/*}/streamo.sh)\"${CL}"
     echo ""
-    echo -e "   3. Bleibt es dabei, hilf uns mit dem Protokoll aus Schritt 1:"
+    echo -e "   4. Bleibt es dabei, hilf uns mit dem Protokoll aus Schritt 1:"
     echo -e "      ${BL}${REPO_URL}/issues${CL}"
     echo ""
 

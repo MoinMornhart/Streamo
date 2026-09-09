@@ -20,6 +20,7 @@ import { api } from '../api.js';
 import { el, render, toast, errorBox } from '../ui.js';
 import { state, refreshStatus } from '../app.js';
 import { startRouter, navigateTo } from '../router.js';
+import { isSupported, hasPlatformAuthenticator, usePasskey } from '../passkey.js';
 
 /**
  * Die Regionen, die im Auswahlfeld angeboten werden.
@@ -121,6 +122,7 @@ export function render_(container, options = {}) {
             await api.auth.setup({
               username: data.username,
               password: data.password,
+              email: data.email,
               displayName: data.displayName,
               apiKey: data.apiKey,
               region: data.region,
@@ -161,6 +163,13 @@ export function render_(container, options = {}) {
             autocomplete: 'new-password',
           },
           'Mindestens 8 Zeichen.',
+        ),
+
+        field(
+          'email',
+          'E-Mail (optional)',
+          { type: 'email', autocomplete: 'email', placeholder: 'max@example.de' },
+          'Nur als zweiter Anmeldename. Streamo verschickt keine E-Mails und braucht keinen Mailserver.',
         ),
 
         field('displayName', 'Anzeigename (optional)', { placeholder: 'Max Mustermann' }),
@@ -205,6 +214,76 @@ export function render_(container, options = {}) {
   // ------------------------------------------------------------------------
   // Anmeldung
   // ------------------------------------------------------------------------
+
+  /**
+   * Meldet mit einem Passkey an.
+   *
+   * Zwei Schritte, siehe public/js/passkey.js:
+   *   1. Aufgabe vom Server holen
+   *   2. Vom Gerät unterschreiben lassen und zurückschicken
+   *
+   * Ein Benutzername wird nicht übergeben – der Browser zeigt alle für diese
+   * Domain gespeicherten Passkeys zur Auswahl.
+   *
+   * @param {HTMLButtonElement} button Der Knopf, der gerade gedrückt wurde
+   */
+  const loginWithPasskey = async (button) => {
+    render(messageSlot);
+
+    const label = button.textContent;
+    button.disabled = true;
+    button.textContent = 'Warte auf dein Gerät …';
+
+    try {
+      const options = await api.auth.passkeyLoginOptions();
+      const response = await usePasskey(options);
+
+      await api.auth.passkeyLoginVerify(response);
+      await refreshStatus();
+
+      startRouter();
+    } catch (error) {
+      render(messageSlot, errorBox(error.message));
+      button.disabled = false;
+      button.textContent = label;
+    }
+  };
+
+  const passkeyButton = el('button.btn.btn-primary', {
+    type: 'button',
+    // Der endgültige Text wird unten gesetzt, sobald bekannt ist, ob das
+    // Gerät einen eingebauten Sensor hat.
+    text: '🔑 Mit Passkey anmelden',
+    style: { width: '100%', height: '42px' },
+    onClick: (event) => loginWithPasskey(event.currentTarget),
+  });
+
+  // Der Passkey-Bereich wird erst eingeblendet, wenn feststeht, dass er
+  // funktionieren kann – ein Knopf, der beim Klick scheitert, ist ärgerlicher
+  // als gar keiner.
+  const passkeySlot = el('div', { hidden: true }, [
+    passkeyButton,
+    // Trenner zwischen den beiden Wegen.
+    el(
+      'div',
+      {
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          margin: '20px 0 16px',
+          color: 'var(--text-faint)',
+          fontSize: '13px',
+        },
+      },
+      [
+        el('div', { style: { flex: '1', height: '1px', background: 'var(--surface-3)' } }),
+        el('span', { text: 'oder mit Passwort' }),
+        el('div', { style: { flex: '1', height: '1px', background: 'var(--surface-3)' } }),
+      ],
+    ),
+  ]);
+
   const form = el(
     'form',
     {
@@ -233,7 +312,10 @@ export function render_(container, options = {}) {
       },
     },
     [
-      field('username', 'Benutzername', { required: true, autocomplete: 'username' }),
+      field('username', 'Benutzername oder E-Mail', {
+        required: true,
+        autocomplete: 'username',
+      }),
       field('password', 'Passwort', {
         type: 'password',
         required: true,
@@ -254,10 +336,44 @@ export function render_(container, options = {}) {
       el('div.auth-box', {}, [
         el('div.auth-logo', {}, [el('span.brand-mark', { text: 'S' }), 'Streamo']),
         el('p.auth-sub', { text: 'Alle Abos an einem Ort. Melde dich an.' }),
+        passkeySlot,
         form,
       ]),
     ]),
   );
+
+  // ------------------------------------------------------------------------
+  // Passkey-Bereich nachträglich einblenden.
+  //
+  // Nachträglich, weil zwei Auskünfte nötig sind, die beide asynchron kommen:
+  // vom Server (ist die Adresse geeignet?) und vom Browser (gibt es hier
+  // überhaupt einen Sensor?). Die Anmeldemaske soll darauf nicht warten.
+  // ------------------------------------------------------------------------
+  (async () => {
+    if (!isSupported()) return;
+
+    try {
+      const availability = await api.auth.passkeyAvailable();
+      if (!availability.available) return;
+
+      // Beschriftung an das Gerät anpassen: "Windows Hello" ist für die
+      // meisten Menschen greifbarer als das Wort "Passkey".
+      if (await hasPlatformAuthenticator()) {
+        const isWindows = navigator.userAgent.includes('Windows');
+        const isApple = /Mac|iPhone|iPad/.test(navigator.userAgent);
+
+        passkeyButton.textContent = isWindows
+          ? '🔑 Mit Windows Hello anmelden'
+          : isApple
+            ? '🔑 Mit Touch ID oder Face ID anmelden'
+            : '🔑 Mit Passkey anmelden';
+      }
+
+      passkeySlot.hidden = false;
+    } catch {
+      // Kein Grund für eine Fehlermeldung – der Passwortweg steht ja bereit.
+    }
+  })();
 }
 
 // Der Router ruft einheitlich `render` auf; intern heißt die Funktion

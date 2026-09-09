@@ -18,8 +18,9 @@
  */
 
 import { api } from '../api.js';
-import { el, render, toast, timeAgo, errorBox } from '../ui.js';
+import { el, render, toast, timeAgo, errorBox, formatDate } from '../ui.js';
 import { refreshStatus } from '../app.js';
+import { isSupported, hasPlatformAuthenticator, createPasskey } from '../passkey.js';
 
 /** Dieselben Listen wie im Einrichtungsassistenten (views/auth.js). */
 const REGIONS = [
@@ -73,11 +74,27 @@ export async function render_(container) {
   const regionSelect = select('region', REGIONS, data.user.region);
   const languageSelect = select('language', LANGUAGES, data.user.language);
 
+  // Die E-Mail ist optional und dient nur als zweiter Anmeldename.
+  const emailInput = el('input', {
+    type: 'email',
+    value: data.user.email || '',
+    id: 'email',
+    placeholder: 'max@example.de',
+  });
+
   const accountCard = el('div.card', { style: { marginBottom: '20px' } }, [
     el('h2', { text: 'Konto' }),
     el('p.muted.small', { text: `Angemeldet als ${data.user.username}` }),
 
     el('div.field', {}, [el('label', { for: 'displayName', text: 'Anzeigename' }), displayNameInput]),
+
+    el('div.field', {}, [
+      el('label', { for: 'email', text: 'E-Mail (optional)' }),
+      emailInput,
+      el('div.hint', {
+        text: 'Damit kannst du dich zusätzlich zum Benutzernamen anmelden. Streamo verschickt keine E-Mails – ein Mailserver ist nicht nötig. Leer lassen entfernt die Adresse.',
+      }),
+    ]),
 
     el('div.field', {}, [
       el('label', { for: 'region', text: 'Region' }),
@@ -104,6 +121,15 @@ export async function render_(container) {
             language: languageSelect.value,
           });
 
+          // Die E-Mail hat einen eigenen Endpunkt, weil sie eigene Prüfungen
+          // hat (Format, Eindeutigkeit) und eigene Fehlermeldungen liefert.
+          // Nur schicken, wenn sie sich tatsächlich geändert hat.
+          const email = emailInput.value.trim();
+          if (email !== (data.user.email || '')) {
+            await api.auth.setEmail(email);
+            data.user.email = email || null;
+          }
+
           // Region wirkt sich auf die ganze Oberfläche aus – Zustand neu laden.
           await refreshStatus();
           toast('Gespeichert. Die neue Region gilt ab sofort.', 'success');
@@ -115,6 +141,203 @@ export async function render_(container) {
       },
     }),
   ]);
+
+  // ========================================================================
+  // 1b. Passkeys
+  // ========================================================================
+  // Ein Passkey ersetzt das Passwort durch Fingerabdruck, Gesicht oder PIN.
+  // Der private Schlüssel bleibt im Gerät – Streamo speichert nur den
+  // öffentlichen Teil und kann deshalb nichts verraten, was zum Anmelden
+  // reicht. Details in src/passkeys.js.
+  const passkeyList = el('div');
+  const passkeyCard = el('div.card', { style: { marginBottom: '20px' } }, [
+    el('h2', { text: 'Passkeys' }),
+    el('p.muted.small', {
+      text: 'Melde dich mit Fingerabdruck, Gesicht oder Geräte-PIN an, statt ein Passwort einzutippen. Der Schlüssel bleibt auf deinem Gerät.',
+    }),
+    passkeyList,
+  ]);
+
+  /**
+   * Zeichnet die Passkey-Liste samt Knöpfen neu.
+   * Wird nach jeder Änderung erneut aufgerufen, damit die Anzeige stimmt.
+   */
+  const drawPasskeys = async () => {
+    // Erst klären, ob Passkeys hier überhaupt möglich sind. Die Gründe kommen
+    // vom Server (HTTPS, Hostname) und vom Browser (Unterstützung).
+    let availability = { available: false, reason: 'Dein Browser unterstützt keine Passkeys.' };
+
+    if (isSupported()) {
+      try {
+        availability = await api.auth.passkeyAvailable();
+      } catch (error) {
+        availability = { available: false, reason: error.message };
+      }
+    }
+
+    if (!availability.available) {
+      render(
+        passkeyList,
+        el('div.error-box', {
+          style: { marginBottom: 0 },
+          text: `Passkeys sind hier nicht verfügbar: ${availability.reason}`,
+        }),
+      );
+      return;
+    }
+
+    const data = await api.auth.passkeys();
+
+    /**
+     * Legt einen neuen Passkey an: Aufgabe holen, Gerät fragen, Antwort prüfen.
+     * @param {HTMLButtonElement} button
+     */
+    const addPasskey = async (button) => {
+      // Ein sprechender Name hilft später beim Aufräumen. Vorschlag aus dem
+      // Betriebssystem, damit man nicht selbst überlegen muss.
+      const suggestion = navigator.userAgent.includes('Windows')
+        ? 'Windows-PC'
+        : /Mac/.test(navigator.userAgent)
+          ? 'Mac'
+          : /Android/.test(navigator.userAgent)
+            ? 'Android-Handy'
+            : /iPhone|iPad/.test(navigator.userAgent)
+              ? 'iPhone'
+              : 'Dieses Gerät';
+
+      const name = window.prompt('Wie soll dieses Gerät heißen?', suggestion);
+      if (name === null) return; // abgebrochen
+
+      button.disabled = true;
+      button.textContent = 'Warte auf dein Gerät …';
+
+      try {
+        const options = await api.auth.passkeyRegisterOptions();
+        const response = await createPasskey(options);
+
+        await api.auth.passkeyRegisterVerify(response, name);
+        toast('Passkey angelegt.', 'success');
+        drawPasskeys();
+      } catch (error) {
+        toast(error.message, 'error');
+        button.disabled = false;
+        button.textContent = '+ Passkey hinzufügen';
+      }
+    };
+
+    render(
+      passkeyList,
+
+      // --- Die vorhandenen Passkeys ---
+      data.passkeys.length === 0
+        ? el('p.muted', {
+            style: { margin: '14px 0' },
+            text: 'Noch kein Passkey eingerichtet.',
+          })
+        : el(
+            'div',
+            { style: { margin: '14px 0' } },
+            data.passkeys.map((passkey) =>
+              el(
+                'div',
+                {
+                  style: {
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '11px 0',
+                    borderBottom: '1px solid var(--surface-3)',
+                  },
+                },
+                [
+                  el('span', { text: passkey.device_type === 'multiDevice' ? '☁️' : '🔑' }),
+
+                  el('div', { style: { flex: '1', minWidth: '0' } }, [
+                    el('div', { style: { fontWeight: '550' }, text: passkey.name }),
+                    el('div.muted.small', {
+                      text:
+                        `Angelegt am ${formatDate(passkey.created_at?.slice(0, 10))}` +
+                        (passkey.last_used_at
+                          ? ` · zuletzt benutzt ${timeAgo(passkey.last_used_at)}`
+                          : ' · noch nicht benutzt') +
+                        // Synchronisierte Passkeys liegen zusätzlich in der
+                        // iCloud- bzw. Google-Kette. Das ist bequem, aber gut
+                        // zu wissen.
+                        (passkey.backed_up ? ' · wird zwischen Geräten synchronisiert' : ''),
+                    }),
+                  ]),
+
+                  el('button.btn.btn-sm.btn-ghost', {
+                    text: 'Umbenennen',
+                    onClick: async () => {
+                      const name = window.prompt('Neuer Name:', passkey.name);
+                      if (name === null) return;
+                      try {
+                        await api.auth.renamePasskey(passkey.id, name);
+                        drawPasskeys();
+                      } catch (error) {
+                        toast(error.message, 'error');
+                      }
+                    },
+                  }),
+
+                  el('button.btn.btn-sm.btn-danger', {
+                    text: 'Entfernen',
+                    onClick: async () => {
+                      if (!window.confirm(`Passkey „${passkey.name}" wirklich entfernen?`)) return;
+                      try {
+                        await api.auth.deletePasskey(passkey.id);
+                        toast('Passkey entfernt.');
+                        drawPasskeys();
+                      } catch (error) {
+                        toast(error.message, 'error');
+                      }
+                    },
+                  }),
+                ],
+              ),
+            ),
+          ),
+
+      el('button.btn.btn-primary', {
+        text: '+ Passkey hinzufügen',
+        onClick: (event) => addPasskey(event.currentTarget),
+      }),
+
+      // --- Passwort abschalten ---
+      // Nur anbieten, wenn es einen Passkey gibt UND noch ein Passwort da ist.
+      // Sonst wäre es entweder unmöglich oder würde aussperren.
+      data.passkeys.length > 0 &&
+        data.hasPassword &&
+        el('div', { style: { marginTop: '18px' } }, [
+          el('p.hint', {
+            text: 'Du kannst das Passwort entfernen und dich nur noch per Passkey anmelden. Achtung: Verlierst du dann alle Passkeys, kommst du nicht mehr in dein Konto.',
+          }),
+          el('button.btn.btn-sm.btn-ghost', {
+            text: 'Passwort entfernen',
+            onClick: async () => {
+              const current = window.prompt(
+                'Zur Bestätigung dein aktuelles Passwort:',
+              );
+              if (!current) return;
+
+              try {
+                await api.auth.removePassword(current);
+                toast('Passwort entfernt. Ab jetzt nur noch Passkey.', 'success');
+                drawPasskeys();
+              } catch (error) {
+                toast(error.message, 'error');
+              }
+            },
+          }),
+        ]),
+    );
+  };
+
+  // Die Liste lädt im Hintergrund nach, damit die Einstellungsseite sofort da ist.
+  drawPasskeys().catch(() =>
+    render(passkeyList, el('p.muted', { text: 'Passkeys konnten nicht geladen werden.' })),
+  );
 
   // ========================================================================
   // 2. Passwort
@@ -331,6 +554,7 @@ export async function render_(container) {
     container,
     el('h1', { text: 'Einstellungen' }),
     accountCard,
+    passkeyCard,
     tmdbCard,
     syncCard,
     passwordCard,

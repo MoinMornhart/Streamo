@@ -132,6 +132,45 @@ export const api = {
         method: 'POST',
         body: { currentPassword, newPassword },
       }),
+
+    /** Entfernt das Passwort – danach geht nur noch der Passkey. */
+    removePassword: (currentPassword) =>
+      request('/api/auth/password', { method: 'DELETE', body: { currentPassword } }),
+
+    /** Setzt oder entfernt die E-Mail (zweiter Anmeldename, kein Mailversand). */
+    setEmail: (email) => request('/api/auth/email', { method: 'PUT', body: { email } }),
+
+    // --- Passkeys  -> src/routes/auth.js, src/passkeys.js ------------------
+    // Anlegen und Anmelden laufen jeweils in zwei Schritten: erst die Aufgabe
+    // vom Server holen, dann die Antwort des Geräts zurückschicken. Warum das
+    // so ist, steht in public/js/passkey.js.
+
+    /** Funktionieren Passkeys unter dieser Adresse? (HTTPS + Hostname nötig) */
+    passkeyAvailable: () => request('/api/auth/passkey/available'),
+
+    /** Schritt 1 beim Anlegen eines Passkeys */
+    passkeyRegisterOptions: () =>
+      request('/api/auth/passkey/register/options', { method: 'POST' }),
+    /** Schritt 2 beim Anlegen: Antwort des Geräts prüfen und speichern */
+    passkeyRegisterVerify: (response, name) =>
+      request('/api/auth/passkey/register/verify', { method: 'POST', body: { response, name } }),
+
+    /** Schritt 1 beim Anmelden. Ohne username: Auswahl aller Passkeys */
+    passkeyLoginOptions: (username) =>
+      request('/api/auth/passkey/login/options', { method: 'POST', body: { username } }),
+    /** Schritt 2 beim Anmelden: setzt bei Erfolg das Session-Cookie */
+    passkeyLoginVerify: (response) =>
+      request('/api/auth/passkey/login/verify', { method: 'POST', body: { response } }),
+
+    /** Die eigenen Passkeys für die Einstellungsseite */
+    passkeys: () => request('/api/auth/passkeys'),
+    renamePasskey: (id, name) =>
+      request(`/api/auth/passkeys/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body: { name },
+      }),
+    deletePasskey: (id) =>
+      request(`/api/auth/passkeys/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   },
 
   // --- Streaming-Anbieter  -> src/routes/providers.js ---------------------
