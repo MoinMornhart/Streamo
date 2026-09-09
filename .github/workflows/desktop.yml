@@ -34,6 +34,13 @@ on:
   # Ermöglicht den Start von Hand.
   workflow_dispatch:
 
+# Das Token eines Arbeitslaufs darf standardmäßig nur lesen. Zum Anlegen einer
+# Veröffentlichung braucht es Schreibrechte auf den Inhalt des Repositories –
+# ohne diese Zeilen scheitert der letzte Schritt mit "403 Resource not
+# accessible by integration". Bewusst nur diese eine Berechtigung.
+permissions:
+  contents: write
+
 jobs:
   windows:
     runs-on: windows-latest
