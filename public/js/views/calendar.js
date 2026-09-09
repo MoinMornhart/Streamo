@@ -148,33 +148,70 @@ export async function render_(container) {
         });
 
         return [
+          // ------------------------------------------------------------
+          // Ein Weg je Dienst statt eines einzigen Knopfes
+          // ------------------------------------------------------------
+          // Vorher stand hier nur "Jetzt abonnieren" mit einer webcal://-
+          // Adresse. Das funktioniert auf einem Mac und dem iPhone gut, unter
+          // Windows aber oft gar nicht: webcal:// braucht ein Programm, das
+          // sich dafür registriert hat. Ist keines da, passiert beim Klick
+          // schlicht nichts – ohne Fehlermeldung, ohne Hinweis.
+          //
+          // Deshalb jetzt drei benannte Wege plus das Kopieren, das überall
+          // geht.
           el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } }, [
-            // webcal:// öffnet Apple Kalender und Outlook direkt als
-            // Abonnement – ein Klick statt "Ablage → Neues Kalenderabonnement".
             el('a.btn.btn-primary', {
               href: data.subscription.webcal,
-              text: 'Jetzt abonnieren',
-              title: 'Öffnet dein Kalenderprogramm (Apple Kalender, Outlook …)',
-              style: { flex: '1 1 160px', textAlign: 'center' },
-              onClick: () => setTimeout(() => close(), 300),
+              text: '🍎 Apple Kalender',
+              title: 'Öffnet Apple Kalender (Mac, iPhone, iPad)',
+              style: { flex: '1 1 150px', textAlign: 'center' },
+              onClick: () => setTimeout(() => close(), 400),
             }),
 
-            el('button.btn.btn-ghost', {
-              text: 'Adresse kopieren',
-              style: { flex: '1 1 160px' },
-              onClick: async (event) => {
-                const ok = await copyToClipboard(data.subscription.url);
+            // Google nimmt die Adresse als Parameter entgegen und zeigt direkt
+            // den Dialog "Kalender hinzufügen". Das geht in jedem Browser,
+            // auch ohne installiertes Programm.
+            el('a.btn.btn-ghost', {
+              href: `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(data.subscription.url)}`,
+              target: '_blank',
+              rel: 'noopener noreferrer',
+              text: '📆 Google Kalender',
+              title: 'Öffnet Google Kalender im Browser',
+              style: { flex: '1 1 150px', textAlign: 'center' },
+              onClick: () => setTimeout(() => close(), 400),
+            }),
 
-                if (ok) {
-                  event.currentTarget.textContent = '✓ Kopiert';
-                  toast('Adresse kopiert – in deinem Kalender einfügen.', 'success');
-                } else {
-                  urlField.select();
-                  toast('Kopieren nicht möglich – die Adresse ist markiert, Strg+C.', 'info');
-                }
-              },
+            el('a.btn.btn-ghost', {
+              href: `https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(data.subscription.url)}&name=${encodeURIComponent('Streamo')}`,
+              target: '_blank',
+              rel: 'noopener noreferrer',
+              text: '📧 Outlook',
+              title: 'Öffnet Outlook im Browser',
+              style: { flex: '1 1 150px', textAlign: 'center' },
+              onClick: () => setTimeout(() => close(), 400),
             }),
           ]),
+
+          el('p.hint', {
+            style: { marginTop: '10px' },
+            text: 'Passiert beim Klick nichts? Dann ist auf diesem Gerät kein Kalenderprogramm dafür eingerichtet – nimm die Adresse unten und füge sie von Hand ein. Das funktioniert überall.',
+          }),
+
+          el('button.btn.btn-ghost', {
+            text: 'Adresse kopieren',
+            style: { width: '100%', marginTop: '10px' },
+            onClick: async (event) => {
+              const ok = await copyToClipboard(data.subscription.url);
+
+              if (ok) {
+                event.currentTarget.textContent = '✓ Kopiert';
+                toast('Adresse kopiert – in deinem Kalender einfügen.', 'success');
+              } else {
+                urlField.select();
+                toast('Kopieren nicht möglich – die Adresse ist markiert, Strg+C.', 'info');
+              }
+            },
+          }),
 
           el('div.field', { style: { marginTop: '16px' } }, [
             el('label', { text: 'Adresse zum Abonnieren' }),
