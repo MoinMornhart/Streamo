@@ -356,12 +356,22 @@ img {
   font-weight: 550;
   color: var(--text-dim);
 }
-input[type="text"],
-input[type="password"],
-input[type="search"],
-input[type="email"],
-input[type="number"],
-input[type="file"],
+/* --------------------------------------------------------------------------
+   Eingabefelder
+   --------------------------------------------------------------------------
+   Bewusst über :not() statt über eine Aufzählung von [type="…"].
+
+   Der Grund: Ein <input> ohne type-Attribut ist zwar ein Textfeld, wird von
+   einem Selektor wie input[type="text"] aber NICHT erfasst – das Attribut
+   muss dafür wirklich dastehen. Genau daran hing ein hartnäckiger Fehler:
+   Felder, die im JavaScript ohne type erzeugt wurden (Benutzername,
+   Anzeigename), blieben unformatiert und sahen mit weißem Grund und blauem
+   Rahmen aus wie aus einem anderen Programm.
+
+   Ausgenommen sind nur die Typen, die absichtlich anders aussehen:
+   Kontrollkästchen, Auswahlknöpfe, Schieberegler, Farbwähler und Knöpfe.
+   -------------------------------------------------------------------------- */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="button"]):not([type="submit"]):not([type="reset"]),
 select,
 textarea {
   width: 100%;
@@ -1343,11 +1353,8 @@ footer p {
     height: 36px;
     padding: 0 13px;
   }
-  input[type="text"],
-  input[type="password"],
-  input[type="search"],
-  input[type="email"],
-  input[type="number"],
+  /* Gleiche Abgrenzung wie oben – erfasst auch Felder ohne type-Attribut. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
   select,
   textarea {
     /* 16px gegen das automatische Hineinzoomen von iOS. */

@@ -219,6 +219,50 @@ function sendIndex(req, res) {
 // Vor express.static eingehängt, sonst käme die unveränderte Datei zuerst.
 app.get(['/', '/index.html'], sendIndex);
 
+/**
+ * Liefert die JavaScript-Module aus und hängt die Versionskennung auch an
+ * ihre gegenseitigen Importe.
+ *
+ * Warum das nötig ist: Die Kennung in index.html erreicht nur app.js. Diese
+ * Datei lädt aber per `import` weitere Module nach (router.js, ui.js, die
+ * Ansichten …), und für die gilt wieder die alte, zwischengespeicherte
+ * Adresse. Ohne diese Umschreibung bekäme man nach einem Update eine neue
+ * app.js, die weiterhin alte Module benutzt – ein Zustand, der schwerer zu
+ * durchschauen ist als ein durchgehend alter Stand.
+ *
+ * Ersetzt wird nur in `from '…'` und `import('…')` mit relativem Pfad. Alles
+ * andere bleibt unangetastet.
+ */
+app.get(/^\/js\/.*\.js$/, (req, res, next) => {
+  // Den angefragten Pfad in einen Dateipfad übersetzen und dabei sicherstellen,
+  // dass er das öffentliche Verzeichnis nicht verlässt (Verzeichniswechsel
+  // über "../" wäre sonst ein Weg, beliebige Dateien auszulesen).
+  const relative = decodeURIComponent(req.path).replace(/^\/+/, '');
+  const filePath = path.resolve(config.publicDir, relative);
+
+  if (!filePath.startsWith(path.resolve(config.publicDir))) {
+    return res.status(403).end();
+  }
+
+  let source;
+  try {
+    source = fs.readFileSync(filePath, 'utf8');
+  } catch {
+    // Datei gibt es nicht – der reguläre Weg soll darüber entscheiden.
+    return next();
+  }
+
+  const withVersion = source
+    // import … from './datei.js'   /   export … from '../datei.js'
+    .replace(/(from\s+['"])(\.\.?\/[^'"]+\.js)(['"])/g, `$1$2?v=${ASSET_VERSION}$3`)
+    // await import('./views/home.js')
+    .replace(/(import\(\s*['"])(\.\.?\/[^'"]+\.js)(['"])/g, `$1$2?v=${ASSET_VERSION}$3`);
+
+  res.setHeader('Content-Type', 'text/javascript; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.send(withVersion);
+});
+
 app.use(
   express.static(config.publicDir, {
     /**
