@@ -58,6 +58,10 @@ router.get('/', (req, res) => {
   res.json({
     user: {
       username: req.user.username,
+      // Ohne dieses Feld stand das E-Mail-Eingabefeld auf der
+      // Einstellungsseite immer leer, egal ob eine Adresse hinterlegt war –
+      // das Frontend liest genau hier.
+      email: req.user.email || null,
       displayName: req.user.display_name,
       isAdmin: Boolean(req.user.is_admin),
       region: req.user.region || runtime.region,

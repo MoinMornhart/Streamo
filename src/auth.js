@@ -299,7 +299,11 @@ export function getUserBySession(token) {
   if (!token) return undefined;
 
   return get(
-    `SELECT u.id, u.username, u.display_name, u.is_admin, u.region, u.language,
+    // u.email muss mit dabei sein: An diesem Objekt hängt req.user, und jede
+    // Route liest daraus. Fehlte das Feld, wirkte ein Konto überall so, als
+    // hätte es keine E-Mail-Adresse – auch auf der Einstellungsseite.
+    `SELECT u.id, u.username, u.email, u.display_name, u.is_admin,
+            u.region, u.language,
             u.created_at, u.last_login_at
        FROM sessions s
        JOIN users u ON u.id = s.user_id
