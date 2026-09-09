@@ -264,7 +264,7 @@ export const config = Object.freeze({
 
   // --- Metadaten ----------------------------------------------------------
   /** Version, wird im UI-Footer und unter /api/health angezeigt */
-  version: '1.1.8',
+  version: '1.1.9',
 });
 
 export default config;

@@ -145,7 +145,9 @@ Wie verteilen sich deine Serien auf die Abos? Bei welchem Dienst läuft nichts v
 Streamo prüft alle 12 Stunden, wo deine Serien inzwischen laufen. Streaming-Rechte wandern ständig – du merkst es, ohne nachzusehen.
 
 **Mehrere Personen**
-Optional. Jede Person hat eigene Abos, eigene Bibliothek, eigenen Fortschritt und eigene Region. Wer sie einlädt, sieht unter *Einstellungen → Benutzer*, wer ein Konto hat, wann er zuletzt da war und ob gerade jemand angemeldet ist – und kann dort Adminrechte vergeben.
+Optional. Jede Person hat eigene Abos, eigene Bibliothek, eigenen Fortschritt und eigene Region. Wer sie einlädt, sieht unter *Einstellungen → Benutzer*, wer ein Konto hat, wann er zuletzt da war und ob gerade jemand angemeldet ist – und kann dort Adminrechte vergeben oder ein Konto löschen.
+
+> Beim Löschen verschwindet alles, was an dem Konto hängt: Bibliothek, Sehfortschritt, Abos, Bewertungen, Erfolge, Passkeys, Freundschaften und eigene Filmreihen. Deshalb muss der Benutzername zur Bestätigung abgetippt werden. Verschickte Einladungen bleiben gültig – sie gehören zur Instanz, nicht zur Person. Das eigene Konto und der letzte Administrator lassen sich nicht löschen.
 
 **Freunde**
 Seht euch gegenseitig die Listen an und lasst Streamo ausrechnen, was ihr *zusammen* schauen könnt: auf Grundlage eurer beider Abos und dessen, was ihr euch vorgenommen habt. Dazu Empfehlungen mit einem Satz Begründung – das ist der Unterschied zwischen „schau dir das an" und einem Link.

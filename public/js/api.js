@@ -283,6 +283,16 @@ export const api = {
     /** Adminrechte vergeben oder entziehen. */
     setUserAdmin: (id, isAdmin) =>
       request(`/api/settings/users/${id}`, { method: 'PUT', body: { isAdmin } }),
+
+    /**
+     * Löscht ein Konto endgültig – mit allem, was daran hängt.
+     *
+     * `confirm` muss der Benutzername sein. Das ist keine Sicherheitsmaßnahme,
+     * sondern eine gegen Versehen: Ein Klick daneben löscht sonst die
+     * Bibliothek einer anderen Person.
+     */
+    deleteUser: (id, confirm) =>
+      request(`/api/settings/users/${id}`, { method: 'DELETE', body: { confirm } }),
     testKey: (apiKey) =>
       request('/api/settings/test-key', { method: 'POST', body: { apiKey } }),
     startSync: (kind = 'availability') =>

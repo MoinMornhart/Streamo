@@ -810,6 +810,53 @@ export async function render_(container) {
     ]);
 
   /**
+   * Löscht ein Konto – nach ausdrücklicher Bestätigung.
+   *
+   * Der Benutzername muss abgetippt werden. Das ist keine Sicherheitsmaßnahme
+   * (wer hier steht, hat ohnehin Adminrechte), sondern eine gegen Versehen:
+   * Ein Klick daneben löscht sonst die Bibliothek einer anderen Person, und
+   * rückgängig machen lässt sich das nicht.
+   *
+   * @param {object} user Eintrag aus /api/settings/users
+   */
+  const deleteUser = async (user) => {
+    // Zuerst sagen, was verloren geht – nicht erst hinterher.
+    const verluste = [
+      user.libraryCount > 0
+        ? `${user.libraryCount} ${user.libraryCount === 1 ? 'Titel' : 'Titel'} in der Bibliothek`
+        : null,
+      'der gesamte Sehfortschritt',
+      'verknüpfte Abos, Bewertungen und Erfolge',
+      'eigene Filmreihen und Freundschaften',
+    ].filter(Boolean);
+
+    const typed = await askText({
+      title: `Konto „${user.username}" löschen?`,
+      subtitle: `Das lässt sich nicht rückgängig machen. Gelöscht werden: ${verluste.join(', ')}.`,
+      label: `Tipp zur Bestätigung „${user.username}" ein`,
+      placeholder: user.username,
+      confirmLabel: 'Endgültig löschen',
+    });
+
+    // Abgebrochen.
+    if (typed === null) return;
+
+    try {
+      const result = await api.settings.deleteUser(user.id, typed.trim());
+
+      toast(
+        `Konto ${result.username} gelöscht` +
+          (result.removed.library > 0 ? ` – mit ${result.removed.library} Titeln.` : '.'),
+        'success',
+      );
+
+      drawUsers();
+    } catch (error) {
+      toast(error.message, 'error');
+    }
+  };
+
+  /**
    * Zeichnet die Benutzerliste neu.
    * Nach jeder Änderung erneut aufgerufen, damit die Anzeige stimmt.
    */
@@ -866,35 +913,46 @@ export async function render_(container) {
             // sofort weg und man käme nur noch über die Konsole zurück. Der
             // Server lehnt das ebenfalls ab, das hier ist nur die freundliche
             // Variante davon.
-            el('label.toggle-row', { style: { flex: '0 0 auto' } }, [
-              el('input', {
-                type: 'checkbox',
-                checked: user.isAdmin,
-                disabled: user.isSelf,
-                title: user.isSelf
-                  ? 'Die eigenen Rechte kann man sich nicht selbst nehmen.'
-                  : 'Adminrechte vergeben oder entziehen',
-                onChange: async (event) => {
-                  const makeAdmin = event.currentTarget.checked;
+            el('div', { style: { display: 'flex', alignItems: 'center', gap: '12px', flex: '0 0 auto' } }, [
+              el('label.toggle-row', {}, [
+                el('input', {
+                  type: 'checkbox',
+                  checked: user.isAdmin,
+                  disabled: user.isSelf,
+                  title: user.isSelf
+                    ? 'Die eigenen Rechte kann man sich nicht selbst nehmen.'
+                    : 'Adminrechte vergeben oder entziehen',
+                  onChange: async (event) => {
+                    const makeAdmin = event.currentTarget.checked;
 
-                  try {
-                    await api.settings.setUserAdmin(user.id, makeAdmin);
-                    toast(
-                      makeAdmin
-                        ? `${user.username} ist jetzt Administrator.`
-                        : `${user.username} ist jetzt ein gewöhnlicher Benutzer.`,
-                      'success',
-                    );
-                    drawUsers();
-                  } catch (error) {
-                    // Zurückspringen, sonst zeigt der Schalter etwas an, das
-                    // nicht gespeichert wurde.
-                    event.currentTarget.checked = !makeAdmin;
-                    toast(error.message, 'error');
-                  }
-                },
-              }),
-              el('span.small', { text: 'Admin' }),
+                    try {
+                      await api.settings.setUserAdmin(user.id, makeAdmin);
+                      toast(
+                        makeAdmin
+                          ? `${user.username} ist jetzt Administrator.`
+                          : `${user.username} ist jetzt ein gewöhnlicher Benutzer.`,
+                        'success',
+                      );
+                      drawUsers();
+                    } catch (error) {
+                      // Zurückspringen, sonst zeigt der Schalter etwas an, das
+                      // nicht gespeichert wurde.
+                      event.currentTarget.checked = !makeAdmin;
+                      toast(error.message, 'error');
+                    }
+                  },
+                }),
+                el('span.small', { text: 'Admin' }),
+              ]),
+
+              // Konto löschen. Das eigene bleibt außen vor – dabei würde man
+              // sich mitten im Vorgang die eigene Sitzung entziehen.
+              !user.isSelf &&
+                el('button.btn.btn-sm.btn-danger', {
+                  text: 'Löschen',
+                  title: `Konto ${user.username} endgültig löschen`,
+                  onClick: () => deleteUser(user),
+                }),
             ]),
           ]);
         }),

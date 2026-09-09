@@ -379,4 +379,78 @@ router.put('/users/:id', requireAdmin, (req, res) => {
   res.json({ ok: true, username: target.username, isAdmin: makeAdmin });
 });
 
+/**
+ * DELETE /api/settings/users/:id
+ * Body: { confirm: "<benutzername>" }
+ *
+ * Löscht ein Konto endgültig.
+ *
+ * Was dabei verschwindet, erledigt die Datenbank selbst: An `users` hängen
+ * Bibliothek, Sehfortschritt, Abos, Bewertungen, Erfolge, Passkeys, Sitzungen,
+ * Freundschaften, Empfehlungen, eigene Filmreihen und der zweite Faktor jeweils
+ * mit ON DELETE CASCADE (siehe src/db.js). Es bleibt nichts zurück.
+ *
+ * Zwei Dinge überleben mit Absicht:
+ *   - Einladungen, die diese Person erzeugt hat (ON DELETE SET NULL). Sie
+ *     gehören zur Instanz, nicht zur Person – ein verschickter Link soll nicht
+ *     ins Leere führen, nur weil der Absender gegangen ist.
+ *   - Offizielle Filmreihen von TMDB. Die gehören ohnehin niemandem.
+ *
+ * Drei Sperren:
+ *   1. Der Benutzername muss zur Bestätigung mitgeschickt werden. Das ist
+ *      keine Sicherheitsmaßnahme, sondern eine gegen Versehen: Ein Klick
+ *      daneben löscht sonst die Bibliothek einer anderen Person.
+ *   2. Man kann sich nicht selbst löschen – dabei würde man sich mitten im
+ *      Vorgang die eigene Sitzung entziehen.
+ *   3. Der letzte Administrator bleibt. Ohne ihn könnte niemand mehr den
+ *      TMDB-Zugang ändern oder Einladungen erzeugen.
+ */
+router.delete('/users/:id', requireAdmin, (req, res) => {
+  const id = Number(req.params.id);
+
+  const target = get('SELECT id, username, is_admin FROM users WHERE id = ?', id);
+
+  if (!target) {
+    return res.status(404).json({ error: 'Dieses Konto gibt es nicht.' });
+  }
+
+  if (target.id === req.user.id) {
+    return res.status(400).json({
+      error:
+        'Du kannst dein eigenes Konto hier nicht löschen. Lass das jemand anderen mit Adminrechten tun.',
+    });
+  }
+
+  if (target.is_admin) {
+    const admins = get('SELECT COUNT(*) AS count FROM users WHERE is_admin = 1').count;
+
+    if (admins <= 1) {
+      return res.status(400).json({
+        error: 'Das ist der einzige Administrator. Gib zuerst jemand anderem die Rechte.',
+      });
+    }
+  }
+
+  // Der Vergleich ist bewusst streng: Wer den Namen abtippt, hat hingesehen.
+  if (String(req.body?.confirm ?? '').trim() !== target.username) {
+    return res.status(400).json({
+      error: `Zur Bestätigung muss der Benutzername „${target.username}" genau so eingegeben werden.`,
+    });
+  }
+
+  // Vorher zählen, was verloren geht – das gehört in die Rückmeldung, damit
+  // hinterher klar ist, was tatsächlich passiert ist.
+  const removed = {
+    library: get('SELECT COUNT(*) AS count FROM library WHERE user_id = ?', id).count,
+    collections: get(
+      'SELECT COUNT(*) AS count FROM collections WHERE user_id = ?',
+      id,
+    ).count,
+  };
+
+  run('DELETE FROM users WHERE id = ?', id);
+
+  res.json({ ok: true, username: target.username, removed });
+});
+
 export default router;
