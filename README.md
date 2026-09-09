@@ -36,6 +36,10 @@ Neben der Weboberfläche gibt es eine Windows-App: **[Installer herunterladen](h
 
 Sie zeigt dieselbe Oberfläche in einem eigenen Programmfenster und kann dazu, was der Browser nicht kann: im Infobereich weiterlaufen, bei neuen Episoden benachrichtigen, mit Windows starten und die Suche per `Strg`+`Umschalt`+`S` öffnen. Details in [desktop/README.md](desktop/README.md).
 
+Die App hält sich selbst aktuell: Sie sieht kurz nach dem Start und danach alle vier Stunden nach, lädt im Hintergrund und fragt dann, ob neu gestartet werden soll. Wer ablehnt, bekommt das Update beim nächsten Beenden. Beim Start leert sie außerdem einmal ihren Zwischenspeicher – sonst könnte sie nach einem Server-Update noch die alte Oberfläche zeigen.
+
+> Auf der Download-Seite steht immer nur die neueste Version; ältere räumt der Bau-Workflow weg. Für die Selbstaktualisierung ist das ohne Belang – sie liest ohnehin immer die neueste.
+
 ---
 
 ## Anmelden – Passwort oder Passkey
@@ -54,7 +58,19 @@ Eingerichtet werden Passkeys unter *Einstellungen → Passkeys*. Du kannst mehre
 
 > **Streamo verschickt keine E-Mails** und braucht keinen Mailserver. Die Adresse ist ausschließlich ein zweiter Anmeldename.
 
-Ein Konto anlegen kann man direkt auf dem Anmeldebildschirm über *Konto erstellen*. Ob dabei ein Einladungscode nötig ist, entscheidet `ALLOW_REGISTRATION` in der `.env`: Steht sie auf `true`, reichen Name und Passwort; sonst verlangt die Maske den Code aus einer Einladung. Wer einen Einladungs**link** bekommen hat, öffnet einfach ihn.
+### Ein Konto anlegen
+
+Drei Wege dorthin:
+
+| Weg | Wann |
+| --- | --- |
+| Einrichtungsassistent | einmalig, beim allerersten Start – dieses Konto wird Administrator |
+| Einladungs**link** | einfach öffnen, Name und Passwort eintragen, fertig |
+| *Konto erstellen* auf dem Anmeldebildschirm | mit dem Einladungs**code**, oder ganz ohne, wenn die Registrierung offen steht |
+
+Ob ein Code nötig ist, entscheidet die Instanz. Standardmäßig ja – siehe [Konfiguration](#konfiguration). Umschalten kannst du das unter *Einstellungen → Freunde einladen* oder mit `streamo registration offen`.
+
+Wer eingeladen wird, braucht **keinen eigenen TMDB-Zugang**: Der gilt für die ganze Instanz und ist längst hinterlegt. Genau deshalb gibt es Einladungen – sonst müsste sich jeder erst bei einer Filmdatenbank anmelden und dort seine Adresse angeben.
 
 ### Zwei-Faktor-Anmeldung
 
@@ -129,7 +145,13 @@ Wie verteilen sich deine Serien auf die Abos? Bei welchem Dienst läuft nichts v
 Streamo prüft alle 12 Stunden, wo deine Serien inzwischen laufen. Streaming-Rechte wandern ständig – du merkst es, ohne nachzusehen.
 
 **Mehrere Personen**
-Optional. Jede Person hat eigene Abos, eigene Bibliothek, eigenen Fortschritt und eigene Region.
+Optional. Jede Person hat eigene Abos, eigene Bibliothek, eigenen Fortschritt und eigene Region. Wer sie einlädt, sieht unter *Einstellungen → Benutzer*, wer ein Konto hat, wann er zuletzt da war und ob gerade jemand angemeldet ist – und kann dort Adminrechte vergeben.
+
+**Freunde**
+Seht euch gegenseitig die Listen an und lasst Streamo ausrechnen, was ihr *zusammen* schauen könnt: auf Grundlage eurer beider Abos und dessen, was ihr euch vorgenommen habt. Dazu Empfehlungen mit einem Satz Begründung – das ist der Unterschied zwischen „schau dir das an" und einem Link.
+
+**Dein Farbschema**
+Streamo war violett, weil sich irgendjemand einmal für Violett entscheiden musste. Jede Person wählt ihre eigene Akzentfarbe – acht Vorgaben oder ein freier Farbwähler – und dazu einen Grundton: Dunkelblau oder echtes Schwarz. Die Einstellung gilt für dein Konto, nicht für die ganze Instanz, und reist zu deinen anderen Geräten mit.
 
 ---
 
@@ -187,10 +209,14 @@ Alle Werte stehen in `.env` (Vorlage: [`.env.example`](.env.example)). Jeder hat
 | `STREAMO_REGION` | `DE` | Land, für das die Verfügbarkeit gilt |
 | `STREAMO_LANGUAGE` | `de-DE` | Sprache von Titeln und Beschreibungen |
 | `SYNC_INTERVAL_HOURS` | `12` | Takt des Hintergrundabgleichs; `0` = aus |
-| `ALLOW_REGISTRATION` | `false` | Dürfen sich weitere Personen registrieren? |
+| `ALLOW_REGISTRATION` | `false` | Dürfen sich weitere Personen ohne Einladung registrieren? |
 | `TRUST_PROXY` | `false` | `true`, wenn ein HTTPS-Proxy davorsteht |
 
 Nach Änderungen: `systemctl restart streamo`
+
+> `ALLOW_REGISTRATION` steht mit Absicht auf `false`: Sobald Streamo aus dem Internet erreichbar ist, könnte sonst jeder, der die Adresse findet, ein Konto anlegen – und deinen TMDB-Zugang mitbenutzen. Der Normalfall ist deshalb die Einladung.
+>
+> Umschalten lässt sich das auch ohne Server-Zugang, unter *Einstellungen → Freunde einladen* oder mit `streamo registration offen`. Der so gespeicherte Wert sticht die `.env`.
 
 ---
 
@@ -203,22 +229,38 @@ Streamo/
 │   ├── config.js           Konfiguration aus .env
 │   ├── db.js               SQLite-Schema und Zugriffs-Helfer
 │   ├── auth.js             Passwörter (scrypt), Sessions, Zugriffsschutz
+│   ├── passkeys.js         WebAuthn – Anmelden ohne Passwort
+│   ├── totp.js             Einmalcodes nach RFC 6238 (zweiter Faktor)
+│   ├── twofactor.js        Ersatzcodes und halbfertige Anmeldungen
 │   ├── tmdb.js             TMDB-Client inkl. Verfügbarkeitsdaten
 │   ├── store.js            Brücke zwischen TMDB und Datenbank
 │   ├── sync.js             Hintergrundabgleich
+│   ├── fuzzy.js            Suche, die Tippfehler verzeiht
+│   ├── quicksearch.js      Eine Suche über Reihen, Freunde und Leute
+│   ├── recommend.js        "Für dich" – Vorschläge aus der eigenen Bibliothek
+│   ├── collections.js      Filmreihen, eigene wie offizielle
+│   ├── friends.js          Freundschaften und gemeinsames Schauen
+│   ├── achievements.js     Erfolge
+│   ├── invites.js          Einladungslinks
 │   └── routes/             Die API, ein Modul je Bereich
 ├── public/                 Frontend – reine ES-Module, kein Build nötig
 │   ├── index.html
 │   ├── css/styles.css
 │   └── js/
 │       ├── api.js          Der einzige Weg zum Server
-│       ├── ui.js           Bausteine (Poster-Kachel, Toasts, Formatierer)
+│       ├── ui.js           Bausteine (Poster-Kachel, Dialoge, Formatierer)
+│       ├── theme.js        Akzentfarbe und Grundton
 │       ├── router.js       Routing über die Adressleiste
 │       ├── app.js          Einstiegspunkt, globaler Zustand
 │       └── views/          Eine Datei je Ansicht
+├── desktop/                Die Windows-App (Electron)
 ├── scripts/
 │   ├── streamo.sh          Proxmox-Installer (LXC anlegen)
+│   ├── streamo-update.sh   Update mit Rollback
+│   ├── make-admin.mjs      Adminrechte auf der Konsole vergeben
+│   ├── registration.mjs    Offene Registrierung ein- und ausschalten
 │   └── install/            Installation im Container
+├── tests/                  Über 400 Prüfungen, ohne Test-Framework
 └── docs/QUICKSTART.md      Ausführliche Anleitung
 ```
 
@@ -226,10 +268,13 @@ Der gesamte Code ist durchgehend auf Deutsch kommentiert – jede Verknüpfung z
 
 ### Technische Entscheidungen
 
-- **Genau eine npm-Abhängigkeit** (`express`). Passwort-Hashing, Sessions, `.env`-Parsing und der Cookie-Umgang sind mit Bordmitteln von Node gelöst. Das hält die Installation schnell und die Angriffsfläche klein.
+- **Zwei npm-Abhängigkeiten**: `express` und `@simplewebauthn/server`. Passwort-Hashing, Sessions, `.env`-Parsing und der Cookie-Umgang sind mit Bordmitteln von Node gelöst. Die Ausnahme sind Passkeys – bei WebAuthn selbst geschriebene Kryptografie wäre fahrlässig.
+- **Der zweite Faktor dagegen ist selbst geschrieben** (`src/totp.js`), und das ist kein Widerspruch: Hier gibt es nichts zu erfinden. `node:crypto` liefert HMAC-SHA1 fertig, der Rest ist Byte-Schieberei nach einer klar beschriebenen Norm – und RFC 6238 bringt offizielle Testvektoren mit, gegen die `npm run test:totp` prüft.
 - **SQLite über `node:sqlite`** – seit Node 22.5 eingebaut. Keine native Kompilierung, kein Datenbankserver. Die gesamte Installation ist eine Datei plus ein Verzeichnis.
 - **Kein Frontend-Build.** Die Oberfläche besteht aus nativen ES-Modulen. Kein Webpack, kein `npm run build`, kein Bundle – Dateien kopieren genügt.
-- **Alle Filter stehen in der URL.** Jede Ansicht der Bibliothek ist verlinkbar, der Zurück-Knopf funktioniert.
+- **Kein Test-Framework.** Die Tests unter `tests/` sind gewöhnliche Skripte, die etwas tun und das Ergebnis vergleichen. `npm run test:all` führt sie alle aus. Über 400 Prüfungen, keine einzige Abhängigkeit dafür.
+- **Alle Filter stehen in der URL.** Jede Ansicht der Bibliothek ist verlinkbar, der Zurück-Knopf funktioniert. Die zuletzt benutzten merkt sich der Browser zusätzlich.
+- **Keine Browser-Dialoge.** Kein `prompt()`, kein `confirm()` – alle Fenster sind Teil der Oberfläche und tragen deine Akzentfarbe.
 
 ---
 
@@ -288,17 +333,23 @@ Optionen:
 ### Weitere Befehle im Container
 
 ```bash
-streamo            # zeigt alle Befehle
-streamo status     # Läuft der Dienst?
-streamo logs       # Protokoll live mitlesen
-streamo restart    # Neu starten
-streamo config     # .env bearbeiten, startet danach automatisch neu
-streamo domain <d> # Domain eintragen – nötig für Passkeys hinter einem Proxy
-streamo backup     # Datenbank und Konfiguration sichern
-streamo info       # Version, Adresse, Zustand
+streamo                    # zeigt alle Befehle
+streamo status             # Läuft der Dienst?
+streamo logs               # Protokoll live mitlesen
+streamo restart            # Neu starten
+streamo config             # .env bearbeiten, startet danach automatisch neu
+streamo domain <d>         # Domain eintragen – nötig für Passkeys hinter einem Proxy
+streamo admin <name>       # Adminrechte vergeben (ohne Namen: alle Konten auflisten)
+streamo registration offen # Konto ohne Einladung erlauben (oder: zu)
+streamo backup             # Datenbank und Konfiguration sichern
+streamo info               # Version, Adresse, Zustand
 ```
 
 Beim Anmelden im Container begrüßt dich eine Übersicht mit Version, Adresse und Dienstzustand.
+
+Die beiden mittleren Befehle lösen ein Henne-Ei-Problem: Adminrechte bekommt automatisch nur das allererste Konto aus dem Einrichtungsassistenten, und den Schalter für die offene Registrierung sehen nur Administratoren. Wer später über eine Einladung dazugekommen ist, käme also an beides nicht heran.
+
+`streamo admin` ohne Namen listet alle Konten mit ihrem Rang. Der letzte Administrator kann sich nicht selbst entmachten – sonst könnte niemand mehr den TMDB-Zugang ändern oder Einladungen erzeugen.
 
 ### Automatisch aktualisieren
 

@@ -88,6 +88,10 @@ Streamo bezieht Metadaten und Streaming-Verfügbarkeit von TMDB. Der Zugang ist 
 - **TMDB-API-Key** – aus Schritt 1. Der Schlüssel wird sofort geprüft, ein Tippfehler fällt also gleich auf. Du kannst das Feld auch leer lassen und später nachtragen.
 - **Region** – entscheidet, welche Anbieter angeboten werden und für welches Land die Verfügbarkeit gilt.
 
+Dieses erste Konto wird automatisch Administrator. Alle weiteren kommen später über eine Einladung dazu (*Einstellungen → Freunde einladen*) und brauchen dabei **keinen eigenen TMDB-Zugang** – deiner gilt für die ganze Installation.
+
+> Willst du die Anmeldung zusätzlich absichern, richte danach unter *Einstellungen → Zwei-Faktor-Anmeldung* einen Code aus einer Authenticator-App ein. Notier dir die Ersatzcodes: Streamo verschickt keine E-Mails, ohne sie gibt es bei einem verlorenen Telefon keinen Weg zurück.
+
 ### Schritt 3 – Abos verknüpfen
 
 Direkt danach landest du auf der Anbieter-Seite. Klick alles an, was du abonniert hast, und drücke **Auswahl speichern**.
@@ -171,13 +175,15 @@ kaputt liegenzubleiben.
 Im Container – `streamo` allein zeigt die Übersicht:
 
 ```bash
-streamo status     # Läuft der Dienst?
-streamo logs       # Protokoll live mitlesen
-streamo restart    # Neu starten
-streamo config     # .env bearbeiten, startet danach automatisch neu
-streamo domain <d> # Domain eintragen – nötig für Passkeys hinter einem Proxy
-streamo backup     # Datenbank und Konfiguration sichern
-streamo info       # Version, Adresse, Zustand
+streamo status             # Läuft der Dienst?
+streamo logs               # Protokoll live mitlesen
+streamo restart            # Neu starten
+streamo config             # .env bearbeiten, startet danach automatisch neu
+streamo domain <d>         # Domain eintragen – nötig für Passkeys hinter einem Proxy
+streamo admin <name>       # Adminrechte vergeben (ohne Namen: alle Konten auflisten)
+streamo registration offen # Konto ohne Einladung erlauben (oder: zu)
+streamo backup             # Datenbank und Konfiguration sichern
+streamo info               # Version, Adresse, Zustand
 ```
 
 Vom Proxmox-Host aus, `<CTID>` durch deine Container-ID ersetzen:

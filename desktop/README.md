@@ -36,7 +36,12 @@ Optional, im Kontextmenü des Tray-Symbols. Beim Autostart öffnet sich kein Fen
 Weiterschauen, Bibliothek und Entdecken direkt anspringen, ohne erst das Fenster zu suchen.
 
 **Hält sich selbst aktuell**
-Die App sieht regelmäßig nach, ob es eine neue Version gibt, lädt sie im Hintergrund und fragt dann, ob du neu starten möchtest. Lehnst du ab, wird sie beim nächsten Beenden installiert. Über das Tray-Menü kannst du auch von Hand suchen.
+Eine halbe Minute nach dem Start und danach alle vier Stunden sieht die App nach, ob es eine neue Version gibt, lädt sie im Hintergrund und fragt dann, ob du neu starten möchtest. Lehnst du ab, wird sie beim nächsten Beenden installiert. Über das Tray-Menü kannst du auch von Hand suchen.
+
+Läuft etwas schief, steht das Warum in `%APPDATA%\Streamo\update.log` – erreichbar über *Update-Protokoll öffnen* im Tray-Menü. Das Protokoll gibt es aus gutem Grund: Eine fertig gebaute App hat keine Konsole, die Suche läuft im Hintergrund, und ein Fehler wäre sonst schlicht unsichtbar. Genau daran hat die Selbstaktualisierung lange gekrankt, ohne dass es jemand bemerkt hat.
+
+**Zeigt nach einem Server-Update sofort die neue Oberfläche**
+Die App lädt die Oberfläche vom Server, und Chromium hebt deren Dateien auf. Nach einem `update` auf dem Server konnte sie deshalb noch die alte anzeigen – von außen sieht das aus, als wäre das Update nicht angekommen. Beim Start wird der Zwischenspeicher jetzt einmal geleert. Angemeldet bleibst du dabei: Das Sitzungs-Cookie liegt woanders.
 
 **Passkeys auch mit eigenem Zertifikat**
 Läuft dein Streamo mit einem selbstsignierten Zertifikat, kannst du es hier einmalig bestätigen. Danach gilt die Verbindung als sicher – und Passkeys (Windows Hello) funktionieren, wo der Browser sie mit einer Zertifikatswarnung noch blockieren würde.
@@ -110,6 +115,8 @@ Die angezeigte Seite kommt von einem Server. Sie läuft deshalb bewusst eingespe
 
 Eine schlichte JSON-Datei mit Serveradresse, Fenstergröße und den Schaltern aus dem Tray-Menü. Bei Problemen kann man sie löschen – dann startet die App wieder mit dem Verbindungsbildschirm.
 
+Daneben liegt `update.log`, das Protokoll der Selbstaktualisierung. Es wird bei 256 KB von vorn begonnen; für die Fehlersuche zählt ohnehin nur der letzte Versuch.
+
 ---
 
 ## Fehlersuche
@@ -124,4 +131,7 @@ Setz beim Verbinden den Haken „Selbstsigniertes Zertifikat akzeptieren".
 Windows muss sie für Streamo erlauben: *Einstellungen → System → Benachrichtigungen*. Außerdem meldet die App nur Serien mit dem TMDB-Status „Returning Series" – bei abgeschlossenen Serien sind ungesehene Episoden kein Neuzugang, sondern Rückstand.
 
 **Passkeys funktionieren nicht**
-Sie brauchen HTTPS und einen Hostnamen; über eine IP-Adresse gehen sie grundsätzlich nicht. Details im [Haupt-README](../README.md#passkeys).
+Sie brauchen HTTPS und einen Hostnamen; über eine IP-Adresse gehen sie grundsätzlich nicht. Details im [Haupt-README](../README.md#voraussetzungen-für-passkeys).
+
+**Die App aktualisiert sich nicht**
+Tray-Menü → *Update-Protokoll öffnen*. Dort stehen die abgefragte Adresse, die gefundene Version und im Fehlerfall die vollständige Meldung. Ein Sonderfall: Versionen vor 1.1.3 kommen nicht von allein weiter, weil die damals veröffentlichte Datei anders hieß, als die App sie angefragt hat. Dort hilft nur, den [aktuellen Installer](https://github.com/MoinMornhart/Streamo/releases) einmal von Hand auszuführen – danach läuft es von selbst.
