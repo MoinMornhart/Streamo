@@ -107,12 +107,19 @@ export function verifyPassword(password, stored) {
  * @param {object} params
  * @param {string} params.username     Anmeldename (eindeutig, case-insensitiv)
  * @param {string} params.password     Klartext-Passwort, mind. 8 Zeichen
+ * @param {string} [params.email]      Optionale E-Mail als zweiter Anmeldename
  * @param {string} [params.displayName] Anzeigename; Default = username
  * @param {boolean} [params.isAdmin]   Adminrechte
  * @returns {Promise<object>} der angelegte Benutzer (ohne password_hash)
  * @throws {Error} bei zu kurzem Passwort oder belegtem Namen
  */
-export async function createUser({ username, password, displayName, isAdmin = false }) {
+export async function createUser({
+  username,
+  password,
+  email,
+  displayName,
+  isAdmin = false,
+}) {
   const name = String(username || '').trim();
 
   if (name.length < 3) throw new Error('Benutzername muss mindestens 3 Zeichen haben.');
@@ -138,7 +145,13 @@ export async function createUser({ username, password, displayName, isAdmin = fa
     config.language,
   );
 
-  return getUserById(Number(result.lastInsertRowid));
+  const userId = Number(result.lastInsertRowid);
+
+  // Die E-Mail erst danach setzen, damit ihre eigene Prüfung (Format,
+  // Eindeutigkeit) greift, ohne den INSERT oben zu verkomplizieren.
+  if (email) setEmail(userId, email);
+
+  return getUserById(userId);
 }
 
 /**
@@ -149,7 +162,7 @@ export async function createUser({ username, password, displayName, isAdmin = fa
  */
 export function getUserById(id) {
   return get(
-    `SELECT id, username, display_name, is_admin, region, language,
+    `SELECT id, username, email, display_name, is_admin, region, language,
             created_at, last_login_at
        FROM users WHERE id = ?`,
     id,
@@ -157,13 +170,72 @@ export function getUserById(id) {
 }
 
 /**
- * Lädt einen Benutzer anhand des Anmeldenamens – hier MIT Hash, weil genau
- * dieser für die Passwortprüfung beim Login gebraucht wird.
- * @param {string} username
+ * Lädt einen Benutzer anhand seines Anmeldenamens ODER seiner E-Mail-Adresse –
+ * hier MIT Hash, weil genau dieser für die Passwortprüfung gebraucht wird.
+ *
+ * Beide Felder werden akzeptiert, damit man sich mit dem eintippen kann, was
+ * einem gerade einfällt. Der Vergleich ist dank COLLATE NOCASE auf der Spalte
+ * unabhängig von Groß- und Kleinschreibung.
+ *
+ * @param {string} identifier Benutzername oder E-Mail
  * @returns {object|undefined}
  */
-export function getUserByUsername(username) {
-  return get('SELECT * FROM users WHERE username = ?', String(username || '').trim());
+export function getUserByUsername(identifier) {
+  const value = String(identifier || '').trim();
+  if (!value) return undefined;
+
+  return get(
+    'SELECT * FROM users WHERE username = ? OR email = ? COLLATE NOCASE',
+    value,
+    value,
+  );
+}
+
+/**
+ * Setzt oder entfernt die E-Mail-Adresse eines Kontos.
+ *
+ * Die Adresse ist optional und dient ausschließlich als zweiter Anmeldename –
+ * Streamo verschickt keine E-Mails und braucht keinen Mailserver.
+ *
+ * @param {number} userId
+ * @param {string|null} email null oder leer entfernt die Adresse
+ * @throws {Error} bei ungültigem Format oder wenn die Adresse belegt ist
+ */
+export function setEmail(userId, email) {
+  const value = String(email ?? '').trim().toLowerCase();
+
+  if (value === '') {
+    run('UPDATE users SET email = NULL WHERE id = ?', userId);
+    return;
+  }
+
+  // Bewusst eine sehr einfache Prüfung: "irgendwas@irgendwas.irgendwas".
+  // Eine vollständige Validierung nach RFC 5322 ist berüchtigt kompliziert
+  // und bringt hier nichts, weil die Adresse nie angeschrieben wird.
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+    throw new Error('Das sieht nicht nach einer E-Mail-Adresse aus.');
+  }
+
+  const taken = get('SELECT id FROM users WHERE email = ? AND id != ?', value, userId);
+  if (taken) throw new Error('Diese E-Mail-Adresse wird bereits verwendet.');
+
+  run('UPDATE users SET email = ? WHERE id = ?', value, userId);
+}
+
+/**
+ * Sagt, ob ein Konto überhaupt ein Passwort hat.
+ *
+ * Ein leerer `password_hash` bedeutet "nur Passkey". Diesen Fall gibt es, wenn
+ * jemand sein Passwort bewusst entfernt hat, nachdem er Passkeys eingerichtet
+ * hat. Die Spalte bleibt dabei NOT NULL – ein leerer String ist der Marker,
+ * und verifyPassword() lehnt ihn ohnehin immer ab, weil ihm der Doppelpunkt
+ * zwischen Salt und Hash fehlt.
+ *
+ * @param {object} user Zeile aus `users` (mit password_hash)
+ * @returns {boolean}
+ */
+export function hasPassword(user) {
+  return Boolean(user?.password_hash && user.password_hash.includes(':'));
 }
 
 /**

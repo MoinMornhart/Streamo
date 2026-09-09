@@ -18,7 +18,9 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "test": "node tests/store.test.mjs",
-    "test:update": "bash tests/update.test.sh"
+    "test:update": "bash tests/update.test.sh",
+    "test:migration": "node tests/migration.test.mjs",
+    "test:all": "npm test && npm run test:migration && npm run test:update"
   },
   "dependencies": {
     "@simplewebauthn/server": "^14.0.1",

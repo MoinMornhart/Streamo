@@ -37,8 +37,27 @@ import {
   pruneSessions,
   setSessionCookie,
   clearSessionCookie,
+  parseCookies,
   requireAuth,
+  setEmail,
+  hasPassword,
 } from '../auth.js';
+
+// Die Passkey-Logik (WebAuthn) steckt vollständig in src/passkeys.js – hier
+// werden nur die HTTP-Endpunkte darum herum gebaut.
+import {
+  FLOW_COOKIE,
+  getWebAuthnContext,
+  createRegistrationOptions,
+  verifyRegistration,
+  createAuthenticationOptions,
+  verifyAuthentication,
+  listCredentials,
+  renameCredential,
+  deleteCredential,
+  countCredentials,
+} from '../passkeys.js';
+
 import { run } from '../db.js';
 
 const router = express.Router();
@@ -72,7 +91,15 @@ function clientIp(req) {
 router.get('/status', (req, res) => {
   const userCount = countUsers();
 
+  // Können unter der aktuellen Adresse überhaupt Passkeys verwendet werden?
+  // Das Frontend blendet den Knopf danach ein oder aus.
+  const webauthn = getWebAuthnContext(req);
+
   res.json({
+    passkeys: {
+      available: webauthn.available,
+      reason: webauthn.reason,
+    },
     // Noch kein Benutzer angelegt = frische Installation.
     needsSetup: userCount === 0,
     // Ist ein TMDB-Key hinterlegt? Ohne ihn funktioniert Suche und
@@ -107,7 +134,7 @@ router.post('/setup', async (req, res) => {
       .json({ error: 'Streamo ist bereits eingerichtet.', code: 'already_setup' });
   }
 
-  const { username, password, displayName, apiKey, region, language } = req.body ?? {};
+  const { username, password, email, displayName, apiKey, region, language } = req.body ?? {};
 
   try {
     // Falls ein API-Key mitgeschickt wurde: erst prüfen, dann speichern.
@@ -121,7 +148,8 @@ router.post('/setup', async (req, res) => {
     if (language) setSetting('language', String(language));
 
     // Der allererste Benutzer bekommt automatisch Adminrechte.
-    const user = await createUser({ username, password, displayName, isAdmin: true });
+    // Die E-Mail ist optional und dient nur als zweiter Anmeldename.
+    const user = await createUser({ username, password, email, displayName, isAdmin: true });
 
     // Region/Sprache des Setups auch am Benutzer hinterlegen.
     run(
@@ -253,6 +281,255 @@ router.post('/password', requireAuth, async (req, res) => {
     ip: clientIp(req),
   });
   setSessionCookie(res, token);
+
+  res.json({ ok: true });
+});
+
+// ===========================================================================
+// Passkeys (WebAuthn)
+// ===========================================================================
+// Ablauf in beiden Fällen – Anlegen wie Anmelden – immer zwei Schritte:
+//
+//   1. "options": Der Server stellt eine Zufallsaufgabe und merkt sie sich.
+//      Der Client bekommt einen Zuordnungsschlüssel als kurzlebiges Cookie.
+//   2. "verify": Das Gerät hat die Aufgabe signiert, der Server prüft sie.
+//
+// Die Zwischenspeicherung erklärt src/passkeys.js ausführlich.
+
+/**
+ * Setzt das kurzlebige Cookie, das einen laufenden Passkey-Vorgang zuordnet.
+ *
+ * Max-Age=120: Der Vorgang dauert Sekunden. Ein kurzlebiges Cookie kann nicht
+ * später missbraucht werden, und die Challenge dahinter verfällt ohnehin nach
+ * einer Minute.
+ *
+ * @param {import('express').Response} res
+ * @param {string} flowId
+ */
+function setFlowCookie(res, flowId) {
+  const parts = [
+    `${FLOW_COOKIE}=${flowId}`,
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    'Max-Age=120',
+  ];
+  if (config.trustProxy) parts.push('Secure');
+
+  // append statt setHeader: Bei der Anmeldung wird gleich danach auch das
+  // Session-Cookie gesetzt – setHeader würde es überschreiben.
+  res.append('Set-Cookie', parts.join('; '));
+}
+
+/**
+ * GET /api/auth/passkey/available
+ *
+ * Sagt dem Frontend, ob Passkeys unter der aktuellen Adresse funktionieren.
+ * Ist das nicht der Fall (kein HTTPS, IP-Adresse statt Hostname), blendet das
+ * Frontend den Passkey-Knopf aus und nennt auf der Einstellungsseite den Grund –
+ * das ist deutlich freundlicher als ein Knopf, der beim Klick scheitert.
+ */
+router.get('/passkey/available', (req, res) => {
+  const context = getWebAuthnContext(req);
+
+  res.json({
+    available: context.available,
+    reason: context.reason,
+    // Nur zur Anzeige in den Einstellungen, damit man bei Problemen sieht,
+    // unter welcher Domain die Passkeys angelegt würden.
+    rpId: context.rpID,
+  });
+});
+
+/**
+ * POST /api/auth/passkey/register/options
+ * Beginnt das Anlegen eines neuen Passkeys. Nur für angemeldete Benutzer.
+ */
+router.post('/passkey/register/options', requireAuth, async (req, res, next) => {
+  const context = getWebAuthnContext(req);
+
+  if (!context.available) {
+    return res.status(400).json({ error: context.reason, code: 'webauthn_unavailable' });
+  }
+
+  try {
+    const { options, flowId } = await createRegistrationOptions(req.user, req);
+    setFlowCookie(res, flowId);
+    res.json(options);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/auth/passkey/register/verify
+ * Schließt das Anlegen ab. Body: { response, name }
+ */
+router.post('/passkey/register/verify', requireAuth, async (req, res) => {
+  const cookies = parseCookies(req.headers.cookie);
+
+  try {
+    const credential = await verifyRegistration(
+      req.user,
+      req.body?.response,
+      cookies[FLOW_COOKIE],
+      req,
+      req.body?.name,
+    );
+
+    res.json({
+      ok: true,
+      credential: {
+        id: credential.id,
+        name: credential.name,
+        created_at: credential.created_at,
+      },
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/auth/passkey/login/options
+ * Beginnt eine Anmeldung. Body: { username } – optional.
+ *
+ * Ohne Benutzernamen zeigt der Browser alle für diese Domain gespeicherten
+ * Passkeys zur Auswahl. Das ist der übliche und bequemste Weg.
+ */
+router.post('/passkey/login/options', async (req, res, next) => {
+  const context = getWebAuthnContext(req);
+
+  if (!context.available) {
+    return res.status(400).json({ error: context.reason, code: 'webauthn_unavailable' });
+  }
+
+  try {
+    const { options, flowId } = await createAuthenticationOptions(req, req.body?.username);
+    setFlowCookie(res, flowId);
+    res.json(options);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/auth/passkey/login/verify
+ * Schließt die Anmeldung ab und setzt das Session-Cookie. Body: { response }
+ */
+router.post('/passkey/login/verify', async (req, res) => {
+  const cookies = parseCookies(req.headers.cookie);
+
+  try {
+    const user = await verifyAuthentication(req.body?.response, cookies[FLOW_COOKIE], req);
+
+    pruneSessions();
+
+    const token = createSession(user.id, {
+      userAgent: req.headers['user-agent'],
+      ip: clientIp(req),
+    });
+    setSessionCookie(res, token);
+
+    res.json({ ok: true, user: getUserById(user.id) });
+  } catch (error) {
+    res.status(401).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/auth/passkeys
+ * Die eigenen Passkeys für die Einstellungsseite.
+ */
+router.get('/passkeys', requireAuth, (req, res) => {
+  const full = getUserByUsername(req.user.username);
+
+  res.json({
+    passkeys: listCredentials(req.user.id),
+    // Damit das Frontend warnen kann, bevor jemand seinen letzten Anmeldeweg
+    // entfernt.
+    hasPassword: hasPassword(full),
+  });
+});
+
+/**
+ * PATCH /api/auth/passkeys/:id
+ * Benennt einen Passkey um. Body: { name }
+ */
+router.patch('/passkeys/:id', requireAuth, (req, res) => {
+  const ok = renameCredential(req.user.id, req.params.id, req.body?.name);
+
+  if (!ok) return res.status(404).json({ error: 'Passkey nicht gefunden.' });
+  res.json({ ok: true });
+});
+
+/**
+ * DELETE /api/auth/passkeys/:id
+ * Entfernt einen Passkey.
+ *
+ * Der letzte Anmeldeweg darf nicht verschwinden: Wer kein Passwort gesetzt hat
+ * und nur noch einen Passkey besitzt, würde sich sonst dauerhaft aussperren.
+ */
+router.delete('/passkeys/:id', requireAuth, (req, res) => {
+  const full = getUserByUsername(req.user.username);
+
+  if (!hasPassword(full) && countCredentials(req.user.id) <= 1) {
+    return res.status(400).json({
+      error:
+        'Das ist dein letzter Anmeldeweg. Lege vorher ein Passwort oder einen weiteren Passkey an.',
+      code: 'last_credential',
+    });
+  }
+
+  const ok = deleteCredential(req.user.id, req.params.id);
+  if (!ok) return res.status(404).json({ error: 'Passkey nicht gefunden.' });
+
+  res.json({ ok: true });
+});
+
+/**
+ * PUT /api/auth/email
+ * Setzt oder entfernt die eigene E-Mail-Adresse. Body: { email }
+ *
+ * Sie dient nur als zweiter Anmeldename. Streamo verschickt keine E-Mails und
+ * braucht dafür auch keinen Mailserver.
+ */
+router.put('/email', requireAuth, (req, res) => {
+  try {
+    setEmail(req.user.id, req.body?.email);
+    res.json({ ok: true, user: getUserById(req.user.id) });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/auth/password
+ * Entfernt das Passwort – ab dann geht die Anmeldung nur noch per Passkey.
+ * Body: { currentPassword }
+ *
+ * Erlaubt nur, wenn mindestens ein Passkey vorhanden ist. Sonst wäre das Konto
+ * nicht mehr erreichbar.
+ */
+router.delete('/password', requireAuth, async (req, res) => {
+  const full = getUserByUsername(req.user.username);
+
+  if (countCredentials(req.user.id) === 0) {
+    return res.status(400).json({
+      error: 'Lege zuerst einen Passkey an, sonst kommst du nicht mehr in dein Konto.',
+      code: 'no_passkey',
+    });
+  }
+
+  // Auch zum Entfernen ist das aktuelle Passwort nötig – sonst könnte jemand
+  // mit einer übernommenen Sitzung den Passwortweg still abschalten.
+  if (hasPassword(full)) {
+    const ok = await verifyPassword(String(req.body?.currentPassword ?? ''), full.password_hash);
+    if (!ok) return res.status(403).json({ error: 'Aktuelles Passwort ist falsch.' });
+  }
+
+  // Leerer String = "kein Passwort gesetzt", siehe hasPassword() in src/auth.js.
+  run("UPDATE users SET password_hash = '' WHERE id = ?", req.user.id);
 
   res.json({ ok: true });
 });
