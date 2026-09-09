@@ -1,6 +1,6 @@
 {
   "name": "streamo",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Self-hosted series tracker that links all your streaming subscriptions and always tells you where you can watch.",
   "type": "module",
   "license": "MIT",
@@ -26,7 +26,8 @@
     "test:friends": "node tests/friends.test.mjs",
     "test:invites": "node tests/invites.test.mjs",
     "test:fuzzy": "node tests/fuzzy.test.mjs",
-    "test:all": "npm test && npm run test:migration && npm run test:achievements && npm run test:collections && npm run test:friends && npm run test:invites && npm run test:fuzzy && npm run test:template && npm run test:update"
+    "test:recommend": "node tests/recommend.test.mjs",
+    "test:all": "npm test && npm run test:migration && npm run test:achievements && npm run test:collections && npm run test:friends && npm run test:invites && npm run test:fuzzy && npm run test:recommend && npm run test:template && npm run test:update"
   },
   "dependencies": {
     "@simplewebauthn/server": "^14.0.1",

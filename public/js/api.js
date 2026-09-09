@@ -203,6 +203,12 @@ export const api = {
     /** "Was läuft in meinen Abos?" */
     discover: (params) => request('/api/search/discover', { query: params }),
     trending: (mediaType = 'tv') => request('/api/search/trending', { query: { mediaType } }),
+    /**
+     * "Für dich" – Vorschläge aus der eigenen Seh-Geschichte.
+     * Ohne mediaType kommen Serien und Filme gemischt.
+     * -> GET /api/search/for-you (src/routes/search.js, src/recommend.js)
+     */
+    forYou: (params = {}) => request('/api/search/for-you', { query: params }),
     genres: (mediaType = 'tv') => request('/api/search/genres', { query: { mediaType } }),
   },
 

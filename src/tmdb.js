@@ -455,3 +455,50 @@ export function searchCollections(query, opts = {}) {
     language: opts.language,
   });
 }
+
+/**
+ * Vereinheitlicht einen TMDB-Listeneintrag zu der Form, die das Frontend
+ * erwartet.
+ *
+ * TMDB benennt dieselben Dinge je nach Medientyp unterschiedlich (name/title,
+ * first_air_date/release_date). Hier wird das einmal geglättet, damit sich das
+ * UI nicht darum kümmern muss.
+ *
+ * Diese Funktion steht bewusst hier und nicht in einer Route: Sie wird von
+ * mehreren Stellen gebraucht, die dieselbe Form liefern müssen, damit das
+ * Frontend überall dieselbe Kachel zeichnen kann.
+ *
+ * Verwendet von:
+ *   - src/routes/search.js  -> Suche, Entdecken, Trending
+ *   - src/recommend.js      -> persönliche Empfehlungen
+ *
+ * @param {object} item Eintrag aus results[]
+ * @param {'tv'|'movie'} [forcedType] Medientyp, falls der Eintrag keinen trägt
+ *   (nur /search/multi liefert media_type mit; /discover und /trending nicht)
+ * @returns {object|null} null, wenn der Eintrag kein Film und keine Serie ist
+ */
+export function normalizeListItem(item, forcedType) {
+  const mediaType = item.media_type || forcedType;
+
+  // /search/multi liefert auch Personen ("person") – die filtern wir raus.
+  if (mediaType !== 'tv' && mediaType !== 'movie') return null;
+
+  const isTv = mediaType === 'tv';
+
+  return {
+    tmdbId: item.id,
+    mediaType,
+    title: isTv ? item.name : item.title,
+    originalTitle: isTv ? item.original_name : item.original_title,
+    overview: item.overview || '',
+    posterPath: item.poster_path,
+    backdropPath: item.backdrop_path,
+    // Nur das Jahr, mehr braucht die Kachel nicht.
+    year: (isTv ? item.first_air_date : item.release_date)?.slice(0, 4) || null,
+    voteAverage: item.vote_average ?? null,
+    // Bei Listeneinträgen liefert TMDB nur Genre-IDs, keine Namen. Die
+    // Auflösung passiert im Frontend über die Liste aus /api/search/genres.
+    genreIds: item.genre_ids || [],
+    popularity: item.popularity ?? 0,
+  };
+}

@@ -28,7 +28,9 @@ import express from 'express';
 import { all } from '../db.js';
 import { requireAuth } from '../auth.js';
 import * as tmdb from '../tmdb.js';
-import { getRuntimeSettings } from '../tmdb.js';
+import { getRuntimeSettings, normalizeListItem } from '../tmdb.js';
+// Baut aus der eigenen Bibliothek persoenliche Vorschlaege.
+import { getPersonalRecommendations } from '../recommend.js';
 // Macht die Suche nachsichtig gegenueber Tippfehlern.
 import { variants, rank } from '../fuzzy.js';
 
@@ -36,41 +38,11 @@ const router = express.Router();
 router.use(requireAuth);
 
 /**
- * Vereinheitlicht einen TMDB-Listeneintrag zu der Form, die das Frontend
- * erwartet. TMDB benennt dieselben Dinge je nach Medientyp unterschiedlich
- * (name/title, first_air_date/release_date) – hier wird das einmal geglättet,
- * damit sich das UI nicht darum kümmern muss.
- *
- * @param {object} item Eintrag aus results[]
- * @param {'tv'|'movie'} [forcedType] Medientyp, falls der Eintrag keinen trägt
- *   (nur /search/multi liefert media_type mit)
- * @returns {object|null} null, wenn der Eintrag kein Film/keine Serie ist
+ * Kurzname für die gemeinsame Aufbereitung aus src/tmdb.js. Sie steht dort,
+ * weil auch src/recommend.js dieselbe Form erzeugen muss – das Frontend
+ * zeichnet für Suche, Entdecken und Empfehlungen dieselbe Kachel.
  */
-function normalizeItem(item, forcedType) {
-  const mediaType = item.media_type || forcedType;
-
-  // /search/multi liefert auch Personen ("person") – die filtern wir raus.
-  if (mediaType !== 'tv' && mediaType !== 'movie') return null;
-
-  const isTv = mediaType === 'tv';
-
-  return {
-    tmdbId: item.id,
-    mediaType,
-    title: isTv ? item.name : item.title,
-    originalTitle: isTv ? item.original_name : item.original_title,
-    overview: item.overview || '',
-    posterPath: item.poster_path,
-    backdropPath: item.backdrop_path,
-    // Nur das Jahr, mehr braucht die Kachel nicht.
-    year: (isTv ? item.first_air_date : item.release_date)?.slice(0, 4) || null,
-    voteAverage: item.vote_average ?? null,
-    // Bei Listeneinträgen liefert TMDB nur Genre-IDs, keine Namen. Die
-    // Auflösung passiert im Frontend über die Liste aus /api/search/genres.
-    genreIds: item.genre_ids || [],
-    popularity: item.popularity ?? 0,
-  };
-}
+const normalizeItem = normalizeListItem;
 
 /**
  * Markiert Treffer, die bereits in der Bibliothek des Benutzers stehen.
@@ -230,6 +202,42 @@ router.get('/discover', async (req, res, next) => {
       // Damit das Frontend anzeigen kann: "gefiltert auf 4 deiner Anbieter".
       filteredByProviders: providerIds,
       region,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/search/for-you?mediaType=tv&limit=20
+ *
+ * Die persönliche Empfehlungsleiste über "Entdecken": Was passt zu dem, was
+ * ich schon gesehen habe?
+ *
+ * Anders als /discover entsteht die Antwort aus den eigenen Daten – aus
+ * Bewertungen, Favoriten und abgehakten Folgen. Die Rechnung dahinter steht
+ * in src/recommend.js; hier wird nur noch der Bibliotheks-Zustand angeheftet,
+ * damit die Kacheln denselben Knopf bekommen wie überall sonst.
+ *
+ * Der Endpunkt antwortet nie mit einem Fehler, wenn die Bibliothek leer ist –
+ * dann kommt eine leere Liste mit einem erklärenden `reason`, den das
+ * Frontend anzeigt.
+ */
+router.get('/for-you', async (req, res, next) => {
+  const { region, language } = getRuntimeSettings(req.user);
+
+  try {
+    const data = await getPersonalRecommendations(req.user.id, {
+      // Ohne Angabe werden Serien UND Filme gemischt.
+      mediaType: req.query.mediaType,
+      region,
+      language,
+      limit: Math.min(Number(req.query.limit) || 20, 40),
+    });
+
+    res.json({
+      ...data,
+      results: markLibraryState(data.results, req.user.id),
     });
   } catch (error) {
     next(error);

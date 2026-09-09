@@ -648,6 +648,30 @@ textarea {
   align-items: center;
 }
 
+/* --- Begründung einer persönlichen Empfehlung --- */
+/* "Weil du Breaking Bad gesehen hast" – steht unter Jahr und Bewertung.
+   Wird von src/recommend.js geliefert und erscheint nur auf den Kacheln der
+   Leiste "Für dich"; überall sonst fehlt das Feld und die Zeile ganz.
+
+   Nach zwei Zeilen wird abgeschnitten: Bei drei Begründungen würde die Kachel
+   sonst höher als ihre Nachbarn und das Raster fängt an zu springen. Der volle
+   Text steht als Tooltip auf dem Element. */
+.poster-reason {
+  margin-top: 3px;
+  font-size: 11.5px;
+  line-height: 1.35;
+  /* Die hellere Variante: --accent selbst ist als Textfarbe auf dunklem
+     Grund zu dunkel, --accent-soft wird auch sonst für Text benutzt. */
+  color: var(--accent-soft);
+  opacity: 0.9;
+
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 /* --- Anbieter-Logos auf der Poster-Kachel --- */
 /* Das ist die Antwort auf "wo kann ich das streamen?" – direkt im Raster. */
 .provider-strip {

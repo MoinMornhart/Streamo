@@ -377,6 +377,17 @@ export function posterCard(item, options = {}) {
         item.voteAverage > 0 && el('span', { text: `★ ${item.voteAverage.toFixed(1)}` }),
       ]),
 
+      // Begründung einer persönlichen Empfehlung ("Weil du … gesehen hast").
+      // Gesetzt wird sie von src/recommend.js; überall sonst fehlt das Feld
+      // und die Zeile entfällt ersatzlos.
+      item.reason &&
+        el('div.poster-reason', {
+          text: item.reason,
+          // Der volle Text als Tooltip, weil die Zeile nach zwei Zeilen
+          // abgeschnitten wird.
+          title: item.reason,
+        }),
+
       // Fortschrittsbalken nur, wenn tatsächlich etwas gesehen wurde.
       progress?.watched > 0 &&
         el('div.progress-bar', { title: `${progress.watched}/${progress.total} Episoden` }, [
