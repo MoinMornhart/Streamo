@@ -237,6 +237,34 @@ function createWindow() {
   mainWindow.once('ready-to-show', () => mainWindow.show());
 
   // ------------------------------------------------------------------------
+  // Tastenkürzel, die sonst am Menü hingen
+  // ------------------------------------------------------------------------
+  // Mit dem Standardmenü sind auch dessen Kürzel verschwunden. Kopieren und
+  // Einfügen macht Chromium in Eingabefeldern von sich aus – Neuladen und die
+  // Entwicklerwerkzeuge nicht. Beides ist zu nützlich, um es zu verlieren:
+  // F5 hilft, wenn die Oberfläche einmal hängt, und ohne die Werkzeuge lässt
+  // sich ein Anzeigefehler nicht untersuchen.
+  //
+  // before-input-event greift, bevor die Seite die Taste sieht.
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return;
+
+    const neuLaden = input.key === 'F5' || (input.control && input.key.toLowerCase() === 'r');
+
+    if (neuLaden) {
+      // Ohne Zwischenspeicher – wer neu lädt, will den aktuellen Stand.
+      mainWindow.webContents.reloadIgnoringCache();
+      event.preventDefault();
+      return;
+    }
+
+    if (input.key === 'F12' || (input.control && input.shift && input.key.toLowerCase() === 'i')) {
+      mainWindow.webContents.toggleDevTools();
+      event.preventDefault();
+    }
+  });
+
+  // ------------------------------------------------------------------------
   // Schließen bedeutet nicht beenden.
   // Mit aktiviertem Tray verschwindet das Fenster nur; die App läuft weiter
   // und kann weiter über neue Episoden benachrichtigen.
@@ -883,6 +911,22 @@ app.whenReady().then(async () => {
   // richtigen Absender zeigen und nicht "electron.app.Electron".
   if (process.platform === 'win32') {
     app.setAppUserModelId('de.mornhart.streamo');
+  }
+
+  // ------------------------------------------------------------------------
+  // Das Standardmenü entfernen
+  // ------------------------------------------------------------------------
+  // Ohne diesen Aufruf setzt Electron von sich aus ein Menü mit "Datei",
+  // "Bearbeiten", "Ansicht", "Fenster" und "Hilfe" über die Seite. Es stammt
+  // aus dem Baukasten und passt zu Streamo nicht: Es gibt keine Datei zu
+  // öffnen, nichts zu drucken, und alles, was man wirklich braucht, steht im
+  // Tray-Menü.
+  //
+  // Auf macOS bleibt das Menü stehen – dort gehört es in die Leiste am oberen
+  // Bildschirmrand und ist Teil des Systems, nicht des Fensters. Es dort zu
+  // entfernen würde auch Kopieren und Einfügen mitnehmen.
+  if (process.platform !== 'darwin') {
+    Menu.setApplicationMenu(null);
   }
 
   // ------------------------------------------------------------------------
