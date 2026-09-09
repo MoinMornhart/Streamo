@@ -43,21 +43,6 @@ const router = express.Router();
 router.use(requireAuth);
 
 /**
- * Maskiert einen API-Key für die Anzeige: "eyJhbGciOi…9f3a".
- * Der vollständige Schlüssel verlässt den Server nie – so kann man im UI
- * sehen, dass einer hinterlegt ist, ohne ihn versehentlich zu teilen
- * (Screenshot, Screensharing).
- *
- * @param {string} key
- * @returns {string|null}
- */
-function maskKey(key) {
-  if (!key) return null;
-  if (key.length <= 12) return '••••••••';
-  return `${key.slice(0, 6)}…${key.slice(-4)}`;
-}
-
-/**
  * GET /api/settings
  * Alles, was die Einstellungsseite anzeigt.
  */
@@ -77,8 +62,15 @@ router.get('/', (req, res) => {
       language: req.user.language || runtime.language,
     },
     global: {
-      // Nur Admins sehen überhaupt, ob und welcher Key gesetzt ist.
-      apiKey: req.user.is_admin ? maskKey(runtime.apiKey) : null,
+      // Der TMDB-Schlüssel selbst verlässt den Server NIE – auch nicht
+      // maskiert. Früher stand hier "eyJhbGciOi…9f3a", damit man sieht, dass
+      // einer hinterlegt ist. Nur: Wozu? Ändern kann man ihn ohnehin nur,
+      // indem man einen neuen einträgt, und die ersten sechs Zeichen sind
+      // nichts, was auf einem Bildschirmfoto oder in einer Bildschirmfreigabe
+      // etwas verloren hätte.
+      //
+      // Es bleibt die eine Auskunft, die wirklich gebraucht wird: Gibt es
+      // einen? Davon hängt der Hinweisbanner ab.
       hasApiKey: Boolean(runtime.apiKey),
       region: getSetting('region', config.region),
       language: getSetting('language', config.language),

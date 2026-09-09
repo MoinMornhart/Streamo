@@ -142,7 +142,7 @@ Jede Reihe – die eigenen wie die offiziellen von TMDB – lässt sich über ei
 Wie verteilen sich deine Serien auf die Abos? Bei welchem Dienst läuft nichts von deiner Liste (Kündigungskandidat)? Welches zusätzliche Abo würde dir am meisten freischalten? Und wie viel Lebenszeit hast du eigentlich investiert?
 
 **Automatischer Abgleich**
-Streamo prüft alle 12 Stunden, wo deine Serien inzwischen laufen. Streaming-Rechte wandern ständig – du merkst es, ohne nachzusehen.
+Streamo prüft **stündlich**, wo deine Serien inzwischen laufen. Streaming-Rechte wandern ständig – du merkst es, ohne nachzusehen. Abgeglichen wird nur, was tatsächlich in einer Bibliothek steht; bei 300 Titeln sind das rund 20 Sekunden Arbeit pro Stunde. Über `SYNC_INTERVAL_HOURS` lässt sich der Takt ändern oder mit `0` ganz abschalten.
 
 **Mehrere Personen**
 Optional. Jede Person hat eigene Abos, eigene Bibliothek, eigenen Fortschritt und eigene Region. Wer sie einlädt, sieht unter *Einstellungen → Benutzer*, wer ein Konto hat, wann er zuletzt da war und ob gerade jemand angemeldet ist – und kann dort Adminrechte vergeben oder ein Konto löschen.
@@ -210,7 +210,7 @@ Alle Werte stehen in `.env` (Vorlage: [`.env.example`](.env.example)). Jeder hat
 | `TMDB_API_KEY` | – | Dein TMDB-Schlüssel; auch im UI setzbar |
 | `STREAMO_REGION` | `DE` | Land, für das die Verfügbarkeit gilt |
 | `STREAMO_LANGUAGE` | `de-DE` | Sprache von Titeln und Beschreibungen |
-| `SYNC_INTERVAL_HOURS` | `12` | Takt des Hintergrundabgleichs; `0` = aus |
+| `SYNC_INTERVAL_HOURS` | `1` | Takt des Hintergrundabgleichs in Stunden; `0` = aus |
 | `ALLOW_REGISTRATION` | `false` | Dürfen sich weitere Personen ohne Einladung registrieren? |
 | `TRUST_PROXY` | `false` | `true`, wenn ein HTTPS-Proxy davorsteht |
 

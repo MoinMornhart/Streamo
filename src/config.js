@@ -259,12 +259,22 @@ export const config = Object.freeze({
   language: envString('STREAMO_LANGUAGE', 'de-DE'),
 
   // --- Hintergrundsynchronisation -----------------------------------------
-  /** Abstand zwischen zwei Sync-Läufen in Stunden; 0 schaltet Sync ab */
-  syncIntervalHours: envNumber('SYNC_INTERVAL_HOURS', 12),
+  /**
+   * Abstand zwischen zwei Sync-Läufen in Stunden; 0 schaltet den Abgleich ab.
+   *
+   * Stündlich. Vorher waren es zwölf Stunden – die Überlegung war, Streaming-
+   * Rechte wandern nicht im Minutentakt. Das stimmt, nur merkt man eine
+   * Änderung dann eben erst am nächsten Tag, und genau dafür ist Streamo da.
+   *
+   * Teuer ist der Lauf nicht: Abgeglichen wird nur, was tatsächlich in einer
+   * Bibliothek steht, und src/tmdb.js drosselt ohnehin auf einen Aufruf alle
+   * 60 ms. Bei 300 Titeln sind das rund 20 Sekunden Arbeit pro Stunde.
+   */
+  syncIntervalHours: envNumber('SYNC_INTERVAL_HOURS', 1),
 
   // --- Metadaten ----------------------------------------------------------
   /** Version, wird im UI-Footer und unter /api/health angezeigt */
-  version: '1.1.9',
+  version: '1.2.0',
 });
 
 export default config;

@@ -287,7 +287,11 @@ export function startSyncScheduler() {
   }, intervalMs);
 
   console.log(
-    `[sync] Hintergrundabgleich aktiv – alle ${config.syncIntervalHours} Stunden.`,
+    // "alle 1 Stunden" liest sich falsch – bei genau einer Stunde heißt es
+    // "jede Stunde".
+    `[sync] Hintergrundabgleich aktiv – ${
+      config.syncIntervalHours === 1 ? 'jede Stunde' : `alle ${config.syncIntervalHours} Stunden`
+    }.`,
   );
 }
 

@@ -1217,9 +1217,14 @@ export async function render_(container) {
   // ========================================================================
   // 3. TMDB-Key (nur Administratoren)
   // ========================================================================
+  // Das Feld ist bewusst ein reines Eingabefeld – es zeigt nie, was
+  // hinterlegt ist, auch nicht maskiert. Der Schlüssel liegt auf dem Server
+  // und wird dort benutzt; hier trägt man höchstens einen neuen ein.
   const apiKeyInput = el('input', {
     type: 'password',
-    placeholder: data.global.hasApiKey ? data.global.apiKey : 'Noch kein Schlüssel hinterlegt',
+    placeholder: data.global.hasApiKey
+      ? 'Nur ausfüllen, um den Schlüssel zu ersetzen'
+      : 'Schlüssel von themoviedb.org einfügen',
     autocomplete: 'off',
   });
 
@@ -1231,7 +1236,22 @@ export async function render_(container) {
         text: 'Streamo holt Metadaten und Streaming-Verfügbarkeit von TMDB. Der Schlüssel ist kostenlos: themoviedb.org → Einstellungen → API. Es funktionieren sowohl der „API Read Access Token" als auch der klassische „API Key".',
       }),
 
-      el('div.field', {}, [el('label', { text: 'API-Key' }), apiKeyInput]),
+      // Statt des Schlüssels nur die Auskunft, ob einer da ist. Mehr braucht
+      // man nicht: Ändern geht ohnehin nur, indem man einen neuen einträgt.
+      el('p', { style: { margin: '0 0 14px' } }, [
+        data.global.hasApiKey
+          ? el('span', { style: { color: 'var(--success)' }, text: '✓ Ein Schlüssel ist hinterlegt.' })
+          : el('span', { style: { color: 'var(--warning)' }, text: '⚠ Es ist kein Schlüssel hinterlegt.' }),
+        el('span.muted.small', {
+          style: { display: 'block', marginTop: '2px' },
+          text: 'Er wird hier nicht angezeigt – er liegt auf dem Server und bleibt dort.',
+        }),
+      ]),
+
+      el('div.field', {}, [
+        el('label', { text: data.global.hasApiKey ? 'Schlüssel ersetzen' : 'API-Key' }),
+        apiKeyInput,
+      ]),
 
       el('div', { style: { display: 'flex', gap: '9px' } }, [
         el('button.btn.btn-ghost', {
@@ -1303,7 +1323,15 @@ export async function render_(container) {
     el('div.card', { style: { marginBottom: '20px' } }, [
       el('h2', { text: 'Abgleich' }),
       el('p.muted.small', {
-        text: `Streamo prüft alle ${data.global.syncIntervalHours} Stunden automatisch, wo deine Serien gerade laufen. Du kannst den Abgleich auch sofort starten.`,
+        // "alle 1 Stunden" liest sich falsch – bei genau einer Stunde heißt
+        // es "jede Stunde", und bei 0 findet gar kein Abgleich statt.
+        text:
+          (data.global.syncIntervalHours === 0
+            ? 'Der automatische Abgleich ist abgeschaltet (SYNC_INTERVAL_HOURS=0).'
+            : data.global.syncIntervalHours === 1
+              ? 'Streamo prüft jede Stunde automatisch, wo deine Serien gerade laufen.'
+              : `Streamo prüft alle ${data.global.syncIntervalHours} Stunden automatisch, wo deine Serien gerade laufen.`) +
+          ' Du kannst den Abgleich auch sofort starten.',
       }),
       syncStatusLine,
 
