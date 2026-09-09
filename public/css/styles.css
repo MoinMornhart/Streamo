@@ -412,23 +412,32 @@ textarea::placeholder {
    Schrift. Die absurd lange Übergangszeit verhindert, dass die gelbliche
    Einfärbung beim Ausfüllen kurz aufblitzt.
    -------------------------------------------------------------------------- */
+/* Die Browser setzen ihre Autofill-Farben mit sehr hoher Priorität. Ohne
+   !important gewinnen sie gegen diese Regeln – deshalb hier ausnahmsweise. */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+input:-internal-autofill-selected,
 textarea:-webkit-autofill,
 select:-webkit-autofill {
-  -webkit-text-fill-color: var(--text);
-  -webkit-box-shadow: 0 0 0 1000px var(--surface-2) inset;
-  box-shadow: 0 0 0 1000px var(--surface-2) inset;
-  caret-color: var(--text);
-  transition: background-color 9999s ease-in-out 0s;
+  -webkit-text-fill-color: var(--text) !important;
+  -webkit-box-shadow: 0 0 0 1000px var(--surface-2) inset !important;
+  box-shadow: 0 0 0 1000px var(--surface-2) inset !important;
+  caret-color: var(--text) !important;
+  /* Die absurd lange Verzögerung verhindert, dass die gelbliche Einfärbung
+     beim Ausfüllen kurz aufblitzt: Sie wird nie sichtbar, weil der Übergang
+     praktisch nie beginnt. */
+  transition: background-color 9999s ease-in-out 0s !important;
+  border-color: var(--surface-3) !important;
 }
 
 /* Im Fokus zusätzlich der violette Ring – der Schatten oben würde ihn sonst
    verdrängen, weil beide dieselbe Eigenschaft benutzen. */
 input:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0 1000px var(--surface) inset, 0 0 0 3px var(--accent-glow);
-  box-shadow: 0 0 0 1000px var(--surface) inset, 0 0 0 3px var(--accent-glow);
+  -webkit-box-shadow: 0 0 0 1000px var(--surface) inset, 0 0 0 3px var(--accent-glow) !important;
+  box-shadow: 0 0 0 1000px var(--surface) inset, 0 0 0 3px var(--accent-glow) !important;
+  border-color: var(--accent) !important;
 }
 
 /* Firefox hat einen eigenen Weg – dort genügt eine normale Regel. */

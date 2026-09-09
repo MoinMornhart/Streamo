@@ -27,6 +27,7 @@
 
 import express from 'express';
 import path from 'node:path';
+import fs from 'node:fs';
 import http from 'node:http';
 import https from 'node:https';
 import config from './config.js';
@@ -144,6 +145,80 @@ app.use('/api', (req, res) => {
 // --------------------------------------------------------------------------
 // 5. Das Frontend als statische Dateien.
 // --------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// index.html mit Versionskennung ausliefern.
+//
+// Das Problem: Nach einem Update hat der Browser CSS und JavaScript noch aus
+// seinem Zwischenspeicher – man sieht die alte Oberfläche und wundert sich,
+// warum die Änderungen fehlen. "no-cache" allein hilft nur für die Zukunft,
+// nicht gegen bereits gespeicherte Dateien.
+//
+// Deshalb bekommen die Verweise in index.html eine Kennung angehängt
+// (…/styles.css?v=1a2b3c). Sie ändert sich, sobald sich eine dieser Dateien
+// ändert – für den Browser ist das dann eine andere Adresse, die er neu holen
+// muss. Der alte Zwischenspeicher wird damit wirkungslos.
+// ---------------------------------------------------------------------------
+
+/**
+ * Berechnet die Kennung aus den Änderungszeitpunkten der Frontend-Dateien.
+ *
+ * Beim Start einmal ermittelt: Innerhalb eines laufenden Prozesses ändern
+ * sich die Dateien nicht, und nach einem Update startet der Dienst ohnehin neu.
+ *
+ * @returns {string} kurze Kennung, z. B. "k3f9a2"
+ */
+function computeAssetVersion() {
+  const files = [
+    'css/styles.css',
+    'js/app.js',
+    'js/api.js',
+    'js/ui.js',
+    'js/router.js',
+    'js/passkey.js',
+  ];
+
+  let newest = 0;
+  for (const file of files) {
+    try {
+      const stat = fs.statSync(path.join(config.publicDir, file));
+      if (stat.mtimeMs > newest) newest = stat.mtimeMs;
+    } catch {
+      /* Datei fehlt – dann zählt sie eben nicht mit */
+    }
+  }
+
+  // Zur Basis 36, das ergibt eine kurze Zeichenfolge aus Ziffern und Buchstaben.
+  return Math.round(newest).toString(36);
+}
+
+const ASSET_VERSION = computeAssetVersion();
+
+/**
+ * Liefert index.html aus und hängt die Versionskennung an die Verweise.
+ *
+ * Die Datei wird bei jeder Anfrage frisch gelesen. Das kostet praktisch
+ * nichts (sie ist wenige Kilobyte groß und liegt im Dateisystem-Cache des
+ * Betriebssystems) und erspart eine Sonderbehandlung nach Updates.
+ */
+function sendIndex(req, res) {
+  try {
+    const html = fs
+      .readFileSync(path.join(config.publicDir, 'index.html'), 'utf8')
+      // Nur eigene Verweise auf CSS und JS bekommen die Kennung – externe
+      // Adressen und das eingebettete Favicon bleiben unangetastet.
+      .replace(/(href|src)="(\/(?:css|js)\/[^"]+)"/g, `$1="$2?v=${ASSET_VERSION}"`);
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('index.html konnte nicht gelesen werden.');
+  }
+}
+
+// Vor express.static eingehängt, sonst käme die unveränderte Datei zuerst.
+app.get(['/', '/index.html'], sendIndex);
+
 app.use(
   express.static(config.publicDir, {
     /**
@@ -176,7 +251,7 @@ app.use(
 // entscheidet anhand der URL, was es anzeigt.
 // --------------------------------------------------------------------------
 app.get(/.*/, (req, res) => {
-  res.sendFile(path.join(config.publicDir, 'index.html'));
+  sendIndex(req, res);
 });
 
 // --------------------------------------------------------------------------
