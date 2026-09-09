@@ -59,6 +59,9 @@ const SORT_OPTIONS = {
   tmdb: 's.vote_average DESC',
   year: 's.first_air_date DESC',
   updated: 'l.updated_at DESC',
+  // Was als Naechstes drankommt. NULLS LAST, damit Titel ohne Termin nicht
+  // die Liste anfuehren - ohne Datum ist eben kein Datum, kein 'sofort'.
+  planned: 'l.planned_for ASC NULLS LAST, l.added_at DESC',
 };
 
 /**
@@ -89,6 +92,8 @@ function buildEntry(row, ctx) {
     rating: row.rating,
     favorite: Boolean(row.favorite),
     notes: row.notes,
+    // Der freiwillige Termin von der Merkliste. null = keiner gesetzt.
+    plannedFor: row.planned_for ?? null,
     addedAt: row.added_at,
     updatedAt: row.updated_at,
 
@@ -136,7 +141,7 @@ function buildEntry(row, ctx) {
  *   favorite  "1" – nur Favoriten
  *   genre     Genre-Name (Textsuche im JSON-Feld)
  *   q         Suchbegriff im Titel
- *   sort      added|title|rating|tmdb|year|updated
+ *   sort      added|title|rating|tmdb|year|updated|planned
  */
 router.get('/', (req, res) => {
   const { region } = getRuntimeSettings(req.user);
@@ -203,6 +208,9 @@ router.get('/', (req, res) => {
   const rows = all(
     `SELECT l.show_id, l.status, l.rating, l.favorite, l.notes,
             l.added_at, l.updated_at,
+            -- Der freiwillige Termin von der Merkliste. Ohne diese Spalte
+            -- käme im Frontend immer null an, egal was gesetzt ist.
+            l.planned_for,
             s.tmdb_id, s.media_type, s.title, s.original_title, s.overview, s.poster_path,
             s.backdrop_path, s.first_air_date, s.status AS status_text, s.genres,
             s.number_of_seasons, s.number_of_episodes, s.vote_average, s.runtime,
@@ -402,6 +410,32 @@ router.patch('/:showId', (req, res) => {
   if (req.body?.notes !== undefined) {
     updates.push('notes = ?');
     params.push(String(req.body.notes).slice(0, 5000)); // harte Obergrenze
+  }
+
+  // Der geplante Termin – ausdrücklich freiwillig.
+  //
+  // null oder ein leerer Wert entfernt ihn wieder. Anders als beim Ablaufdatum
+  // eines Anbieters ist die Vergangenheit hier erlaubt: Man darf sich
+  // eintragen, dass man etwas letzten Freitag sehen wollte und es nicht
+  // geschafft hat. Die Anzeige macht daraus dann "überfällig".
+  if (req.body?.plannedFor !== undefined) {
+    const value = req.body.plannedFor;
+
+    if (value === null || value === '') {
+      updates.push('planned_for = ?');
+      params.push(null);
+    } else {
+      const date = String(value).slice(0, 10);
+
+      // Format prüfen, statt zu hoffen: "nächste Woche" würde sonst als
+      // Zeichenkette landen und jede Sortierung durcheinanderbringen.
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date))) {
+        return res.status(400).json({ error: 'Bitte ein Datum im Format JJJJ-MM-TT angeben.' });
+      }
+
+      updates.push('planned_for = ?');
+      params.push(date);
+    }
   }
 
   if (updates.length === 0) {

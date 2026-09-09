@@ -394,6 +394,9 @@ export async function render_(container, _params, query) {
       [
         ['added', 'Zuletzt hinzugefügt'],
         ['updated', 'Zuletzt geändert'],
+        // Was als Nächstes dransteht. Titel ohne Termin rutschen ans Ende –
+        // ohne Datum ist eben kein Datum, kein "sofort".
+        ['planned', 'Geplanter Termin'],
         ['title', 'Titel A–Z'],
         ['rating', 'Meine Bewertung'],
         ['tmdb', 'TMDB-Bewertung'],

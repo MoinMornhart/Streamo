@@ -143,7 +143,9 @@ router.get('/:mediaType/:tmdbId', async (req, res, next) => {
 
     // Bibliothekseintrag – null, wenn der Titel noch nicht aufgenommen wurde.
     const entry = get(
-      'SELECT status, rating, favorite, notes, added_at FROM library WHERE user_id = ? AND show_id = ?',
+      // planned_for ist der freiwillige Termin von der Merkliste – ohne ihn
+      // stünde das Feld auf der Detailseite immer leer, egal was gesetzt ist.
+      'SELECT status, rating, favorite, notes, added_at, planned_for FROM library WHERE user_id = ? AND show_id = ?',
       req.user.id,
       show.id,
     );

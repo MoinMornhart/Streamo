@@ -624,6 +624,40 @@ export function formatRuntime(minutes) {
 }
 
 /**
+ * Beschriftet einen geplanten Termin so, wie man ihn nennen würde.
+ *
+ * "Heute" und "Morgen" statt eines Datums, in der laufenden Woche der
+ * Wochentag, sonst der Tag mit Monat. Ein vergangener Termin heißt
+ * "überfällig" – das ist ehrlicher als ein Datum, bei dem man erst rechnen
+ * muss, und genau die Titel will man ja wiederfinden.
+ *
+ * @param {string} iso "YYYY-MM-DD"
+ * @returns {string}
+ */
+export function plannedLabel(iso) {
+  const target = new Date(`${iso}T00:00:00`);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // In ganzen Tagen ab Mitternacht, nicht in 24-Stunden-Schritten: Wer abends
+  // nachsieht, soll für morgen "Morgen" lesen und nicht schon "Heute".
+  const days = Math.round((target - today) / 86_400_000);
+
+  if (days < 0) return '⏰ überfällig';
+  if (days === 0) return '📅 Heute';
+  if (days === 1) return '📅 Morgen';
+
+  // Innerhalb der nächsten Woche reicht der Wochentag – "Freitag" sagt mehr
+  // als "12.9.", wenn es ohnehin bald ist.
+  if (days < 7) {
+    return `📅 ${target.toLocaleDateString('de-DE', { weekday: 'long' })}`;
+  }
+
+  return `📅 ${target.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })}`;
+}
+
+/**
  * Formatiert ein ISO-Datum ("2024-03-15") auf Deutsch ("15. März 2024").
  * @param {string|null} iso
  * @returns {string}
@@ -787,6 +821,13 @@ export function posterCard(item, options = {}) {
         item.year && el('span', { text: item.year }),
         item.voteAverage > 0 && el('span', { text: `★ ${item.voteAverage.toFixed(1)}` }),
       ]),
+
+      // Ein geplanter Termin von der Merkliste ("Fr, 12. Sept.").
+      //
+      // Freiwillig – die allermeisten Einträge haben keinen, und ohne einen
+      // sieht die Kachel aus wie immer. Wer einen gesetzt hat, sieht beim
+      // Überfliegen, was als Nächstes drankommt.
+      item.plannedFor && el('div.poster-planned', { text: plannedLabel(item.plannedFor) }),
 
       // Begründung einer persönlichen Empfehlung ("Weil du … gesehen hast").
       // Gesetzt wird sie von src/recommend.js; überall sonst fehlt das Feld

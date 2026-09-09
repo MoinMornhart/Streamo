@@ -842,6 +842,40 @@ const MIGRATIONS = [
         ON availability_until(available_until);
     `);
   },
+
+  // -------------------------------------------------------------------------
+  // Version 11 -> Ein geplanter Termin auf der Merkliste
+  // -------------------------------------------------------------------------
+  // "Will ich sehen" ist eine Absicht ohne Zeitpunkt. Bei drei Titeln geht das
+  // gut, bei dreißig wird die Liste zum Friedhof guter Vorsätze.
+  //
+  // Deshalb darf man einen Termin dazuschreiben – Freitagabend, das Wochenende,
+  // wenn die letzte Staffel erscheint. Ausdrücklich freiwillig: Ohne Datum
+  // verhält sich die Merkliste wie bisher, und es gibt keinen Hinweis, dass da
+  // etwas fehlen würde.
+  //
+  // Die Spalte hängt an `library` und nicht an `shows`: Der Termin gehört einer
+  // Person. Zwei Leute können dieselbe Serie auf der Liste haben und sie zu
+  // verschiedenen Zeiten sehen wollen.
+  //
+  // Verknüpfungen:
+  //   - src/routes/library.js -> setzen über PATCH, sortieren über ?sort=planned
+  //   - public/js/views/detail.js -> das Feld dazu
+  //   - public/js/ui.js -> die Anzeige auf der Kachel
+  () => {
+    const columns = db.prepare('PRAGMA table_info(library)').all();
+
+    if (!columns.some((column) => column.name === 'planned_for')) {
+      // ISO-Tag (YYYY-MM-DD), NULL = kein Termin. Bewusst ohne Uhrzeit:
+      // "Freitag" ist die Genauigkeit, in der man so etwas plant.
+      db.exec('ALTER TABLE library ADD COLUMN planned_for TEXT');
+    }
+
+    // Für die Sortierung "als Nächstes dran".
+    db.exec(
+      'CREATE INDEX IF NOT EXISTS idx_library_planned ON library(user_id, planned_for)',
+    );
+  },
 ];
 
 /**

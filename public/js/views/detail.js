@@ -392,6 +392,10 @@ export async function render_(container, params) {
               await api.library.update(show.showId, { status: event.target.value });
               data.library.status = event.target.value;
               toast(`Status: ${STATUS_LABELS[event.target.value]}`, 'success');
+
+              // Das Terminfeld gehört nur zur Merkliste – nach einem
+              // Statuswechsel muss die Leiste deshalb neu gezeichnet werden.
+              renderActions();
             } catch (error) {
               toast(error.message, 'error');
             }
@@ -401,6 +405,39 @@ export async function render_(container, params) {
           el('option', { value, text: label, selected: data.library.status === value }),
         ),
       ),
+
+      // --- Wann willst du es sehen? ---
+      //
+      // Nur bei "Will ich sehen", und ausdrücklich freiwillig: Ohne Datum
+      // verhält sich die Merkliste wie bisher. Der Sinn ist, dass eine lange
+      // Merkliste nicht zum Friedhof guter Vorsätze wird – mit Termin lässt
+      // sie sich nach "als Nächstes dran" sortieren.
+      data.library.status === 'watchlist' &&
+        el('label.planned-field', { title: 'Freiwillig – leer lassen ist völlig in Ordnung.' }, [
+          el('span.small.muted', { text: 'Sehen am' }),
+          el('input', {
+            type: 'date',
+            value: data.library.planned_for ?? '',
+            onChange: async (event) => {
+              const value = event.target.value || null;
+
+              try {
+                await api.library.update(show.showId, { plannedFor: value });
+                data.library.planned_for = value;
+
+                toast(
+                  value ? `Vorgemerkt für den ${formatDate(value)}.` : 'Termin entfernt.',
+                  'success',
+                );
+              } catch (error) {
+                toast(error.message, 'error');
+                // Zurücksetzen, sonst zeigt das Feld etwas an, das nicht
+                // gespeichert wurde.
+                event.target.value = data.library.planned_for ?? '';
+              }
+            },
+          }),
+        ]),
 
       // Favorit
       el('button.btn', {

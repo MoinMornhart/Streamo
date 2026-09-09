@@ -120,6 +120,9 @@ Suche Serien und Filme und leg sie auf deine Liste. Fünf Zustände (*Will ich s
 **Immer sehen, wo es läuft**
 Jede Kachel zeigt die Anbieter-Logos direkt auf dem Poster. Grün umrandet heißt: in deinem Abo enthalten. Auf der Detailseite steht die vollständige Aufstellung, getrennt nach Abo, kostenlos, Leihe und Kauf, mit Deeplink zum Anbieter.
 
+**Ein Termin, wenn du willst**
+Auf der Merkliste lässt sich zu jedem Titel ein Tag eintragen – Freitagabend, das Wochenende, wenn die letzte Staffel erscheint. Freiwillig: Ohne Datum verhält sich die Liste wie bisher. Auf der Kachel steht dann *„Morgen"* oder *„Freitag"*, nach dem Termin *„überfällig"*, und die Bibliothek lässt sich nach *Geplanter Termin* sortieren. Aus einer langen Merkliste wird so eine Reihenfolge statt eines Friedhofs guter Vorsätze.
+
 **Episoden-Fortschritt**
 Staffeln und Episoden abhaken, einzeln, staffelweise oder „alles bis hierhin". Der Status wechselt automatisch von *Will ich sehen* auf *Schaue ich* und am Ende auf *Gesehen*.
 
