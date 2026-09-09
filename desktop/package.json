@@ -1,6 +1,6 @@
 {
   "name": "streamo-desktop",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Streamo für den PC – eigenes Fenster, Tray-Symbol, Benachrichtigungen bei neuen Episoden.",
   "main": "main.js",
   "license": "MIT",
@@ -17,6 +17,9 @@
     "build:linux": "electron-builder --linux --publish never",
     "build:mac": "electron-builder --mac --publish never"
   },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
   "devDependencies": {
     "electron": "^44.3.0",
     "electron-builder": "^25.1.8"
@@ -27,6 +30,13 @@
     "directories": {
       "output": "dist"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "MoinMornhart",
+        "repo": "Streamo"
+      }
+    ],
     "files": [
       "main.js",
       "preload.js",

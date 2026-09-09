@@ -46,6 +46,10 @@ const {
 const path = require('node:path');
 const fs = require('node:fs');
 
+// Selbstaktualisierung über die GitHub-Veröffentlichungen. Siehe den
+// Abschnitt "Updates" weiter unten.
+const { autoUpdater } = require('electron-updater');
+
 // --------------------------------------------------------------------------
 // Einstellungen der App.
 //
@@ -379,6 +383,19 @@ function createTray() {
       click: (item) => saveSettings({ minimizeToTray: item.checked }),
     },
     { type: 'separator' },
+
+    // Steht ein Update bereit, tritt der Eintrag an die erste Stelle des
+    // Update-Bereichs und sagt deutlich, was passiert.
+    updateReady
+      ? {
+          label: 'Update installieren und neu starten',
+          click: () => {
+            reallyQuitting = true;
+            autoUpdater.quitAndInstall();
+          },
+        }
+      : { label: 'Nach Updates suchen', click: checkForUpdatesManually },
+
     { label: 'Anderen Server verbinden …', click: () => showConnectScreen() },
     {
       label: 'Beenden',
@@ -505,6 +522,171 @@ function startEpisodeWatcher() {
 }
 
 // ==========================================================================
+// Updates
+// ==========================================================================
+/**
+ * Die App hält sich selbst aktuell.
+ *
+ * Woher kommen die Updates? Aus den Veröffentlichungen dieses
+ * GitHub-Projekts. Der Bau-Workflow legt dort neben der .exe eine Datei
+ * latest.yml ab, in der Version und Prüfsumme stehen – genau die liest
+ * electron-updater aus.
+ *
+ * Ablauf: Kurz nach dem Start und danach alle paar Stunden wird nachgesehen.
+ * Gibt es etwas Neues, lädt die App es im Hintergrund herunter und fragt
+ * anschließend, ob jetzt neu gestartet werden soll. Wer ablehnt, bekommt das
+ * Update beim nächsten regulären Beenden – ohne weitere Rückfrage.
+ *
+ * Wichtig zu wissen: Das aktualisiert NUR die Desktop-App. Der Server auf dem
+ * Proxmox-Container bringt sich getrennt auf Stand (dort per "update").
+ */
+
+/** Wie oft wird nachgesehen? Vier Stunden sind ein guter Kompromiss. */
+const UPDATE_CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000;
+
+/** Merkt sich, ob ein Update bereits heruntergeladen und bereitgestellt ist. */
+let updateReady = false;
+
+/**
+ * Richtet die Selbstaktualisierung ein.
+ *
+ * @param {boolean} [silent] true = keine Meldung, wenn es nichts Neues gibt.
+ *   Beim automatischen Nachsehen im Hintergrund gewollt; beim Klick auf
+ *   "Nach Updates suchen" nicht, dort will man eine Antwort.
+ */
+function setupUpdater() {
+  // Updates werden von Hand bestätigt, nicht beim Beenden untergeschoben,
+  // ohne dass jemand davon weiß.
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  // In der Entwicklung (npm start) gibt es keine installierte Anwendung, die
+  // sich ersetzen ließe – dann würde jeder Aufruf nur eine Fehlermeldung
+  // erzeugen.
+  if (!app.isPackaged) {
+    console.log('[update] Entwicklungsmodus – Selbstaktualisierung ist aus.');
+    return;
+  }
+
+  autoUpdater.on('update-available', (info) => {
+    console.log(`[update] Neue Version verfügbar: ${info.version}`);
+
+    new Notification({
+      title: 'Streamo wird aktualisiert',
+      body: `Version ${info.version} wird im Hintergrund geladen.`,
+      icon: appIcon(),
+    }).show();
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    console.log('[update] Streamo ist aktuell.');
+
+    // Nur melden, wenn jemand ausdrücklich gefragt hat.
+    if (manualUpdateCheck) {
+      dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Streamo',
+        message: 'Streamo ist auf dem neuesten Stand.',
+        detail: `Installierte Version: ${app.getVersion()}`,
+        buttons: ['Alles klar'],
+      });
+      manualUpdateCheck = false;
+    }
+  });
+
+  autoUpdater.on('download-progress', (progress) => {
+    // Fortschritt in der Taskleiste anzeigen – dezenter als ein Fenster.
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setProgressBar(progress.percent / 100);
+    }
+  });
+
+  autoUpdater.on('update-downloaded', async (info) => {
+    updateReady = true;
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setProgressBar(-1); // Fortschrittsanzeige wieder ausblenden
+    }
+
+    // Tray-Menü neu aufbauen, damit der Eintrag "Update installieren"
+    // erscheint.
+    createTray();
+
+    const { response } = await dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'Update bereit',
+      message: `Streamo ${info.version} ist fertig heruntergeladen.`,
+      detail:
+        'Beim Neustart wird es installiert. Du kannst auch später neu starten – dann geschieht es automatisch beim nächsten Beenden.',
+      buttons: ['Jetzt neu starten', 'Später'],
+      defaultId: 0,
+      cancelId: 1,
+    });
+
+    if (response === 0) {
+      // Der Merker verhindert, dass das Fenster beim Schließen nur ins Tray
+      // wandert, statt die App wirklich zu beenden.
+      reallyQuitting = true;
+      autoUpdater.quitAndInstall();
+    }
+  });
+
+  autoUpdater.on('error', (error) => {
+    console.error('[update] Fehlgeschlagen:', error?.message ?? error);
+
+    if (manualUpdateCheck) {
+      dialog.showMessageBox(mainWindow, {
+        type: 'warning',
+        title: 'Streamo',
+        message: 'Die Suche nach Updates ist fehlgeschlagen.',
+        detail: String(error?.message ?? error),
+        buttons: ['Alles klar'],
+      });
+      manualUpdateCheck = false;
+    }
+  });
+
+  // Erste Prüfung nach einer halben Minute – der Start soll nicht darauf
+  // warten müssen.
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch(() => {});
+  }, 30_000);
+
+  setInterval(() => {
+    autoUpdater.checkForUpdates().catch(() => {});
+  }, UPDATE_CHECK_INTERVAL_MS);
+
+  console.log(`[update] Selbstaktualisierung aktiv (Version ${app.getVersion()}).`);
+}
+
+/** Wurde die Suche von Hand angestoßen? Steuert, ob eine Meldung erscheint. */
+let manualUpdateCheck = false;
+
+/**
+ * Sucht auf Wunsch nach Updates – aufgerufen aus dem Tray-Menü.
+ */
+function checkForUpdatesManually() {
+  if (!app.isPackaged) {
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'Streamo',
+      message: 'Im Entwicklungsmodus gibt es keine Updates.',
+      buttons: ['Alles klar'],
+    });
+    return;
+  }
+
+  if (updateReady) {
+    reallyQuitting = true;
+    autoUpdater.quitAndInstall();
+    return;
+  }
+
+  manualUpdateCheck = true;
+  autoUpdater.checkForUpdates().catch(() => {});
+}
+
+// ==========================================================================
 // Nachrichten aus dem Verbindungsbildschirm
 // ==========================================================================
 
@@ -620,6 +802,7 @@ app.whenReady().then(() => {
   createWindow();
   createTray();
   startEpisodeWatcher();
+  setupUpdater();
 
   // Mit "--hidden" gestartet (Autostart): direkt ins Tray, ohne Fenster.
   if (process.argv.includes('--hidden')) {

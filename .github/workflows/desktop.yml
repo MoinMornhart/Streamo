@@ -54,6 +54,22 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Version aus dem Tag übernehmen
+        # Entscheidend für die Selbstaktualisierung: electron-updater
+        # vergleicht die installierte Version mit der in der Veröffentlichung.
+        # Bliebe hier immer "1.0.0" stehen, gäbe es aus seiner Sicht nie ein
+        # Update – egal wie oft neu gebaut wird.
+        #
+        # Läuft nur bei einem Tag wie "v1.2.0"; bei gewöhnlichen Pushes bleibt
+        # die Version aus der package.json stehen.
+        if: startsWith(github.ref, 'refs/tags/v')
+        working-directory: desktop
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "Setze Version auf $VERSION"
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
+
       - name: Symbole erzeugen
         # Die Symboldateien liegen zwar im Repository, werden aber sicherheits-
         # halber neu erzeugt: So kann das Symbol nie zum Code auseinanderlaufen.

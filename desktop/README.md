@@ -35,6 +35,9 @@ Optional, im Kontextmenü des Tray-Symbols. Beim Autostart öffnet sich kein Fen
 **Sprungziele im Tray-Menü**
 Weiterschauen, Bibliothek und Entdecken direkt anspringen, ohne erst das Fenster zu suchen.
 
+**Hält sich selbst aktuell**
+Die App sieht regelmäßig nach, ob es eine neue Version gibt, lädt sie im Hintergrund und fragt dann, ob du neu starten möchtest. Lehnst du ab, wird sie beim nächsten Beenden installiert. Über das Tray-Menü kannst du auch von Hand suchen.
+
 **Passkeys auch mit eigenem Zertifikat**
 Läuft dein Streamo mit einem selbstsignierten Zertifikat, kannst du es hier einmalig bestätigen. Danach gilt die Verbindung als sicher – und Passkeys (Windows Hello) funktionieren, wo der Browser sie mit einer Zertifikatswarnung noch blockieren würde.
 
