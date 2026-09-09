@@ -233,6 +233,7 @@ route('/achievements', view(() => import('./views/achievements.js')));
 route('/collections', view(() => import('./views/collections.js')));
 // Eine einzelne Filmreihe: /collections/12
 route('/collections/:id', view(() => import('./views/collections.js')));
+route('/calendar', view(() => import('./views/calendar.js')));
 route('/friends', view(() => import('./views/friends.js')));
 // /friends/recommendations und /friends/12 teilen sich dieselbe Route -
 // die Ansicht unterscheidet anhand des Werts.

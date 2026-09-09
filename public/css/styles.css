@@ -2303,3 +2303,107 @@ footer p {
   color: var(--text);
   font-size: 14px;
 }
+
+/* ==========================================================================
+   Datumsfelder im Stil der übrigen Eingaben
+   ==========================================================================
+   Browser stellen input[type=date] sehr eigenwillig dar – Chrome mit einem
+   hellen Kalendersymbol, das auf dunklem Grund verschwindet, und mit einer
+   Innenabstands-Vorgabe, die neben den anderen Feldern falsch wirkt.
+
+   Die allgemeine input-Regel weiter oben greift zwar auch hier, aber diese
+   drei Eigenheiten muss man einzeln geraderücken. */
+input[type='date'] {
+  /* Das Kalendersymbol umkehren, damit es auf dunklem Grund sichtbar ist.
+     Chrome zeichnet es fest in Dunkelgrau; eine Farbe lässt sich dafür nicht
+     setzen, ein Filter dagegen schon. */
+  color-scheme: dark;
+  cursor: pointer;
+}
+
+/* Safari setzt bei Datumsfeldern eine eigene Innenausrichtung, wodurch der
+   Text nicht auf derselben Höhe sitzt wie in den Feldern daneben. */
+input[type='date']::-webkit-date-and-time-value {
+  text-align: left;
+}
+
+/* Das Symbol zum Aufklappen etwas größer und anklickbarer machen. */
+input[type='date']::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+input[type='date']::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* ==========================================================================
+   Der Kalender-Reiter
+   ==========================================================================
+   Gebaut in public/js/views/calendar.js. Termine nach Tag gebündelt statt als
+   Monatsraster: Ein Monat mit vier Einträgen ist zu 90 % leer, und die Frage
+   lautet ohnehin "was kommt als Nächstes" und nicht "wie sieht der 17. aus". */
+
+.cal-day {
+  margin-bottom: 22px;
+}
+
+.cal-day-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--surface-3);
+}
+
+/* Heute hervorheben – das ist der Tag, den man sucht. */
+.cal-day.today .cal-day-head {
+  border-bottom-color: var(--accent);
+}
+
+.cal-day.today .cal-day-head h3 {
+  color: var(--accent-soft);
+}
+
+.cal-event {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  padding: 10px 13px;
+  margin-bottom: 6px;
+
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  /* Ein farbiger Streifen links macht die Art des Termins auf einen Blick
+     unterscheidbar, ohne dass man das Symbol lesen muss. */
+  border-left: 3px solid var(--surface-3);
+
+  transition: background 0.12s;
+}
+
+.cal-event:hover {
+  background: var(--surface-2);
+}
+
+/* Was man sich vorgenommen hat – in der eigenen Akzentfarbe. */
+.cal-event.planned {
+  border-left-color: var(--accent);
+}
+
+/* Was ausläuft – dieselbe Warnfarbe wie auf der Kachel. */
+.cal-event.expiring {
+  border-left-color: var(--warning);
+}
+
+/* Neue Episoden. */
+.cal-event.episode {
+  border-left-color: var(--success);
+}
+
+.cal-event-title {
+  font-weight: 600;
+  margin-bottom: 1px;
+}

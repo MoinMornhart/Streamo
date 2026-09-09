@@ -876,6 +876,39 @@ const MIGRATIONS = [
       'CREATE INDEX IF NOT EXISTS idx_library_planned ON library(user_id, planned_for)',
     );
   },
+
+  // -------------------------------------------------------------------------
+  // Version 12 -> Kalender-Abonnement
+  // -------------------------------------------------------------------------
+  // Damit die geplanten Termine, auslaufende Titel und neue Episoden im
+  // eigenen Kalender stehen – Apple Kalender, Google Kalender, Thunderbird,
+  // was auch immer. Das geht über einen ICS-Feed, den man einmal abonniert
+  // und der sich danach von selbst aktualisiert.
+  //
+  // Ein Kalenderprogramm meldet sich nicht an: Es ruft stumpf eine Adresse ab.
+  // Der Nachweis muss deshalb IN der Adresse stehen – daher dieser Token. Er
+  // ist damit so schutzbedürftig wie ein Passwort, weshalb er
+  //   - erst entsteht, wenn jemand den Kalender wirklich abonnieren will,
+  //   - sich jederzeit neu erzeugen lässt (alte Abos laufen dann ins Leere).
+  //
+  // Verknüpfungen:
+  //   - src/calendar.js -> baut den Feed
+  //   - src/routes/public.js -> liefert ihn ohne Anmeldung aus
+  //   - public/js/views/calendar.js -> der Reiter dazu
+  () => {
+    const columns = db.prepare('PRAGMA table_info(users)').all();
+
+    if (!columns.some((column) => column.name === 'calendar_token')) {
+      db.exec('ALTER TABLE users ADD COLUMN calendar_token TEXT');
+    }
+
+    // Eindeutig, aber nur dort, wo einer gesetzt ist: Die allermeisten Konten
+    // haben keinen, und NULL soll nicht mit NULL kollidieren.
+    db.exec(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_users_calendar_token
+        ON users(calendar_token) WHERE calendar_token IS NOT NULL
+    `);
+  },
 ];
 
 /**

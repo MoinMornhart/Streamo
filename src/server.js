@@ -51,6 +51,7 @@ import collectionRoutes from './routes/collections.js';
 import publicRoutes from './routes/public.js';
 import friendRoutes from './routes/friends.js';
 import inviteRoutes from './routes/invites.js';
+import calendarRoutes from './routes/calendar.js';
 
 const app = express();
 
@@ -127,6 +128,7 @@ app.use('/api/achievements', achievementRoutes); // Erfolge
 app.use('/api/collections', collectionRoutes); // Filmreihen
 app.use('/api/friends', friendRoutes); //  Freunde und gemeinsames Schauen
 app.use('/api/invites', inviteRoutes); //  Einladungen
+app.use('/api/calendar', calendarRoutes); // Termine und Abo-Adresse
 app.use('/api/public', publicRoutes); //   Geteilte Listen (ohne Anmeldung)
 
 /**

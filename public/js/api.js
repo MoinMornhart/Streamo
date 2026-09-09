@@ -249,6 +249,14 @@ export const api = {
     genres: (mediaType = 'tv') => request('/api/search/genres', { query: { mediaType } }),
   },
 
+  // --- Kalender  -> src/routes/calendar.js -------------------------------
+  calendar: {
+    /** Die Termine der naechsten Zeit plus die Adresse zum Abonnieren. */
+    get: () => request('/api/calendar'),
+    /** Erzeugt eine neue Adresse; bestehende Abos laufen danach ins Leere. */
+    reset: () => request('/api/calendar/reset', { method: 'POST' }),
+  },
+
   // --- Die persönliche Serien-Datenbank  -> src/routes/library.js ---------
   library: {
     list: (filters = {}) => request('/api/library', { query: filters }),
