@@ -1322,12 +1322,62 @@ export async function render_(container) {
     data.user.isAdmin &&
     el('div.card', { style: { marginBottom: '20px' } }, [
       el('h2', { text: 'Abgleich' }),
+      // Der Takt, jetzt hier einstellbar.
+      //
+      // Vorher ging das nur über SYNC_INTERVAL_HOURS in der .env – und weil
+      // der Installer den Wert dort fest hineinschreibt, kam eine geänderte
+      // Vorgabe im Programm bei bestehenden Installationen nie an. Für eine
+      // Zahl musste man auf den Server.
+      el('div.field', {}, [
+        el('label', { for: 'syncInterval', text: 'Wie oft abgleichen?' }),
+        el(
+          'select',
+          {
+            id: 'syncInterval',
+            onChange: async (event) => {
+              const hours = Number(event.target.value);
+
+              try {
+                await api.settings.updateGlobal({ syncIntervalHours: hours });
+                toast(
+                  hours === 0
+                    ? 'Der automatische Abgleich ist jetzt abgeschaltet.'
+                    : `Streamo gleicht ab jetzt ${
+                        hours === 1 ? 'jede Stunde' : `alle ${hours} Stunden`
+                      } ab.`,
+                  'success',
+                );
+              } catch (error) {
+                toast(error.message, 'error');
+              }
+            },
+          },
+          [
+            [1, 'Jede Stunde'],
+            [3, 'Alle 3 Stunden'],
+            [6, 'Alle 6 Stunden'],
+            [12, 'Alle 12 Stunden'],
+            [24, 'Einmal täglich'],
+            [0, 'Gar nicht'],
+          ].map(([value, text]) =>
+            el('option', {
+              value: String(value),
+              text,
+              selected: data.global.syncIntervalHours === value,
+            }),
+          ),
+        ),
+        el('div.hint', {
+          text: 'Abgeglichen wird nur, was in einer Bibliothek steht. Bei 300 Titeln sind das rund 20 Sekunden Arbeit je Durchgang – stündlich ist also unbedenklich.',
+        }),
+      ]),
+
       el('p.muted.small', {
         // "alle 1 Stunden" liest sich falsch – bei genau einer Stunde heißt
         // es "jede Stunde", und bei 0 findet gar kein Abgleich statt.
         text:
           (data.global.syncIntervalHours === 0
-            ? 'Der automatische Abgleich ist abgeschaltet (SYNC_INTERVAL_HOURS=0).'
+            ? 'Der automatische Abgleich ist abgeschaltet.'
             : data.global.syncIntervalHours === 1
               ? 'Streamo prüft jede Stunde automatisch, wo deine Serien gerade laufen.'
               : `Streamo prüft alle ${data.global.syncIntervalHours} Stunden automatisch, wo deine Serien gerade laufen.`) +

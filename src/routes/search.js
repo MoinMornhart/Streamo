@@ -266,6 +266,70 @@ router.get('/for-you', async (req, res, next) => {
 });
 
 /**
+ * GET /api/search/top?mediaType=movie
+ *
+ * Die zwei Bestenlisten für die Startseite:
+ *
+ *   week – was gerade läuft. Kommt von /trending, also aus dem tatsächlichen
+ *          Verhalten der TMDB-Nutzer dieser Woche.
+ *   year – die besten Titel des laufenden Jahres. Sortiert nach Bewertung,
+ *          nicht nach Beliebtheit: "top" soll hier heißen "am besten", nicht
+ *          "am meisten angeklickt".
+ *
+ * Beim Jahr ist die Mindestanzahl an Bewertungen entscheidend. Ohne sie steht
+ * ein Film mit vier Stimmen und 10,0 ganz oben – ein Zufall, keine Bestenliste.
+ * 500 ist hoch genug, dass nur Titel mit echtem Publikum durchkommen.
+ *
+ * Beide Listen ignorieren die eigenen Abos bewusst: Es geht um die Frage
+ * "was ist gerade gut?", nicht um "was habe ich schon bezahlt". Wo ein Titel
+ * läuft, zeigen die Anbieter-Logos auf der Kachel ohnehin.
+ */
+router.get('/top', async (req, res, next) => {
+  const { language, region } = getRuntimeSettings(req.user);
+  const mediaType = req.query.mediaType === 'tv' ? 'tv' : 'movie';
+
+  // Das laufende Jahr. Im Januar ist die Liste noch dünn – dann lieber das
+  // Vorjahr zeigen, sonst stehen dort drei Filme.
+  const now = new Date();
+  const year = now.getMonth() < 2 ? now.getFullYear() - 1 : now.getFullYear();
+
+  try {
+    // Nacheinander statt parallel: src/tmdb.js drosselt ohnehin auf einen
+    // Aufruf alle 60 ms, ein Schwall brächte nur Fehler statt Tempo.
+    const week = await tmdb.getTrending({ mediaType, window: 'week', language });
+
+    const yearBest = await tmdb.discover({
+      mediaType,
+      language,
+      region,
+      year,
+      sortBy: 'vote_average.desc',
+      minVotes: 500,
+    });
+
+    /**
+     * Bringt eine TMDB-Antwort in die Form, die das Frontend erwartet.
+     * @param {object} data
+     * @returns {object[]}
+     */
+    const shape = (data) =>
+      markLibraryState(
+        (data.results || []).map((item) => normalizeItem(item, mediaType)).filter(Boolean),
+        req.user.id,
+      );
+
+    res.json({
+      mediaType,
+      year,
+      week: shape(week),
+      yearBest: shape(yearBest),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * GET /api/search/trending?mediaType=tv&window=week
  * Füllt die Startseite, solange die eigene Bibliothek noch leer ist.
  */

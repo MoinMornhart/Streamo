@@ -190,7 +190,7 @@ STREAMO_REGION=DE
 STREAMO_LANGUAGE=de-DE
 
 # Abgleich der Streaming-Verfügbarkeit alle 12 Stunden
-SYNC_INTERVAL_HOURS=12
+SYNC_INTERVAL_HOURS=1
 
 # Dürfen sich weitere Personen selbst registrieren?
 ALLOW_REGISTRATION=false

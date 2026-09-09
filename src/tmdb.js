@@ -357,6 +357,7 @@ export function getSeason(tmdbId, seasonNumber, opts = {}) {
  * @param {number|string} [opts.genres] Komma-getrennte TMDB-Genre-IDs
  * @param {number} [opts.page]
  * @param {number} [opts.minVotes]   Mindestanzahl Bewertungen gegen Ausreißer
+ * @param {number} [opts.year]      Nur Titel dieses Erscheinungsjahres
  * @returns {Promise<object>}
  */
 export function discover(opts = {}) {
@@ -375,6 +376,12 @@ export function discover(opts = {}) {
     with_genres: opts.genres,
     sort_by: opts.sortBy || 'popularity.desc',
     'vote_count.gte': opts.minVotes ?? 50,
+
+    // Auf ein Erscheinungsjahr einschränken – die Grundlage für "die besten
+    // Filme des Jahres". TMDB benennt den Parameter je Medientyp anders.
+    primary_release_year: mediaType === 'movie' ? opts.year : undefined,
+    first_air_date_year: mediaType === 'tv' ? opts.year : undefined,
+
     page: opts.page || 1,
     include_adult: false,
   });

@@ -124,7 +124,7 @@ Jede Kachel zeigt die Anbieter-Logos direkt auf dem Poster. Grün umrandet heiß
 Staffeln und Episoden abhaken, einzeln, staffelweise oder „alles bis hierhin". Der Status wechselt automatisch von *Will ich sehen* auf *Schaue ich* und am Ende auf *Gesehen*.
 
 **Entdecken statt suchen**
-Die Startseite zeigt, was gerade in deinen Abos läuft – gefiltert auf genau die Dienste, für die du bezahlst.
+Die Startseite zeigt zwei Bestenlisten: die **Top-Filme der Woche** – was gerade am meisten gesehen wird – und die **Top-Filme des Jahres**, nach Bewertung sortiert und ab 500 Stimmen, damit kein Zufallstreffer mit vier Bewertungen ganz oben steht. Wo ein Titel läuft und ob er in einem deiner Abos steckt, zeigen die Anbieter-Logos auf der Kachel.
 
 **Für dich – Empfehlungen aus der eigenen Bibliothek**
 Über den populären Titeln steht eine Leiste, die für jede Person anders aussieht. Sie entsteht aus dem, was du selbst gesehen hast: Eine 10 von 10 zählt mehr als eine 6, ein Favorit mehr als ein Nebenbei-Titel, eine durchgesehene Serie mehr als eine angefangene. Was auf der Merkliste liegt, zählt nicht – gesehen hast du es ja noch nicht; Abgebrochenes und schlecht Bewertetes ebenso wenig. Jede Kachel sagt, warum sie da ist: *„Weil du Breaking Bad gesehen hast."*
@@ -142,7 +142,7 @@ Jede Reihe – die eigenen wie die offiziellen von TMDB – lässt sich über ei
 Wie verteilen sich deine Serien auf die Abos? Bei welchem Dienst läuft nichts von deiner Liste (Kündigungskandidat)? Welches zusätzliche Abo würde dir am meisten freischalten? Und wie viel Lebenszeit hast du eigentlich investiert?
 
 **Automatischer Abgleich**
-Streamo prüft **stündlich**, wo deine Serien inzwischen laufen. Streaming-Rechte wandern ständig – du merkst es, ohne nachzusehen. Abgeglichen wird nur, was tatsächlich in einer Bibliothek steht; bei 300 Titeln sind das rund 20 Sekunden Arbeit pro Stunde. Über `SYNC_INTERVAL_HOURS` lässt sich der Takt ändern oder mit `0` ganz abschalten.
+Streamo prüft **stündlich**, wo deine Serien inzwischen laufen. Streaming-Rechte wandern ständig – du merkst es, ohne nachzusehen. Abgeglichen wird nur, was tatsächlich in einer Bibliothek steht; bei 300 Titeln sind das rund 20 Sekunden Arbeit pro Durchgang. Den Takt stellst du unter *Einstellungen → Abgleich* ein, von stündlich bis „gar nicht" – die Änderung gilt sofort, ohne Neustart.
 
 **Mehrere Personen**
 Optional. Jede Person hat eigene Abos, eigene Bibliothek, eigenen Fortschritt und eigene Region. Wer sie einlädt, sieht unter *Einstellungen → Benutzer*, wer ein Konto hat, wann er zuletzt da war und ob gerade jemand angemeldet ist – und kann dort Adminrechte vergeben oder ein Konto löschen.
@@ -210,7 +210,7 @@ Alle Werte stehen in `.env` (Vorlage: [`.env.example`](.env.example)). Jeder hat
 | `TMDB_API_KEY` | – | Dein TMDB-Schlüssel; auch im UI setzbar |
 | `STREAMO_REGION` | `DE` | Land, für das die Verfügbarkeit gilt |
 | `STREAMO_LANGUAGE` | `de-DE` | Sprache von Titeln und Beschreibungen |
-| `SYNC_INTERVAL_HOURS` | `1` | Takt des Hintergrundabgleichs in Stunden; `0` = aus |
+| `SYNC_INTERVAL_HOURS` | `1` | Startvorgabe für den Abgleichstakt in Stunden; `0` = aus. In der Oberfläche änderbar, der dort gesetzte Wert gewinnt. |
 | `ALLOW_REGISTRATION` | `false` | Dürfen sich weitere Personen ohne Einladung registrieren? |
 | `TRUST_PROXY` | `false` | `true`, wenn ein HTTPS-Proxy davorsteht |
 

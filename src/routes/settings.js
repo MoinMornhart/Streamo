@@ -37,7 +37,7 @@ import {
 } from '../auth.js';
 import * as tmdb from '../tmdb.js';
 import { getRuntimeSettings } from '../tmdb.js';
-import { runSync, getSyncState } from '../sync.js';
+import { runSync, getSyncState, applySyncInterval, getSyncIntervalHours } from '../sync.js';
 
 const router = express.Router();
 router.use(requireAuth);
@@ -81,7 +81,8 @@ router.get('/', (req, res) => {
       // damit erkennbar ist, ob noch die Vorgabe aus der .env gilt.
       allowRegistrationSource:
         getSetting('allow_registration', null) === null ? 'env' : 'database',
-      syncIntervalHours: config.syncIntervalHours,
+      // Der tatsaechlich geltende Takt - der gespeicherte Wert sticht die .env.
+      syncIntervalHours: getSyncIntervalHours(),
     },
     sync: getSyncState(),
     version: config.version,
@@ -189,6 +190,29 @@ router.put('/global', requireAdmin, async (req, res, next) => {
     // den TMDB-Zugang der Instanz mitbenutzen.
     if (req.body?.allowRegistration !== undefined) {
       setSetting('allow_registration', req.body.allowRegistration ? '1' : '0');
+    }
+
+    // Takt des Hintergrundabgleichs.
+    //
+    // Auch hier sticht der gespeicherte Wert die .env – und das ist hier sogar
+    // zwingend: Der Installer schreibt SYNC_INTERVAL_HOURS fest in die .env.
+    // Eine geänderte Vorgabe im Programm käme bei bestehenden Installationen
+    // deshalb nie an, und man müsste für eine Zahl auf den Server.
+    //
+    // Der neue Takt gilt sofort: applySyncInterval() räumt den laufenden
+    // Zeitgeber ab und setzt einen neuen. Ohne diesen Aufruf würde die
+    // Änderung erst beim nächsten Neustart wirken.
+    if (req.body?.syncIntervalHours !== undefined) {
+      const hours = Number(req.body.syncIntervalHours);
+
+      if (!Number.isFinite(hours) || hours < 0 || hours > 168) {
+        return res.status(400).json({
+          error: 'Der Takt muss zwischen 0 (aus) und 168 Stunden liegen.',
+        });
+      }
+
+      setSetting('sync_interval_hours', String(hours));
+      applySyncInterval();
     }
 
     res.json({ ok: true });

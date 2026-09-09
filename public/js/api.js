@@ -241,6 +241,11 @@ export const api = {
      * -> GET /api/search/quick (src/quicksearch.js)
      */
     quick: (q) => request('/api/search/quick', { query: { q } }),
+    /**
+     * Die zwei Bestenlisten der Startseite: Top der Woche und Top des Jahres.
+     * -> GET /api/search/top (src/routes/search.js)
+     */
+    top: (mediaType = 'movie') => request('/api/search/top', { query: { mediaType } }),
     genres: (mediaType = 'tv') => request('/api/search/genres', { query: { mediaType } }),
   },
 

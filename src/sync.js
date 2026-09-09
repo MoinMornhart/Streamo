@@ -65,7 +65,8 @@ export function getSyncState() {
     done: state.done,
     lastRunAt: state.lastRunAt || getSetting('last_sync_at', null),
     lastResult: state.lastResult,
-    intervalHours: config.syncIntervalHours,
+    // Der tatsaechlich geltende Takt - die Datenbank sticht die .env.
+    intervalHours: getSyncIntervalHours(),
   };
 }
 
@@ -266,32 +267,74 @@ export async function runSync(kind = 'availability') {
  * Minuten verzögert, danach greift das reguläre Intervall.
  */
 export function startSyncScheduler() {
-  if (config.syncIntervalHours <= 0) {
-    console.log('[sync] Hintergrundabgleich ist deaktiviert (SYNC_INTERVAL_HOURS=0).');
-    return;
-  }
-
-  const intervalMs = config.syncIntervalHours * 3_600_000;
-
-  // Erster Lauf nach zwei Minuten.
+  // Erster Lauf nach zwei Minuten – unabhängig vom Takt, damit ein frisch
+  // gestarteter Container erst einmal erreichbar ist.
   setTimeout(() => {
     runSync('full').catch((error) => console.error('[sync] Erster Lauf fehlgeschlagen:', error.message));
   }, 120_000).unref?.(); // unref: hält den Prozess nicht künstlich am Leben
 
-  // Danach im festen Takt. "availability" ist der günstige Standardlauf;
-  // einmal täglich zusätzlich die Metadaten wäre über 'full' möglich.
+  applySyncInterval();
+}
+
+/**
+ * Ermittelt den geltenden Takt in Stunden.
+ *
+ * Zwei Quellen, in dieser Reihenfolge:
+ *   1. Die Einstellung `sync_interval_hours` in der Datenbank. Sie lässt sich
+ *      als Administrator in der Oberfläche ändern und gilt sofort.
+ *   2. SYNC_INTERVAL_HOURS aus der .env.
+ *
+ * Die Datenbank sticht die .env – aus einem konkreten Grund: Der Installer
+ * schreibt SYNC_INTERVAL_HOURS fest in die .env. Eine Änderung der Vorgabe im
+ * Programm käme bei bestehenden Installationen deshalb nie an, und man müsste
+ * für eine Zahl auf den Server.
+ *
+ * @returns {number} Stunden; 0 bedeutet "abgeschaltet"
+ */
+export function getSyncIntervalHours() {
+  const stored = getSetting('sync_interval_hours', null);
+
+  if (stored === null) return config.syncIntervalHours;
+
+  const parsed = Number(stored);
+
+  // Unbrauchbarer Wert in der Datenbank -> zurück zur .env, statt den
+  // Abgleich mit einem NaN-Intervall lahmzulegen.
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : config.syncIntervalHours;
+}
+
+/**
+ * Setzt den Zeitgeber auf den aktuell geltenden Takt.
+ *
+ * Wird beim Start aufgerufen und erneut, sobald jemand den Takt in den
+ * Einstellungen ändert. Ein vorhandener Zeitgeber wird dabei abgeräumt –
+ * sonst liefen nach der zweiten Änderung zwei parallel.
+ */
+export function applySyncInterval() {
+  if (state.timer) {
+    clearInterval(state.timer);
+    state.timer = null;
+  }
+
+  const hours = getSyncIntervalHours();
+
+  if (hours <= 0) {
+    console.log('[sync] Hintergrundabgleich ist abgeschaltet.');
+    return;
+  }
+
+  // "availability" ist der günstige Standardlauf; die Metadaten kommen beim
+  // ersten Lauf nach dem Start über 'full' mit.
   state.timer = setInterval(() => {
     runSync('availability').catch((error) =>
       console.error('[sync] Abgleich fehlgeschlagen:', error.message),
     );
-  }, intervalMs);
+  }, hours * 3_600_000);
 
   console.log(
     // "alle 1 Stunden" liest sich falsch – bei genau einer Stunde heißt es
     // "jede Stunde".
-    `[sync] Hintergrundabgleich aktiv – ${
-      config.syncIntervalHours === 1 ? 'jede Stunde' : `alle ${config.syncIntervalHours} Stunden`
-    }.`,
+    `[sync] Hintergrundabgleich aktiv – ${hours === 1 ? 'jede Stunde' : `alle ${hours} Stunden`}.`,
   );
 }
 

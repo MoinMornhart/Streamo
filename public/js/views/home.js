@@ -204,53 +204,82 @@ export async function render_(container) {
   // Empfehlungen nachladen
   // ------------------------------------------------------------------------
   try {
-    // Ohne verknüpfte Abos ergibt der Abo-Filter keinen Sinn – dann zeigen wir
-    // die allgemein angesagten Serien.
-    const data = hasProviders
-      ? await api.search.discover({ mediaType: 'tv', sort: 'popularity.desc' })
-      : await api.search.trending('tv');
+    // Zwei Bestenlisten statt der Abo-gefilterten Auswahl.
+    //
+    // Vorher stand hier "In deinen Abos" – also nur, was bei den verknüpften
+    // Anbietern läuft. Das beantwortet aber die falsche Frage: Was gerade gut
+    // ist, hängt nicht davon ab, was man schon bezahlt. Wo ein Titel läuft,
+    // zeigen die Anbieter-Logos auf der Kachel ohnehin, und ob er in einem
+    // eigenen Abo steckt, sagt der grüne Rahmen.
+    const data = await api.search.top('movie');
 
-    const items = data.results.slice(0, 24);
+    const week = data.week.slice(0, 18);
+    const yearBest = data.yearBest.slice(0, 18);
 
-    if (items.length === 0) {
+    if (week.length === 0 && yearBest.length === 0) {
       render(
         discoverSlot,
         empty(
           '🍿',
           'Nichts gefunden',
-          hasProviders
-            ? 'Bei deinen Anbietern hat TMDB gerade nichts im Angebot. Prüfe deine Region in den Einstellungen.'
-            : 'Verknüpfe zuerst deine Streaming-Abos.',
+          'TMDB hat gerade keine Bestenliste geliefert. Prüfe deine Region in den Einstellungen.',
         ),
       );
       return;
     }
 
-    const grid = posterGrid(items);
+    const weekGrid = posterGrid(week);
+    const yearGrid = posterGrid(yearBest);
 
     render(
       discoverSlot,
-      el('div.view-header', { style: { marginBottom: '14px' } }, [
-        el('h2', {
-          text: hasProviders ? 'In deinen Abos' : 'Gerade angesagt',
-          style: { margin: 0 },
-        }),
-        el('a', {
-          href: '/library',
-          'data-link': '',
-          text: 'Meine Bibliothek',
-          class: 'small',
-        }),
-      ]),
-      grid,
+
+      // --- Top der Woche ---
+      week.length > 0 &&
+        el('section', { style: { marginBottom: '38px' } }, [
+          el('div.view-header', { style: { marginBottom: '14px' } }, [
+            el('div', {}, [
+              el('h2', { text: 'Top-Filme der Woche', style: { margin: 0 } }),
+              el('p.muted', {
+                style: { margin: '2px 0 0', fontSize: '13px' },
+                // Woher die Reihenfolge kommt – sonst wirkt sie willkürlich.
+                text: 'Was diese Woche am meisten gesehen wurde.',
+              }),
+            ]),
+          ]),
+          weekGrid,
+        ]),
+
+      // --- Top des Jahres ---
+      yearBest.length > 0 &&
+        el('section', {}, [
+          el('div.view-header', { style: { marginBottom: '14px' } }, [
+            el('div', {}, [
+              el('h2', { text: `Top-Filme ${data.year}`, style: { margin: 0 } }),
+              el('p.muted', {
+                style: { margin: '2px 0 0', fontSize: '13px' },
+                // Nach Bewertung, nicht nach Klicks – und mit einer Untergrenze
+                // an Stimmen, sonst stünde ein Film mit vier Bewertungen oben.
+                text: 'Die bestbewerteten des Jahres, ab 500 Stimmen.',
+              }),
+            ]),
+            el('a', {
+              href: '/library',
+              'data-link': '',
+              text: 'Meine Bibliothek',
+              class: 'small',
+            }),
+          ]),
+          yearGrid,
+        ]),
     );
 
-    // Die Anbieter-Logos auf den Kacheln nachreichen. Bei Discover-Treffern
-    // wissen wir zwar bereits, dass sie in einem Abo laufen – aber nicht in
-    // welchem, und genau das soll die Kachel zeigen.
-    enrichWithAvailability(items, grid);
+    // Die Anbieter-Logos auf den Kacheln nachreichen – erst dadurch beantwortet
+    // eine Bestenliste die Frage, die Streamo stellt: Wo kann ich das sehen?
+    enrichWithAvailability(week, weekGrid);
+    enrichWithAvailability(yearBest, yearGrid);
   } catch (error) {
-    render(discoverSlot, empty('⚠️', 'Empfehlungen nicht verfügbar', error.message));
+    render(discoverSlot, empty('⚠️', 'Bestenlisten nicht verfügbar', error.message));
   }
 }
 
