@@ -669,6 +669,58 @@ export async function render_(container) {
         text: 'Erzeuge einen Link und schick ihn weiter. Wer ihn öffnet, legt sich ein Konto an – ohne eigenen Zugang zu einer Filmdatenbank, ohne Installation. Dein TMDB-Zugang gilt für alle Konten dieser Instanz.',
       }),
       inviteList,
+
+      // ----------------------------------------------------------------
+      // Der Schalter für die offene Registrierung
+      // ----------------------------------------------------------------
+      // Er steht hier und nicht in einem eigenen Kasten, weil er dieselbe
+      // Frage beantwortet: Wie kommen andere Leute an ein Konto? Entweder
+      // über eine Einladung (oben) – oder eben ohne.
+      el('hr', {
+        style: { border: 'none', borderTop: '1px solid var(--surface-3)', margin: '20px 0 16px' },
+      }),
+
+      el('label.toggle-row', {}, [
+        el('input', {
+          type: 'checkbox',
+          checked: data.global.allowRegistration,
+          onChange: async (event) => {
+            const open = event.currentTarget.checked;
+
+            try {
+              await api.settings.updateGlobal({ allowRegistration: open });
+
+              // Der Anmeldebildschirm entscheidet anhand dieses Werts, ob er
+              // ein Feld für den Einladungscode zeigt – also neu einlesen.
+              await refreshStatus();
+
+              toast(
+                open
+                  ? 'Registrierung offen. Jeder, der die Adresse kennt, kann sich ein Konto anlegen.'
+                  : 'Registrierung geschlossen. Ab jetzt nur noch mit Einladung.',
+                open ? 'info' : 'success',
+              );
+            } catch (error) {
+              // Zurückspringen, sonst zeigt der Schalter etwas an, das nicht
+              // gespeichert wurde.
+              event.currentTarget.checked = !open;
+              toast(error.message, 'error');
+            }
+          },
+        }),
+        el('span', {}, [
+          el('strong', { text: 'Registrierung ohne Einladung erlauben' }),
+          el('div.hint', {
+            style: { marginTop: '2px' },
+            text: 'Standardmäßig aus. Der Grund: Sobald Streamo aus dem Internet erreichbar ist, könnte sonst jeder, der die Adresse findet, ein Konto anlegen – und deinen TMDB-Zugang mitbenutzen. Mit Einladung entscheidest du, wer hereinkommt.',
+          }),
+          data.global.allowRegistrationSource === 'env' &&
+            el('div.hint', {
+              style: { marginTop: '4px' },
+              text: 'Zurzeit gilt die Vorgabe aus der .env (ALLOW_REGISTRATION). Sobald du hier umlegst, gilt deine Einstellung – ohne dass du an den Server musst.',
+            }),
+        ]),
+      ]),
     ]);
 
   /**

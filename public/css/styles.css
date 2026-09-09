@@ -740,17 +740,31 @@ textarea {
   display: none;
 }
 
-/* Drei Kacheln nebeneinander: Von der vollen Breite gehen zwei Abstände ab,
-   der Rest wird gedrittelt. flex-shrink 0, damit sie sich nicht doch quetschen. */
+/* Die Kacheln behalten die Größe, die sie im normalen Raster auch haben –
+   dort sind die Spalten mindestens 150px breit (.grid weiter oben).
+
+   Zuerst stand hier "ein Drittel der Breite", damit genau drei nebeneinander
+   passen. Das Ergebnis waren riesige Poster: Auf einem breiten Bildschirm
+   wurde aus einer 150px-Kachel plötzlich eine von über 400px, und dieselbe
+   Serie sah in der Reihe ganz anders aus als daneben in der Einzelansicht.
+
+   Wie viele nebeneinander stehen, ergibt sich jetzt aus der Fensterbreite –
+   genau wie beim Raster. Der Pfeil schiebt weiter, sobald mehr da sind, als
+   hineinpassen. */
 .reel > * {
-  flex: 0 0 calc((100% - 28px) / 3);
+  flex: 0 0 150px;
   scroll-snap-align: start;
 }
 
-/* Auf schmalen Geräten sind drei Kacheln zu klein – dort zwei. */
-@media (max-width: 700px) {
+/* Auf dem Handy dieselbe Verkleinerung wie beim Raster (siehe Media Query
+   weiter unten: minmax(104px, 1fr)). */
+@media (max-width: 720px) {
   .reel > * {
-    flex-basis: calc((100% - 14px) / 2);
+    flex-basis: 104px;
+  }
+
+  .reel {
+    gap: 10px;
   }
 }
 
@@ -792,6 +806,27 @@ textarea {
 
 .reel-arrow.next {
   right: -12px;
+}
+
+/* Eine Zeile mit Schalter links und Erklärung rechts.
+   Das Ganze ist ein <label>, damit auch ein Klick auf den Text den Schalter
+   umlegt – ein 16 Pixel großes Kästchen zu treffen ist auf dem Handy mühsam. */
+.toggle-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.toggle-row input[type='checkbox'] {
+  /* Nicht schrumpfen lassen, wenn der Text daneben lang wird. */
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+  margin-top: 2px; /* auf Höhe der ersten Textzeile */
+  accent-color: var(--accent);
+  cursor: pointer;
 }
 
 /* ==========================================================================

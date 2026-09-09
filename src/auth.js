@@ -22,7 +22,7 @@
 
 import crypto from 'node:crypto';
 import config from './config.js';
-import { get, run, all } from './db.js';
+import { get, run, all, getSetting } from './db.js';
 
 // --------------------------------------------------------------------------
 // Konstanten für das Passwort-Hashing.
@@ -467,4 +467,36 @@ export function requireAdmin(req, res, next) {
       .json({ error: 'Dafür brauchst du Administratorrechte.', code: 'forbidden' });
   }
   next();
+}
+
+/**
+ * Sagt, ob sich Personen ohne Einladung selbst ein Konto anlegen dürfen.
+ *
+ * Die Vorgabe ist NEIN, und das mit Absicht: Sobald Streamo aus dem Internet
+ * erreichbar ist, könnte sonst jeder, der die Adresse findet, ein Konto
+ * anlegen – und damit den TMDB-Zugang der Instanz mitbenutzen. Deshalb ist
+ * die Einladung der Normalfall und die offene Registrierung die Ausnahme.
+ *
+ * Zwei Stellen können das entscheiden, in dieser Reihenfolge:
+ *
+ *   1. Die Einstellung `allow_registration` in der Datenbank. Sie lässt sich
+ *      als Administrator in der Oberfläche umlegen (Einstellungen ->
+ *      Registrierung) und gilt sofort.
+ *   2. Ist dort nichts gesetzt, gilt ALLOW_REGISTRATION aus der .env.
+ *
+ * Die Datenbank sticht die .env, damit man dafür nicht auf den Server muss.
+ *
+ * Verknüpfungen:
+ *   - src/routes/auth.js     -> /status meldet es, /register wertet es aus
+ *   - src/routes/settings.js -> hier wird es umgelegt
+ *
+ * @returns {boolean}
+ */
+export function isRegistrationOpen() {
+  const stored = getSetting('allow_registration', null);
+
+  // Nichts gespeichert -> die Vorgabe aus der Umgebung.
+  if (stored === null) return config.allowRegistration;
+
+  return stored === '1' || stored === 'true';
 }

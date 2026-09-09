@@ -30,6 +30,13 @@ set -euo pipefail
 APP_DIR="${APP_DIR:-/opt/streamo}"
 SERVICE_NAME="streamo"
 
+# Der Systembenutzer, unter dem der Dienst laeuft. Wird vom Installer gesetzt;
+# der Standardwert steht hier, damit sich dieses Skript auch einzeln ausfuehren
+# laesst. Gebraucht wird er von "streamo admin": Liefe das Skript als root,
+# gehoerten neu angelegte Journaldateien der Datenbank auf einmal root - und
+# der Dienst koennte danach nicht mehr schreiben.
+SERVICE_USER="${SERVICE_USER:-streamo}"
+
 # ===========================================================================
 # 1. Der Kurzbefehl "update"
 # ===========================================================================
@@ -78,6 +85,7 @@ set -euo pipefail
 
 APP_DIR="${APP_DIR}"
 SERVICE="${SERVICE_NAME}"
+RUN_USER="${SERVICE_USER}"
 
 GN=\$'\033[1;92m'
 YW=\$'\033[33m'
@@ -188,6 +196,23 @@ case "\${1:-help}" in
     echo ""
     ;;
 
+  admin)
+    # Adminrechte vergeben oder entziehen.
+    #
+    # Noetig, weil nur das allererste Konto - das aus dem
+    # Einrichtungsassistenten - automatisch Administrator ist. Wer spaeter
+    # ueber eine Einladung dazukommt, ist ein gewoehnlicher Benutzer, und in
+    # der Oberflaeche gibt es bewusst keinen Knopf zur Selbstbefoerderung.
+    #
+    # Die Arbeit macht scripts/make-admin.mjs; hier wird nur dafuer gesorgt,
+    # dass es im richtigen Verzeichnis und als der richtige Benutzer laeuft -
+    # sonst gehoerten neu angelegte Journaldateien der Datenbank auf einmal
+    # root und der Dienst koennte nicht mehr schreiben.
+    shift
+    cd "\$APP_DIR" || exit 1
+    su "\$RUN_USER" -s /bin/bash -c "cd '\$APP_DIR' && node scripts/make-admin.mjs \$*"
+    ;;
+
   backup)
     # Sichert Datenbank und Konfiguration in ein Archiv.
     target="/root/streamo-backup-\$(date +%Y%m%d-%H%M%S).tar.gz"
@@ -220,6 +245,7 @@ case "\${1:-help}" in
     echo -e "  \${GN}streamo restart\${CL}   Neu starten"
     echo -e "  \${GN}streamo config\${CL}    Konfiguration bearbeiten"
     echo -e "  \${GN}streamo domain\${CL} <d> Domain eintragen (nötig für Passkeys)"
+    echo -e "  \${GN}streamo admin\${CL} <n>  Adminrechte vergeben (ohne Namen: Liste)"
     echo -e "  \${GN}streamo backup\${CL}    Datenbank sichern"
     echo -e "  \${GN}streamo info\${CL}      Version und Adresse anzeigen"
     echo ""

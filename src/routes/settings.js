@@ -25,7 +25,16 @@
 import express from 'express';
 import config from '../config.js';
 import { all, run, getSetting, setSetting } from '../db.js';
-import { requireAuth, requireAdmin, listSessions, createSession, setSessionCookie, destroyAllSessions } from '../auth.js';
+import {
+  requireAuth,
+  requireAdmin,
+  listSessions,
+  createSession,
+  setSessionCookie,
+  destroyAllSessions,
+  // Entscheidet, ob eine Einladung noetig ist - Datenbank sticht .env.
+  isRegistrationOpen,
+} from '../auth.js';
 import * as tmdb from '../tmdb.js';
 import { getRuntimeSettings } from '../tmdb.js';
 import { runSync, getSyncState } from '../sync.js';
@@ -73,7 +82,13 @@ router.get('/', (req, res) => {
       hasApiKey: Boolean(runtime.apiKey),
       region: getSetting('region', config.region),
       language: getSetting('language', config.language),
-      allowRegistration: config.allowRegistration,
+      // Ob eine Einladung nötig ist. Der gespeicherte Wert sticht die .env –
+      // siehe isRegistrationOpen() in src/auth.js.
+      allowRegistration: isRegistrationOpen(),
+      // Woher der geltende Wert stammt. Die Oberfläche schreibt das dazu,
+      // damit erkennbar ist, ob noch die Vorgabe aus der .env gilt.
+      allowRegistrationSource:
+        getSetting('allow_registration', null) === null ? 'env' : 'database',
       syncIntervalHours: config.syncIntervalHours,
     },
     sync: getSyncState(),
@@ -124,7 +139,7 @@ router.put('/', (req, res) => {
 
 /**
  * PUT /api/settings/global
- * Instanzweite Einstellungen. Body: { apiKey?, region?, language? }
+ * Instanzweite Einstellungen. Body: { apiKey?, region?, language?, allowRegistration? }
  * Nur für Admins – der TMDB-Key gilt für alle Benutzer dieser Installation.
  */
 router.put('/global', requireAdmin, async (req, res, next) => {
@@ -145,6 +160,20 @@ router.put('/global', requireAdmin, async (req, res, next) => {
 
     if (req.body?.region) setSetting('region', String(req.body.region).toUpperCase().trim());
     if (req.body?.language) setSetting('language', String(req.body.language).trim());
+
+    // Offene Registrierung ein- oder ausschalten.
+    //
+    // Bis hierher ließ sich das nur über ALLOW_REGISTRATION in der .env
+    // regeln – man musste also auf den Server. Der gespeicherte Wert gilt ab
+    // sofort und überstimmt die .env; ausgewertet wird er in
+    // isRegistrationOpen() (src/auth.js).
+    //
+    // Die Vorgabe bleibt "aus": Sobald Streamo aus dem Internet erreichbar
+    // ist, könnte sonst jeder, der die Adresse findet, ein Konto anlegen und
+    // den TMDB-Zugang der Instanz mitbenutzen.
+    if (req.body?.allowRegistration !== undefined) {
+      setSetting('allow_registration', req.body.allowRegistration ? '1' : '0');
+    }
 
     res.json({ ok: true });
   } catch (error) {

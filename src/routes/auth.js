@@ -41,6 +41,8 @@ import {
   requireAuth,
   setEmail,
   hasPassword,
+  // Entscheidet, ob eine Einladung noetig ist - Datenbank sticht .env.
+  isRegistrationOpen,
 } from '../auth.js';
 
 // Die Passkey-Logik (WebAuthn) steckt vollständig in src/passkeys.js – hier
@@ -122,7 +124,7 @@ router.get('/status', (req, res) => {
     // Verfügbarkeit nicht; das Frontend zeigt dann einen Hinweisbanner.
     hasApiKey: tmdb.hasApiKey(),
     // Dürfen sich weitere Personen registrieren?
-    allowRegistration: config.allowRegistration,
+    allowRegistration: isRegistrationOpen(),
     // Zustand des zweiten Faktors – nur für angemeldete Konten. Die
     // Einstellungsseite zeigt danach "eingeschaltet" oder "einrichten".
     twoFactor: req.user ? getTwoFactorState(req.user.id) : null,
@@ -420,7 +422,7 @@ router.post('/register', async (req, res) => {
     }
 
     inviteToken = invite;
-  } else if (!config.allowRegistration) {
+  } else if (!isRegistrationOpen()) {
     return res.status(403).json({
       error:
         'Für ein Konto auf dieser Instanz brauchst du eine Einladung. Frag die Person, die Streamo betreibt.',
