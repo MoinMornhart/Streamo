@@ -162,6 +162,12 @@ export const api = {
     passkeyLoginVerify: (response) =>
       request('/api/auth/passkey/login/verify', { method: 'POST', body: { response } }),
 
+    /**
+     * Prüft eine Einladung – ohne Anmeldung, denn wer sie einlöst, hat noch
+     * kein Konto. So erfährt man vor dem Ausfüllen, ob der Link noch gilt.
+     */
+    checkInvite: (token) => request(`/api/invites/check/${encodeURIComponent(token)}`),
+
     /** Die eigenen Passkeys für die Einstellungsseite */
     passkeys: () => request('/api/auth/passkeys'),
     renamePasskey: (id, name) =>
@@ -305,6 +311,22 @@ export const api = {
      */
     addToLibrary: (id, status) =>
       request(`/api/collections/${id}/add-to-library`, { method: 'POST', body: { status } }),
+  },
+
+  // --- Einladungen  -> src/routes/invites.js ------------------------------
+  // Der Weg, jemanden mitmachen zu lassen, ohne dass er einen eigenen
+  // TMDB-Zugang braucht oder etwas installieren muss.
+  invites: {
+    /** Alle Einladungen mit ihrem Zustand (nur Admin) */
+    list: () => request('/api/invites'),
+    /**
+     * Neue Einladung erzeugen. Vorgabe: einmal nutzbar, sieben Tage gültig.
+     * uses: null = unbegrenzt nutzbar, days: null = läuft nie ab.
+     */
+    create: (options = {}) => request('/api/invites', { method: 'POST', body: options }),
+    /** Widerrufen – der Link führt danach ins Leere */
+    revoke: (token) =>
+      request(`/api/invites/${encodeURIComponent(token)}`, { method: 'DELETE' }),
   },
 
   // --- Freunde  -> src/routes/friends.js ----------------------------------

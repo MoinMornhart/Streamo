@@ -58,6 +58,9 @@ import {
   countCredentials,
 } from '../passkeys.js';
 
+// Einladungen: der Weg, jemanden ohne eigenen TMDB-Zugang mitmachen zu lassen.
+import { checkInvite, consumeInvite } from '../invites.js';
+
 import { run } from '../db.js';
 
 const router = express.Router();
@@ -226,17 +229,36 @@ router.post('/logout', (req, res) => {
  * Body: { username, password, displayName? }
  */
 router.post('/register', async (req, res) => {
-  if (!config.allowRegistration) {
+  const { username, password, displayName, invite } = req.body ?? {};
+
+  // Zwei Wege hinein: die offene Registrierung (falls freigeschaltet) oder
+  // eine gültige Einladung. Die Einladung ist der übliche Fall – sie erlaubt
+  // gezielt einer Person den Zutritt, ohne die Tür für alle zu öffnen.
+  let inviteToken = null;
+
+  if (invite) {
+    const check = checkInvite(invite);
+
+    if (!check.valid) {
+      return res.status(403).json({ error: check.reason, code: 'invalid_invite' });
+    }
+
+    inviteToken = invite;
+  } else if (!config.allowRegistration) {
     return res.status(403).json({
-      error: 'Registrierung ist auf dieser Instanz deaktiviert.',
-      code: 'registration_disabled',
+      error:
+        'Für ein Konto auf dieser Instanz brauchst du eine Einladung. Frag die Person, die Streamo betreibt.',
+      code: 'invite_required',
     });
   }
 
-  const { username, password, displayName } = req.body ?? {};
-
   try {
     const user = await createUser({ username, password, displayName, isAdmin: false });
+
+    // Erst nach dem erfolgreichen Anlegen einlösen – scheitert die
+    // Registrierung an einem belegten Namen, soll die Einladung nicht
+    // verbraucht sein.
+    if (inviteToken) consumeInvite(inviteToken);
 
     const token = createSession(user.id, {
       userAgent: req.headers['user-agent'],

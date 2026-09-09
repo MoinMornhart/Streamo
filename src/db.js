@@ -649,6 +649,45 @@ const MIGRATIONS = [
         ON recommendations(to_user_id, seen);
     `);
   },
+
+  // -------------------------------------------------------------------------
+  // Version 7 -> Einladungen
+  // -------------------------------------------------------------------------
+  // Damit Freunde mitmachen können, ohne sich mit TMDB, Installation oder
+  // Servern zu befassen: Der Betreiber erzeugt einen Link, der Empfänger legt
+  // sich damit ein Konto an. Mehr braucht es nicht – der TMDB-Zugang gilt für
+  // die ganze Instanz und ist längst hinterlegt.
+  //
+  // Ein Einladungslink ist bewusst kein dauerhaft offenes Tor: Er lässt sich
+  // auf eine Anzahl Nutzungen begrenzen und läuft ab.
+  () => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS invites (
+        -- Zufälliger Token, steht so im Link.
+        token       TEXT PRIMARY KEY,
+
+        -- Wer hat eingeladen? Nach dem Löschen des Kontos bleibt die
+        -- Einladung gültig – sie gehört zur Instanz, nicht zur Person.
+        created_by  INTEGER REFERENCES users(id) ON DELETE SET NULL,
+
+        -- Frei wählbare Notiz ("für Lisa"), damit man später weiß, wem man
+        -- welchen Link gegeben hat.
+        note        TEXT,
+
+        -- Wie oft darf der Link noch benutzt werden? NULL = unbegrenzt.
+        uses_left   INTEGER,
+        -- Wie oft wurde er schon benutzt? Nur zur Anzeige.
+        used_count  INTEGER NOT NULL DEFAULT 0,
+
+        -- Ablaufzeitpunkt als ISO-String. NULL = läuft nie ab.
+        expires_at  TEXT,
+
+        created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_invites_creator ON invites(created_by);
+    `);
+  },
 ];
 
 /**

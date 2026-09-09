@@ -382,6 +382,180 @@ export async function render_(container) {
   ]);
 
   // ========================================================================
+  // 2b. Einladungen (nur Administratoren)
+  // ========================================================================
+  // Der einfache Weg, Freunde mitmachen zu lassen: Sie bekommen ein Konto
+  // auf DIESER Instanz statt einer eigenen Installation. Damit brauchen sie
+  // keinen eigenen TMDB-Zugang – der gilt für die ganze Instanz und ist
+  // längst hinterlegt – und müssen nichts einrichten.
+  const inviteList = el('div');
+
+  const inviteCard =
+    data.user.isAdmin &&
+    el('div.card', { style: { marginBottom: '20px' } }, [
+      el('h2', { text: 'Freunde einladen' }),
+      el('p.muted.small', {
+        text: 'Erzeuge einen Link und schick ihn weiter. Wer ihn öffnet, legt sich ein Konto an – ohne eigenen Zugang zu einer Filmdatenbank, ohne Installation. Dein TMDB-Zugang gilt für alle Konten dieser Instanz.',
+      }),
+      inviteList,
+    ]);
+
+  /**
+   * Zeichnet die Einladungsliste neu.
+   */
+  const drawInvites = async () => {
+    let data;
+
+    try {
+      data = await api.invites.list();
+    } catch (error) {
+      render(inviteList, errorBox(error.message));
+      return;
+    }
+
+    /**
+     * Erzeugt eine Einladung und bietet an, sie zu verschicken.
+     * @param {object} options
+     */
+    const create = async (options) => {
+      try {
+        const invite = await api.invites.create(options);
+
+        // Direkt zum Verschicken anbieten – der Link ist ja der Zweck.
+        const text = 'Ich lade dich zu meinem Streamo ein. Damit siehst du, wo du unsere Serien streamen kannst.';
+
+        if (navigator.share) {
+          try {
+            await navigator.share({ title: 'Einladung zu Streamo', text, url: invite.url });
+            drawInvites();
+            return;
+          } catch (error) {
+            if (error.name === 'AbortError') {
+              drawInvites();
+              return;
+            }
+          }
+        }
+
+        try {
+          await navigator.clipboard.writeText(invite.url);
+          toast('Einladungslink kopiert – jetzt verschicken.', 'success');
+        } catch {
+          window.prompt('Einladungslink (kopieren mit Strg+C):', invite.url);
+        }
+
+        drawInvites();
+      } catch (error) {
+        toast(error.message, 'error');
+      }
+    };
+
+    render(
+      inviteList,
+
+      el('div', { style: { display: 'flex', gap: '9px', flexWrap: 'wrap', margin: '14px 0' } }, [
+        el('button.btn.btn-primary', {
+          text: '+ Einladung erzeugen',
+          title: 'Einmal nutzbar, sieben Tage gültig',
+          onClick: () => create({}),
+        }),
+        el('button.btn.btn-ghost', {
+          text: 'Dauerhafter Link',
+          title: 'Unbegrenzt nutzbar und ohne Ablaufdatum – für die ganze Familie',
+          onClick: () => {
+            if (
+              window.confirm(
+                'Ein dauerhafter Link kann von beliebig vielen Personen benutzt werden und läuft nie ab.\n\nNur weitergeben, wem du vertraust. Fortfahren?',
+              )
+            ) {
+              create({ uses: null, days: null });
+            }
+          },
+        }),
+      ]),
+
+      data.invites.length === 0
+        ? el('p.muted.small', { style: { margin: 0 }, text: 'Noch keine Einladungen erzeugt.' })
+        : el(
+            'div',
+            {},
+            data.invites.map((invite) =>
+              el(
+                'div',
+                {
+                  style: {
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '11px',
+                    padding: '10px 0',
+                    borderTop: '1px solid var(--surface-3)',
+                  },
+                },
+                [
+                  el('span', { text: invite.usable ? '🎟️' : '⌛' }),
+
+                  el('div', { style: { flex: '1', minWidth: '0' } }, [
+                    el('div', {
+                      style: {
+                        fontFamily: 'ui-monospace, monospace',
+                        fontSize: '12.5px',
+                        wordBreak: 'break-all',
+                      },
+                      text: invite.url,
+                    }),
+                    el('div.muted.small', {
+                      text: [
+                        invite.usesLeft === null
+                          ? 'unbegrenzt nutzbar'
+                          : `noch ${invite.usesLeft}× nutzbar`,
+                        invite.expiresAt
+                          ? `gültig bis ${formatDate(invite.expiresAt.slice(0, 10))}`
+                          : 'ohne Ablauf',
+                        invite.usedCount > 0 ? `${invite.usedCount}× eingelöst` : null,
+                        invite.expired ? 'ABGELAUFEN' : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · '),
+                    }),
+                  ]),
+
+                  invite.usable &&
+                    el('button.btn.btn-sm.btn-ghost', {
+                      text: 'Kopieren',
+                      onClick: async () => {
+                        try {
+                          await navigator.clipboard.writeText(invite.url);
+                          toast('Kopiert.', 'success');
+                        } catch {
+                          window.prompt('Link:', invite.url);
+                        }
+                      },
+                    }),
+
+                  el('button.btn.btn-sm.btn-danger', {
+                    text: '×',
+                    title: 'Einladung widerrufen',
+                    onClick: async () => {
+                      try {
+                        await api.invites.revoke(invite.token);
+                        drawInvites();
+                      } catch (error) {
+                        toast(error.message, 'error');
+                      }
+                    },
+                  }),
+                ],
+              ),
+            ),
+          ),
+    );
+  };
+
+  if (data.user.isAdmin) {
+    drawInvites().catch(() => {});
+  }
+
+  // ========================================================================
   // 3. TMDB-Key (nur Administratoren)
   // ========================================================================
   const apiKeyInput = el('input', {
@@ -564,6 +738,7 @@ export async function render_(container) {
     container,
     el('h1', { text: 'Einstellungen' }),
     accountCard,
+    inviteCard,
     passkeyCard,
     tmdbCard,
     syncCard,

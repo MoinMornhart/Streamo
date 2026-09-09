@@ -212,6 +212,101 @@ export function render_(container, options = {}) {
   }
 
   // ------------------------------------------------------------------------
+  // Einladung einlösen
+  // ------------------------------------------------------------------------
+  // Der Bildschirm für Leute, die einen Einladungslink bekommen haben.
+  // Bewusst kurz: Benutzername, Passwort, fertig. Kein TMDB-Zugang, keine
+  // Region, keine Erklärungen – all das ist auf dieser Instanz längst
+  // eingerichtet.
+  if (mode === 'invite') {
+    const form = el(
+      'form',
+      {
+        onSubmit: async (event) => {
+          event.preventDefault();
+          render(messageSlot);
+
+          const data = Object.fromEntries(new FormData(form).entries());
+          const button = form.querySelector('button[type=submit]');
+
+          button.disabled = true;
+          button.textContent = 'Konto wird angelegt …';
+
+          try {
+            await api.auth.register({
+              username: data.username,
+              password: data.password,
+              displayName: data.displayName,
+              invite: options.token,
+            });
+
+            await refreshStatus();
+            toast('Willkommen bei Streamo!', 'success');
+
+            // Direkt zur Anbieter-Auswahl – ohne verknüpfte Abos wäre
+            // Streamo nur halb nützlich.
+            startRouter();
+            navigateTo('/providers');
+          } catch (error) {
+            render(messageSlot, errorBox(error.message));
+            button.disabled = false;
+            button.textContent = 'Konto anlegen';
+          }
+        },
+      },
+      [
+        field('username', 'Benutzername', {
+          required: true,
+          minlength: 3,
+          autocomplete: 'username',
+          placeholder: 'z. B. lisa',
+        }),
+
+        field(
+          'password',
+          'Passwort',
+          {
+            type: 'password',
+            required: true,
+            minlength: 8,
+            autocomplete: 'new-password',
+          },
+          'Mindestens 8 Zeichen.',
+        ),
+
+        field('displayName', 'Anzeigename (optional)', { placeholder: 'Lisa' }),
+
+        messageSlot,
+
+        el('button.btn.btn-primary', {
+          type: 'submit',
+          text: 'Konto anlegen',
+          style: { width: '100%', height: '42px' },
+        }),
+      ],
+    );
+
+    render(
+      container,
+      el('div.auth-screen', {}, [
+        el('div.auth-box', {}, [
+          el('div.auth-logo', {}, [el('span.brand-mark', { text: 'S' }), 'Du bist eingeladen']),
+          el('p.auth-sub', {
+            text: 'Leg dir ein Konto an – mehr braucht es nicht. Alles Weitere ist schon eingerichtet.',
+          }),
+          form,
+
+          el('p.hint', {
+            style: { marginTop: '18px', marginBottom: 0 },
+            text: 'Du brauchst keinen eigenen Zugang zu einer Filmdatenbank und musst nichts installieren. Sobald du angemeldet bist, klickst du nur noch deine Streaming-Abos an.',
+          }),
+        ]),
+      ]),
+    );
+    return;
+  }
+
+  // ------------------------------------------------------------------------
   // Anmeldung
   // ------------------------------------------------------------------------
 

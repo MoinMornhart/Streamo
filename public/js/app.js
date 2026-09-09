@@ -162,6 +162,39 @@ route('/s/:token', async (params) => {
   await mod.render(viewRoot(), params);
 });
 
+// Eine Einladung einloesen - ebenfalls ohne Anmeldung erreichbar.
+route('/einladung/:token', async (params) => {
+  render(viewRoot(), loading('Einladung wird geprueft …'));
+
+  const mod = await import('./views/auth.js');
+
+  // Erst pruefen, ob die Einladung ueberhaupt taugt. Sonst fuellt jemand
+  // das Formular aus und erfaehrt danach, dass der Link abgelaufen ist.
+  try {
+    const check = await api.auth.checkInvite(params.token);
+
+    if (!check.valid) {
+      render(
+        viewRoot(),
+        el('div.auth-screen', {}, [
+          el('div.auth-box', {}, [
+            el('div.auth-logo', {}, [el('span.brand-mark', { text: 'S' }), 'Streamo']),
+            el('h2', { text: 'Einladung ungueltig' }),
+            el('p.muted', { text: check.reason }),
+            el('p.hint', { text: 'Bitte die Person fragen, die dich eingeladen hat - sie kann einen neuen Link erzeugen.' }),
+          ]),
+        ]),
+      );
+      return;
+    }
+  } catch (error) {
+    render(viewRoot(), el('div.auth-screen', {}, [el('div.auth-box', {}, [el('p', { text: error.message })])]));
+    return;
+  }
+
+  mod.render(viewRoot(), { mode: 'invite', token: params.token });
+});
+
 route('/', view(() => import('./views/home.js')));
 route('/search', view(() => import('./views/search.js')));
 route('/library', view(() => import('./views/library.js')));
@@ -245,7 +278,11 @@ async function boot() {
     // Frische Installation -> Einrichtungsassistent. Mit einer Ausnahme:
     // Eine geteilte Liste soll auch dann sichtbar sein. Wer einen Link
     // bekommt, hat mit der Einrichtung dieser Instanz nichts zu tun.
-    if (status.needsSetup && !window.location.pathname.startsWith('/s/')) {
+    if (
+      status.needsSetup &&
+      !window.location.pathname.startsWith('/s/') &&
+      !window.location.pathname.startsWith('/einladung/')
+    ) {
       const mod = await import('./views/auth.js');
       mod.render(viewRoot(), { mode: 'setup', defaults: status.defaults });
       return;

@@ -48,6 +48,9 @@ jobs:
       - name: Freunde testen
         run: npm run test:friends
 
+      - name: Einladungen testen
+        run: npm run test:invites
+
       - name: Serverstart prüfen
         # Startet den Server im Hintergrund und fragt /api/health ab. Damit ist
         # sichergestellt, dass alle Module fehlerfrei laden und das Schema

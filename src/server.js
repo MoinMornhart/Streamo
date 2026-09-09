@@ -50,6 +50,7 @@ import collectionRoutes from './routes/collections.js';
 // Der einzige Router ohne Anmeldepflicht - fuer geteilte Listen.
 import publicRoutes from './routes/public.js';
 import friendRoutes from './routes/friends.js';
+import inviteRoutes from './routes/invites.js';
 
 const app = express();
 
@@ -125,6 +126,7 @@ app.use('/api/stats', statsRoutes); //     Auswertungen
 app.use('/api/achievements', achievementRoutes); // Erfolge
 app.use('/api/collections', collectionRoutes); // Filmreihen
 app.use('/api/friends', friendRoutes); //  Freunde und gemeinsames Schauen
+app.use('/api/invites', inviteRoutes); //  Einladungen
 app.use('/api/public', publicRoutes); //   Geteilte Listen (ohne Anmeldung)
 
 /**
