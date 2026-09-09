@@ -176,19 +176,63 @@ Der Container lässt sich natürlich auch klassisch über die Proxmox-Sicherung 
 
 ## Aktualisieren
 
-Im Container:
+Im Container genügt ein Wort:
 
 ```bash
-streamo-update
+update
 ```
 
-Das Skript legt vorher eine Sicherung der Datenbank an, holt die neue Version, installiert Abhängigkeiten und startet den Dienst neu. Deine Daten und deine `.env` bleiben unberührt.
-
-Vom Proxmox-Host aus:
+Vom Proxmox-Host aus, ohne sich einzuloggen:
 
 ```bash
-pct exec <CTID> -- streamo-update
+pct exec <CTID> -- update
 ```
+
+Was dabei passiert:
+
+1. Nachsehen, ob es überhaupt eine neue Version gibt – wenn nicht, ist nach einer Sekunde Schluss
+2. Die Änderungen der neuen Version anzeigen und einmal nachfragen
+3. Sicherungskopie der Datenbank anlegen (die letzten fünf bleiben erhalten)
+4. Dienst anhalten, neue Version holen, Abhängigkeiten installieren
+5. Dienst starten und prüfen, ob er wirklich antwortet
+6. **Antwortet er nicht, wird automatisch der vorherige Stand wiederhergestellt** – Code und Datenbank. Streamo läuft dann in der alten Version weiter, statt kaputt liegenzubleiben.
+
+Deine Datenbank (`data/`) und deine Konfiguration (`.env`) bleiben in jedem Fall unberührt.
+
+Optionen:
+
+| Befehl | Wirkung |
+| --- | --- |
+| `update` | Aktualisieren, mit Rückfrage |
+| `update --check` | Nur nachsehen, ob es etwas Neues gibt. Ändert nichts. |
+| `update --yes` | Ohne Rückfrage – für Cronjobs und Automatisierung |
+| `update --force` | Auch bei aktueller Version neu installieren (Reparatur) |
+
+`streamo-update` ist derselbe Befehl unter sprechendem Namen.
+
+### Weitere Befehle im Container
+
+```bash
+streamo            # zeigt alle Befehle
+streamo status     # Läuft der Dienst?
+streamo logs       # Protokoll live mitlesen
+streamo restart    # Neu starten
+streamo config     # .env bearbeiten, startet danach automatisch neu
+streamo backup     # Datenbank und Konfiguration sichern
+streamo info       # Version, Adresse, Zustand
+```
+
+Beim Anmelden im Container begrüßt dich eine Übersicht mit Version, Adresse und Dienstzustand.
+
+### Automatisch aktualisieren
+
+Wer will, lässt Streamo sich nachts selbst aktualisieren:
+
+```bash
+pct exec <CTID> -- bash -c "echo '30 4 * * * root /usr/local/bin/update --yes >/var/log/streamo-update.log 2>&1' > /etc/cron.d/streamo-update"
+```
+
+Durch den automatischen Rollback ist das ungefährlich: Sollte ein Update den Dienst lahmlegen, steht am Morgen wieder die funktionierende Vorversion.
 
 ---
 

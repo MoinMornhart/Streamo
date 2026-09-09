@@ -246,43 +246,21 @@ systemctl restart streamo
 msg_ok "Dienst eingerichtet"
 
 # ===========================================================================
-# 7. Aktualisierungsbefehl
+# 7. Konsolenbefehle
 # ===========================================================================
-# Damit spätere Updates ein Einzeiler sind: streamo-update
-cat >/usr/local/bin/streamo-update <<'EOF'
-#!/usr/bin/env bash
-# Holt die neueste Streamo-Version und startet den Dienst neu.
-# Die Datenbank unter /opt/streamo/data und die .env bleiben unangetastet.
-set -euo pipefail
+# Richtet "update", "streamo-update" und "streamo" ein sowie die Begrüßung
+# beim Anmelden. Die Logik dafür steht in einer eigenen Datei, weil sie auch
+# bei jedem Update erneut ausgeführt wird – siehe scripts/install-commands.sh.
+msg_info "Konsolenbefehle werden eingerichtet"
 
-APP_DIR="/opt/streamo"
-
-echo "▶ Streamo wird aktualisiert …"
-
-# Sicherheitskopie der Datenbank, bevor irgendetwas passiert.
-if [[ -f "$APP_DIR/data/streamo.db" ]]; then
-  backup="$APP_DIR/data/streamo.db.backup-$(date +%Y%m%d-%H%M%S)"
-  cp "$APP_DIR/data/streamo.db" "$backup"
-  echo "  Sicherung angelegt: $backup"
+if [[ -f "$APP_DIR/scripts/install/install-commands.sh" ]]; then
+  APP_DIR="$APP_DIR" bash "$APP_DIR/scripts/install/install-commands.sh" >/dev/null
+  msg_ok "Konsolenbefehle eingerichtet (update, streamo)"
+else
+  # Sollte nicht vorkommen – aber ohne diesen Zweig wäre die Installation
+  # bei einem unvollständigen Repository stillschweigend unvollständig.
+  msg_error "install-commands.sh fehlt im Repository – der Befehl 'update' steht nicht zur Verfügung."
 fi
-
-systemctl stop streamo
-
-git -C "$APP_DIR" fetch --depth 1 origin
-git -C "$APP_DIR" reset --hard origin/main
-
-cd "$APP_DIR"
-npm install --omit=dev --no-audit --no-fund --loglevel=error
-
-chown -R streamo:streamo "$APP_DIR"
-
-systemctl start streamo
-
-echo "✓ Fertig. Version: $(node -p "require('$APP_DIR/package.json').version")"
-echo "  Protokoll ansehen: journalctl -u streamo -f"
-EOF
-
-chmod +x /usr/local/bin/streamo-update
 
 # ===========================================================================
 # 8. Erreichbarkeit prüfen
@@ -317,9 +295,12 @@ apt-get -y autoclean >/dev/null 2>&1 || true
 
 echo ""
 echo -e " ${GN}Streamo ist installiert und läuft.${CL}"
-echo -e " Adresse:      http://$(hostname -I | awk '{print $1}'):3000"
-echo -e " Verzeichnis:  ${APP_DIR}"
-echo -e " Daten:        ${DATA_DIR}"
-echo -e " Dienst:       systemctl status streamo"
-echo -e " Aktualisieren: streamo-update"
+echo -e " Adresse:       http://$(hostname -I | awk '{print $1}'):3000"
+echo -e " Verzeichnis:   ${APP_DIR}"
+echo -e " Daten:         ${DATA_DIR}"
+echo ""
+echo -e " ${YW}Befehle im Container${CL}"
+echo -e "   update           Streamo auf die neueste Version bringen"
+echo -e "   update --check   Nur nachsehen, ob es etwas Neues gibt"
+echo -e "   streamo          Alle Verwaltungsbefehle anzeigen"
 echo ""

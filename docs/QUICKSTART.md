@@ -139,15 +139,65 @@ Die Vorgaben haben bewusst Reserve. Im Betrieb sieht es so aus:
 
 ## Betrieb
 
-Alle Befehle vom Proxmox-Host aus, `<CTID>` durch deine Container-ID ersetzen:
+### Aktualisieren – ein Wort
+
+Im Container:
 
 ```bash
-pct enter <CTID>                              # Konsole im Container
-pct exec <CTID> -- systemctl status streamo   # Läuft der Dienst?
-pct exec <CTID> -- systemctl restart streamo  # Neu starten
-pct exec <CTID> -- journalctl -u streamo -f   # Protokoll live mitlesen
-pct exec <CTID> -- streamo-update             # Auf neueste Version bringen
+update
 ```
+
+Oder direkt vom Proxmox-Host, ohne sich einzuloggen:
+
+```bash
+pct exec <CTID> -- update
+```
+
+Der Befehl sieht zuerst nach, ob es überhaupt etwas Neues gibt, zeigt die
+Änderungen, sichert die Datenbank und spielt das Update ein. Startet der
+Dienst danach nicht sauber, wird **automatisch der vorherige Stand
+wiederhergestellt** – Streamo läuft dann in der alten Version weiter, statt
+kaputt liegenzubleiben.
+
+| Befehl | Wirkung |
+| --- | --- |
+| `update` | Aktualisieren, mit einer Rückfrage |
+| `update --check` | Nur nachsehen. Ändert nichts. |
+| `update --yes` | Ohne Rückfrage, z. B. für einen Cronjob |
+| `update --force` | Neu installieren, auch wenn die Version aktuell ist |
+
+### Alle weiteren Befehle
+
+Im Container – `streamo` allein zeigt die Übersicht:
+
+```bash
+streamo status     # Läuft der Dienst?
+streamo logs       # Protokoll live mitlesen
+streamo restart    # Neu starten
+streamo config     # .env bearbeiten, startet danach automatisch neu
+streamo backup     # Datenbank und Konfiguration sichern
+streamo info       # Version, Adresse, Zustand
+```
+
+Vom Proxmox-Host aus, `<CTID>` durch deine Container-ID ersetzen:
+
+```bash
+pct enter <CTID>                # Konsole im Container öffnen
+pct exec <CTID> -- update       # Aktualisieren
+pct exec <CTID> -- streamo info # Version und Adresse
+```
+
+Beim Anmelden im Container erscheint eine kurze Übersicht mit Version,
+Adresse und Dienstzustand – und dem Hinweis auf `update`.
+
+### Nachts von selbst aktualisieren
+
+```bash
+pct exec <CTID> -- bash -c "echo '30 4 * * * root /usr/local/bin/update --yes >/var/log/streamo-update.log 2>&1' > /etc/cron.d/streamo-update"
+```
+
+Das ist ungefährlich: Schlägt ein Update fehl, stellt Streamo selbstständig die
+vorherige Version wieder her.
 
 ### Konfiguration ändern
 

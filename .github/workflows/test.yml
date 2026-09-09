@@ -56,14 +56,43 @@ jobs:
           kill $SERVER_PID 2>/dev/null || true
           exit 1
 
-  shellcheck:
+  shell:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
+      - name: Node.js einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
       - name: Syntax der Shell-Skripte prüfen
         run: |
           bash -n scripts/streamo.sh
+          bash -n scripts/streamo-update.sh
           bash -n scripts/install/streamo-install.sh
+          bash -n scripts/install/install-commands.sh
           echo "Shell-Skripte sind syntaktisch in Ordnung."
+
+      - name: Erzeugte Konsolenbefehle prüfen
+        # install-commands.sh schreibt Skripte per Here-Dokument. Ein Fehler
+        # beim Maskieren fiele sonst erst im Container auf – hier wird die
+        # Datei in eine Sandbox erzeugt und ihre Syntax geprüft.
+        run: |
+          SANDBOX="$(mktemp -d)"
+          mkdir -p "$SANDBOX/bin" "$SANDBOX/motd"
+          sed -e "s|/usr/local/bin|$SANDBOX/bin|g" \
+              -e "s|/etc/update-motd.d|$SANDBOX/motd|g" \
+              -e "s|>/etc/motd|>$SANDBOX/motdfile|g" \
+              scripts/install/install-commands.sh > "$SANDBOX/run.sh"
+          bash "$SANDBOX/run.sh"
+          for f in "$SANDBOX/bin"/* "$SANDBOX/motd"/*; do
+            bash -n "$f" || exit 1
+            echo "  ok $(basename "$f")"
+          done
+
+      - name: Update-Vorgang testen
+        # Spielt ein vollständiges Update gegen ein Attrappen-Repository durch,
+        # inklusive Rollback bei fehlgeschlagenem Neustart.
+        run: npm run test:update
