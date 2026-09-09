@@ -150,7 +150,7 @@ Ist bekannt, bis wann ein Titel bei einem Anbieter läuft, steht es direkt auf d
 > Diese Angabe kommt **nicht** von TMDB. Deren Schnittstelle liefert je Anbieter genau vier Felder – Logo, Kennung, Name und Sortierrang – und kein Enddatum, in keiner Form. Bekannt wird es nur, wenn es jemand einträgt, etwa aus dem Hinweis „Letzter Tag" beim Anbieter. Auf der Detailseite steht dafür *Enddatum eintragen*; der Eintrag gilt dann für alle auf der Instanz, denn wann ein Titel eine Plattform verlässt, ist eine Tatsache über die Plattform. Ist der Tag vorbei und der Titel immer noch da, verschwindet die Angabe von selbst – ein stiller Fehlalarm wäre schlimmer als gar keine Angabe.
 
 **Kalender – auch in deinem eigenen**
-Ein eigener Reiter zeigt, was ansteht: was du dir vorgenommen hast, was bald eine Plattform verlässt und wann neue Episoden erscheinen.
+Ein eigener Reiter mit einem Monatsraster, in dem **jeder** Tag steht – auch die leeren. Genau das macht einen Kalender aus: Man sieht nicht nur, was ansteht, sondern auch, wann nichts ansteht. Eingetragen sind, was du dir vorgenommen hast, was bald eine Plattform verlässt und wann neue Episoden erscheinen.
 
 Das Ganze lässt sich abonnieren – Apple Kalender, Google Kalender, Thunderbird. Einmal einrichten, danach hält es sich von selbst aktuell. Auf dem Mac und dem iPhone genügt ein Klick auf *Jetzt abonnieren*; sonst kopiert man die Adresse in das Kalenderprogramm.
 

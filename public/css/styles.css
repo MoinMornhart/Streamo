@@ -2338,72 +2338,191 @@ input[type='date']::-webkit-calendar-picker-indicator:hover {
   opacity: 1;
 }
 
+
 /* ==========================================================================
    Der Kalender-Reiter
    ==========================================================================
-   Gebaut in public/js/views/calendar.js. Termine nach Tag gebündelt statt als
-   Monatsraster: Ein Monat mit vier Einträgen ist zu 90 % leer, und die Frage
-   lautet ohnehin "was kommt als Nächstes" und nicht "wie sieht der 17. aus". */
+   Gebaut in public/js/views/calendar.js.
 
-.cal-day {
-  margin-bottom: 22px;
-}
+   Ein echtes Monatsraster, in dem JEDER Tag steht – auch die leeren. Genau
+   das macht einen Kalender aus: Man sieht nicht nur, was ansteht, sondern
+   auch, wann nichts ansteht. Eine reine Terminliste beantwortet die Frage
+   "habe ich am Samstag etwas vor?" nicht. */
 
-.cal-day-head {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin-bottom: 8px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--surface-3);
-}
-
-/* Heute hervorheben – das ist der Tag, den man sucht. */
-.cal-day.today .cal-day-head {
-  border-bottom-color: var(--accent);
-}
-
-.cal-day.today .cal-day-head h3 {
-  color: var(--accent-soft);
-}
-
-.cal-event {
+.cal-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
 
-  padding: 10px 13px;
+/* Die Legende zu den Farbstreifen. Ohne sie sind drei Farben nur drei
+   Farben. */
+.cal-legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.cal-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cal-legend .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* Dieselbe Zuordnung wie bei den Terminen im Raster. */
+.dot.planned {
+  background: var(--accent);
+}
+.dot.expiring {
+  background: var(--warning);
+}
+.dot.episode {
+  background: var(--success);
+}
+
+/* --- Die Spaltenköpfe --- */
+/* Sie stehen außerhalb des Rasters, damit sie beim Blättern nicht mitwandern.
+   Dieselbe Spaltenaufteilung wie unten, sonst stünden sie versetzt. */
+.cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
   margin-bottom: 6px;
 
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-faint);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* --- Das Raster --- */
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.cal-cell {
+  /* Eine feste Mindesthöhe, damit leere Tage genauso viel Raum bekommen wie
+     volle – sonst hüpft das Raster je nach Monat. */
+  min-height: 96px;
+
+  padding: 6px;
   border-radius: var(--radius-sm);
   background: var(--surface);
-  /* Ein farbiger Streifen links macht die Art des Termins auf einen Blick
-     unterscheidbar, ohne dass man das Symbol lesen muss. */
+  border: 1px solid var(--surface-3);
+
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow: hidden;
+}
+
+/* Tage der Nachbarmonate: Sie gehören zur Woche, aber nicht zum Monat. */
+.cal-cell.other-month {
+  background: transparent;
+  border-color: transparent;
+  opacity: 0.4;
+}
+
+/* Heute – der Tag, den man sucht. */
+.cal-cell.today {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.cal-cell.today .cal-date {
+  color: var(--accent-soft);
+  font-weight: 800;
+}
+
+.cal-date {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  line-height: 1.2;
+}
+
+/* --- Ein Termin in einer Zelle --- */
+/* Der Farbstreifen links macht die Art auf einen Blick unterscheidbar, ohne
+   dass man das Symbol lesen muss. Der volle Text steht im Tooltip – in einer
+   Zelle ist kein Platz für "Ocean's 11, 12 und 13". */
+.cal-chip {
+  font-size: 11px;
+  line-height: 1.3;
+  padding: 2px 5px;
+  border-radius: 4px;
+
+  background: var(--surface-2);
   border-left: 3px solid var(--surface-3);
 
-  transition: background 0.12s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
 }
 
-.cal-event:hover {
-  background: var(--surface-2);
+.cal-chip:hover {
+  background: var(--surface-3);
 }
 
-/* Was man sich vorgenommen hat – in der eigenen Akzentfarbe. */
-.cal-event.planned {
+.cal-chip.planned {
   border-left-color: var(--accent);
 }
-
-/* Was ausläuft – dieselbe Warnfarbe wie auf der Kachel. */
-.cal-event.expiring {
+.cal-chip.expiring {
   border-left-color: var(--warning);
 }
-
-/* Neue Episoden. */
-.cal-event.episode {
+.cal-chip.episode {
   border-left-color: var(--success);
 }
 
-.cal-event-title {
-  font-weight: 600;
-  margin-bottom: 1px;
+/* --- Kleine Bildschirme --- */
+/* Sieben Spalten bleiben – ein Kalender ohne Wochenraster ist keiner. Nur
+   werden die Zellen flacher, und aus den Terminen werden Punkte: Für Text ist
+   auf 45 Pixel Breite kein Platz, aber "an diesem Tag ist etwas" passt. */
+@media (max-width: 720px) {
+  .cal-grid,
+  .cal-weekdays {
+    gap: 3px;
+  }
+
+  .cal-cell {
+    min-height: 58px;
+    padding: 3px;
+  }
+
+  .cal-chip {
+    /* Auf einen farbigen Balken eindampfen: Der Text wird ausgeblendet,
+       die Farbe bleibt – und der Tooltip ebenfalls. */
+    font-size: 0;
+    padding: 0;
+    height: 5px;
+    border-radius: 3px;
+    border-left: none;
+  }
+
+  .cal-chip.planned {
+    background: var(--accent);
+  }
+  .cal-chip.expiring {
+    background: var(--warning);
+  }
+  .cal-chip.episode {
+    background: var(--success);
+  }
 }
