@@ -34,6 +34,8 @@ import { getRuntimeSettings } from '../tmdb.js';
 import { checkAchievements } from '../achievements.js';
 // Fuer die Gruppierung nach Filmreihen (?group=collections).
 import { findCollectionForShow } from '../collections.js';
+// Macht die Suche in der Bibliothek nachsichtig gegenueber Tippfehlern.
+import { matches, rank } from '../fuzzy.js';
 import {
   ensureShow,
   findShow,
@@ -94,6 +96,9 @@ function buildEntry(row, ctx) {
     tmdbId: row.tmdb_id,
     mediaType: row.media_type,
     title: row.title,
+    // Wird für die nachsichtige Suche gebraucht: Wer den englischen Titel
+    // eintippt, soll auch den deutschen Verleihtitel finden – und umgekehrt.
+    originalTitle: row.original_title,
     overview: row.overview,
     posterPath: row.poster_path,
     backdropPath: row.backdrop_path,
@@ -156,13 +161,10 @@ router.get('/', (req, res) => {
     conditions.push('l.favorite = 1');
   }
 
-  if (req.query.q) {
-    // LIKE mit %…% und COLLATE NOCASE = einfache Teilstringsuche ohne
-    // Groß-/Kleinschreibung. Für ein paar hundert Einträge völlig ausreichend.
-    conditions.push('(s.title LIKE ? COLLATE NOCASE OR s.original_title LIKE ? COLLATE NOCASE)');
-    const like = `%${String(req.query.q)}%`;
-    params.push(like, like);
-  }
+  // Der Suchbegriff wird NICHT in SQL gefiltert, sondern erst danach – siehe
+  // weiter unten. Ein LIKE würde nur wörtliche Übereinstimmungen finden und
+  // bei jedem Tippfehler eine leere Liste liefern.
+  const searchQuery = String(req.query.q ?? '').trim();
 
   if (req.query.genre) {
     // genres ist ein JSON-Array von Namen – eine Textsuche darauf ist der
@@ -201,7 +203,7 @@ router.get('/', (req, res) => {
   const rows = all(
     `SELECT l.show_id, l.status, l.rating, l.favorite, l.notes,
             l.added_at, l.updated_at,
-            s.tmdb_id, s.media_type, s.title, s.overview, s.poster_path,
+            s.tmdb_id, s.media_type, s.title, s.original_title, s.overview, s.poster_path,
             s.backdrop_path, s.first_air_date, s.status AS status_text, s.genres,
             s.number_of_seasons, s.number_of_episodes, s.vote_average, s.runtime,
             s.availability_updated_at
@@ -212,7 +214,27 @@ router.get('/', (req, res) => {
     ...params,
   );
 
-  const entries = rows.map((row) => buildEntry(row, { userId: req.user.id, region, subscribed }));
+  let entries = rows.map((row) => buildEntry(row, { userId: req.user.id, region, subscribed }));
+
+  // -------------------------------------------------------------------------
+  // Nachsichtige Suche in der eigenen Bibliothek
+  // -------------------------------------------------------------------------
+  // Hier wird nicht mit TMDB gesprochen, sondern in einer Liste von
+  // vielleicht ein paar hundert Einträgen gesucht. Das darf ruhig aufwendiger
+  // sein – dafür verzeiht es Tippfehler, vertauschte Wörter und fehlende
+  // Bindestriche. Geprüft werden Titel UND Originaltitel: Wer "Kingsman"
+  // sucht, meint auch den deutschen Verleihtitel und umgekehrt.
+  if (searchQuery) {
+    entries = entries.filter(
+      (entry) =>
+        matches(entry.title, searchQuery) ||
+        (entry.originalTitle && matches(entry.originalTitle, searchQuery)),
+    );
+
+    // Das Ähnlichste nach oben. Die gewählte Sortierung tritt zurück – wer
+    // sucht, will den Treffer sehen, nicht die Ordnung.
+    entries = rank(entries, searchQuery);
+  }
 
   // -------------------------------------------------------------------------
   // Gruppierung nach Filmreihen

@@ -29,6 +29,8 @@ import { all } from '../db.js';
 import { requireAuth } from '../auth.js';
 import * as tmdb from '../tmdb.js';
 import { getRuntimeSettings } from '../tmdb.js';
+// Macht die Suche nachsichtig gegenueber Tippfehlern.
+import { variants, rank } from '../fuzzy.js';
 
 const router = express.Router();
 router.use(requireAuth);
@@ -109,24 +111,59 @@ router.get('/', async (req, res, next) => {
 
   if (!query) return res.json({ results: [], page: 1, totalPages: 0 });
 
-  try {
-    const data = await tmdb.searchMulti(query, {
-      language,
-      page: Number(req.query.page) || 1,
-    });
+  const page = Number(req.query.page) || 1;
 
-    const items = (data.results || [])
+  try {
+    const data = await tmdb.searchMulti(query, { language, page });
+
+    let items = (data.results || [])
       .map((item) => normalizeItem(item))
       .filter(Boolean)
       // Treffer ohne Poster sind meistens Karteileichen; sie nach hinten zu
       // sortieren macht die erste Bildschirmseite deutlich brauchbarer.
       .sort((a, b) => (a.posterPath ? 0 : 1) - (b.posterPath ? 0 : 1));
 
+    // ----------------------------------------------------------------------
+    // Zweiter Versuch bei Tippfehlern
+    // ----------------------------------------------------------------------
+    // TMDB sucht exakt. Wer "Kingsmann" tippt, bekommt nichts – und sieht den
+    // eigenen Fehler oft nicht. Deshalb wird bei einer leeren Trefferliste
+    // mit bereinigten Schreibweisen nachgefasst: doppelte Buchstaben
+    // reduziert, Sonderzeichen entfernt, notfalls nur das längste Wort.
+    //
+    // Nur bei der ersten Seite und nur, wenn wirklich nichts kam – jede
+    // Variante kostet einen API-Aufruf.
+    let correctedFrom = null;
+
+    if (items.length === 0 && page === 1) {
+      for (const variant of variants(query)) {
+        const retry = await tmdb.searchMulti(variant, { language });
+
+        const found = (retry.results || [])
+          .map((item) => normalizeItem(item))
+          .filter(Boolean);
+
+        if (found.length > 0) {
+          // Nach Ähnlichkeit zum URSPRÜNGLICH Getippten sortieren, nicht zur
+          // Variante – der Benutzer hat ja das eine gemeint.
+          items = rank(found, query).sort(
+            (a, b) => (a.posterPath ? 0 : 1) - (b.posterPath ? 0 : 1),
+          );
+
+          // Das Frontend weist darauf hin, wonach tatsächlich gesucht wurde.
+          correctedFrom = variant;
+          break;
+        }
+      }
+    }
+
     res.json({
       results: markLibraryState(items, req.user.id),
       page: data.page,
       totalPages: data.total_pages,
       totalResults: data.total_results,
+      // Gesetzt, wenn erst eine korrigierte Schreibweise Treffer brachte.
+      correctedFrom,
     });
   } catch (error) {
     next(error);

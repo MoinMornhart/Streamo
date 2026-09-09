@@ -25,7 +25,8 @@
     "test:collections": "node tests/collections.test.mjs",
     "test:friends": "node tests/friends.test.mjs",
     "test:invites": "node tests/invites.test.mjs",
-    "test:all": "npm test && npm run test:migration && npm run test:achievements && npm run test:collections && npm run test:friends && npm run test:invites && npm run test:template && npm run test:update"
+    "test:fuzzy": "node tests/fuzzy.test.mjs",
+    "test:all": "npm test && npm run test:migration && npm run test:achievements && npm run test:collections && npm run test:friends && npm run test:invites && npm run test:fuzzy && npm run test:template && npm run test:update"
   },
   "dependencies": {
     "@simplewebauthn/server": "^14.0.1",

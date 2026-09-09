@@ -101,7 +101,12 @@ export async function render_(container, _params, query) {
         el('h1', { text: `Suche: ${term}`, style: { marginBottom: '2px' } }),
         el('p.muted', {
           style: { margin: 0 },
-          text: `${data.totalResults ?? data.results.length} Treffer`,
+          // Hat erst eine korrigierte Schreibweise Treffer gebracht, muss das
+          // sichtbar sein: Sonst wundert man sich, warum "Kingsmann" plötzlich
+          // "Kingsman" zeigt. Das Feld correctedFrom liefert src/routes/search.js.
+          text: data.correctedFrom
+            ? `Nichts zu „${term}" gefunden – hier sind die Treffer für „${data.correctedFrom}"`
+            : `${data.totalResults ?? data.results.length} Treffer`,
         }),
       ]),
     ]),
