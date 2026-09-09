@@ -150,12 +150,35 @@ echo ""
 # ===========================================================================
 msg_info "Suche nach Aktualisierungen"
 
+# ---------------------------------------------------------------------------
+# Git erlauben, in diesem Verzeichnis zu arbeiten.
+#
+# /opt/streamo gehört dem Dienstbenutzer "streamo", das Update läuft aber als
+# root. Seit Git 2.35 wird das als "dubious ownership" abgelehnt, und jede
+# git-Operation scheitert. Die Ausnahme gilt nur für dieses Verzeichnis.
+# ---------------------------------------------------------------------------
+git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
+
 # Erst den aktuellen Stand merken – auf ihn wird notfalls zurückgerollt.
-CURRENT_COMMIT="$(git -C "$APP_DIR" rev-parse HEAD)"
+if ! CURRENT_COMMIT="$(git -C "$APP_DIR" rev-parse HEAD 2>/tmp/streamo-git.log)"; then
+  msg_error "Das Repository unter ${APP_DIR} ist nicht lesbar."
+  echo "   Meldung von git:"
+  sed 's/^/     /' /tmp/streamo-git.log | tail -5
+  exit 1
+fi
 CURRENT_VERSION="$(node -p "require('${APP_DIR}/package.json').version" 2>/dev/null || echo '?')"
 
 # --depth 1 holt nur den neuesten Stand, nicht die ganze Geschichte.
-git -C "$APP_DIR" fetch --depth 1 origin "$BRANCH" >/dev/null 2>&1
+# Fehler werden protokolliert statt verschluckt – ein stiller Abbruch an
+# dieser Stelle ist praktisch nicht zu diagnostizieren.
+if ! git -C "$APP_DIR" fetch --depth 1 origin "$BRANCH" >/tmp/streamo-git.log 2>&1; then
+  msg_error "Die Verbindung zum Repository ist fehlgeschlagen."
+  echo "   Meldung von git:"
+  sed 's/^/     /' /tmp/streamo-git.log | tail -8
+  echo ""
+  echo "   Läuft der Container online? Prüfe mit: ping -c1 github.com"
+  exit 1
+fi
 
 REMOTE_COMMIT="$(git -C "$APP_DIR" rev-parse "origin/${BRANCH}")"
 

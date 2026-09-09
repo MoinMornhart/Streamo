@@ -146,15 +146,24 @@ app.use('/api', (req, res) => {
 // --------------------------------------------------------------------------
 app.use(
   express.static(config.publicDir, {
-    // index.html nie aus dem Cache: Sie enthält die Verweise auf die
-    // JS-Dateien, und nach einem Update soll sofort die neue Version laden.
-    setHeaders(res, filePath) {
-      if (filePath.endsWith('.html')) {
-        res.setHeader('Cache-Control', 'no-cache');
-      } else {
-        // CSS/JS/Bilder dürfen eine Stunde im Browser bleiben.
-        res.setHeader('Cache-Control', 'public, max-age=3600');
-      }
+    /**
+     * Cache-Control für alle Dateien der Oberfläche.
+     *
+     * "no-cache" heißt entgegen dem Namen NICHT "nicht zwischenspeichern",
+     * sondern "vor jeder Verwendung nachfragen, ob es noch aktuell ist".
+     * Express schickt zu jeder Datei einen ETag mit; der Browser hängt ihn an
+     * die nächste Anfrage, und der Server antwortet mit einem winzigen
+     * "304 Not Modified", wenn sich nichts geändert hat. Der Inhalt selbst
+     * geht also nur dann über die Leitung, wenn er wirklich neu ist.
+     *
+     * Vorher stand hier "max-age=3600" für CSS und JavaScript. Das hatte eine
+     * unangenehme Folge: Nach einem "update" sah man bis zu einer Stunde lang
+     * weiter die alte Oberfläche, weil der Browser gar nicht erst nachfragte.
+     * Bei einer Anwendung, die sich selbst aktualisiert, ist das der falsche
+     * Tausch – die paar eingesparten Anfragen wiegen den Ärger nicht auf.
+     */
+    setHeaders(res) {
+      res.setHeader('Cache-Control', 'no-cache');
     },
   }),
 );

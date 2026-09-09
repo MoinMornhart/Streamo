@@ -109,10 +109,33 @@ fi
 # ===========================================================================
 # 4. Anwendung holen
 # ===========================================================================
+# ---------------------------------------------------------------------------
+# Git erlauben, in diesem Verzeichnis zu arbeiten.
+#
+# /opt/streamo gehört dem Dienstbenutzer "streamo", ausgeführt wird aber als
+# root. Seit Version 2.35 verweigert Git in dieser Lage jede Operation mit
+# "detected dubious ownership in repository" – eine Schutzmaßnahme gegen
+# untergeschobene Repositories in fremden Verzeichnissen.
+#
+# Ohne diese Zeile scheitern "git fetch" und damit jedes Update. Die Angabe
+# beschränkt die Ausnahme auf genau dieses eine Verzeichnis.
+# ---------------------------------------------------------------------------
+git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
+
 if [[ -d "$APP_DIR/.git" ]]; then
   msg_info "Vorhandene Installation wird aktualisiert"
-  git -C "$APP_DIR" fetch --depth 1 origin "$REPO_BRANCH" >/dev/null 2>&1
-  git -C "$APP_DIR" reset --hard "origin/${REPO_BRANCH}" >/dev/null 2>&1
+
+  # Fehler werden protokolliert statt verschluckt. Vorher stand hier
+  # ">/dev/null 2>&1", wodurch ein gescheitertes git das Skript wortlos
+  # beendete – man sah nur "wird aktualisiert…" und war zurück im Prompt.
+  if ! git -C "$APP_DIR" fetch --depth 1 origin "$REPO_BRANCH" >/tmp/streamo-git.log 2>&1 ||
+    ! git -C "$APP_DIR" reset --hard "origin/${REPO_BRANCH}" >>/tmp/streamo-git.log 2>&1; then
+    msg_error "Die neue Version konnte nicht geholt werden."
+    echo "   Meldung von git:"
+    sed 's/^/     /' /tmp/streamo-git.log | tail -10
+    exit 1
+  fi
+
   msg_ok "Quellen aktualisiert"
 else
   msg_info "Streamo wird heruntergeladen"
