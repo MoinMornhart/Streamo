@@ -30,6 +30,22 @@ Alle Werte lassen sich im Installationsdialog unter „Erweitert" ändern.
 
 ---
 
+## Auf einem Raspberry Pi oder einem anderen Linux-Rechner
+
+Es muss kein Proxmox sein. Derselbe Installer läuft auf jedem Debian- oder Ubuntu-System – einschließlich Raspberry Pi OS:
+
+```bash
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/MoinMornhart/Streamo/main/scripts/install/streamo-install.sh)"
+```
+
+Danach läuft Streamo unter `http://<adresse>:3000`, mit denselben Befehlen (`update`, `streamo status`, …) wie im Container.
+
+**Nimm auf dem Pi die 64-Bit-Fassung.** Streamo braucht Node.js 22.13 oder neuer für das eingebaute `node:sqlite`; auf 32-Bit-Systemen endet die Node-Reihe bei 22, auf 64-Bit gibt es 24. Der Installer wählt die passende von selbst und bricht bei einer Architektur ohne Pakete mit einer klaren Ansage ab, statt später an einer kryptischen `apt`-Meldung zu scheitern.
+
+Die ausführliche Anleitung samt SD-Karten-Sicherung, Speicherbedarf und Fehlersuche steht in **[docs/RASPBERRY-PI.md](docs/RASPBERRY-PI.md)**.
+
+---
+
 ## Streamo für den PC
 
 Neben der Weboberfläche gibt es eine Windows-App: **[Installer herunterladen](https://github.com/MoinMornhart/Streamo/releases)**

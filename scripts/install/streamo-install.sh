@@ -32,7 +32,45 @@ REPO_BRANCH="${REPO_BRANCH:-main}"
 APP_DIR="/opt/streamo"
 DATA_DIR="/opt/streamo/data"
 SERVICE_USER="streamo"
-NODE_MAJOR="24"
+# ---------------------------------------------------------------------------
+# Welche Node-Reihe? Das haengt von der Architektur ab.
+# ---------------------------------------------------------------------------
+# Auf einem gewoehnlichen Server (amd64) und auf einem Raspberry Pi mit
+# 64-Bit-System (arm64) gibt es Node 24 bei NodeSource.
+#
+# Auf einem 32-Bit-System (armhf) NICHT: Die Paketliste von node_24.x enthaelt
+# dort ueberhaupt kein nodejs-Paket, und nodejs.org liefert fuer Node 24 auch
+# kein armv7l-Archiv mehr. Node 22 gibt es dagegen weiterhin fuer armhf - und
+# 22 genuegt, denn Streamo braucht mindestens 22.5 fuer das eingebaute Modul
+# node:sqlite.
+#
+# Ohne diese Unterscheidung bricht die Installation auf einem 32-Bit-Pi mit
+# "Unable to locate package nodejs" ab - und zwar erst nach dem
+# Paketquellen-Eintrag, was die Ursache schwer erkennbar macht.
+HOST_ARCH="$(dpkg --print-architecture 2>/dev/null || echo unknown)"
+
+case "$HOST_ARCH" in
+  amd64 | arm64)
+    NODE_MAJOR="24"
+    ;;
+  armhf)
+    NODE_MAJOR="22"
+    ;;
+  *)
+    # Auf allem anderen (armel, i386, riscv64 …) gibt es keine passenden
+    # Pakete. Lieber jetzt mit einer klaren Ansage abbrechen als spaeter mit
+    # einer kryptischen apt-Meldung.
+    echo ""
+    echo "  Diese Architektur wird nicht unterstuetzt: ${HOST_ARCH}"
+    echo ""
+    echo "  Streamo braucht Node.js 22.5 oder neuer. Fertige Pakete gibt es"
+    echo "  fuer amd64, arm64 und armhf."
+    echo ""
+    echo "  Auf einem Raspberry Pi: Nimm Raspberry Pi OS in der 64-Bit-Fassung."
+    echo ""
+    exit 1
+    ;;
+esac
 
 # Farben für die Ausgabe (identisch zu scripts/streamo.sh)
 GN=$'\033[1;92m'
@@ -66,10 +104,31 @@ msg_ok "System aktualisiert"
 # 2. Node.js
 # ===========================================================================
 # Warum NodeSource statt der Debian-Pakete? Debian liefert eine ältere
-# Node-Version aus. Streamo braucht mindestens Node 22.5 für das eingebaute
-# Modul node:sqlite – ab Node 23.4 ist es ohne Zusatzflag verfügbar, deshalb
-# installieren wir die aktuelle LTS-Reihe.
-if command -v node >/dev/null 2>&1 && [[ "$(node -v | cut -d. -f1 | tr -d 'v')" -ge 23 ]]; then
+# Node-Version aus. Streamo braucht das eingebaute Modul node:sqlite, und das
+# ist erst ab Node 22.13 ohne Zusatzflag nutzbar (in 22.5 kam es hinzu, aber
+# nur hinter --experimental-sqlite; freigeschaltet wurde es in 23.4 und
+# rückwirkend in 22.13).
+#
+# 22.13 ist deshalb die Untergrenze – nicht 23. Auf einem 32-Bit-Raspberry-Pi
+# gibt es nämlich gar kein Node 24, dort wird die 22er-Reihe installiert. Eine
+# Prüfung auf ">= 23" hätte ein völlig taugliches Node 22.19 verworfen und
+# stattdessen erfolglos Node 24 nachzuinstallieren versucht.
+node_taugt() {
+  command -v node >/dev/null 2>&1 || return 1
+
+  local version major minor
+  version="$(node -v | tr -d 'v')"
+  major="${version%%.*}"
+  minor="$(echo "$version" | cut -d. -f2)"
+
+  # Ab 23 in jedem Fall; bei 22 erst ab 22.13.
+  [[ "$major" -ge 23 ]] && return 0
+  [[ "$major" -eq 22 && "$minor" -ge 13 ]] && return 0
+
+  return 1
+}
+
+if node_taugt; then
   msg_ok "Node.js $(node -v) ist bereits installiert"
 else
   msg_info "Node.js ${NODE_MAJOR} wird installiert"

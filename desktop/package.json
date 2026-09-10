@@ -1,6 +1,6 @@
 {
   "name": "streamo-desktop",
-  "version": "1.2.9",
+  "version": "1.3.0",
   "description": "Streamo für den PC – eigenes Fenster, Tray-Symbol, Benachrichtigungen bei neuen Episoden.",
   "main": "main.js",
   "license": "MIT",
