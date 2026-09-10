@@ -2019,6 +2019,12 @@ footer p {
     height: 38px;
     font-size: 14px;
     min-width: 118px;
+    /* Der Innenabstand MUSS hier mit: Die Regel darüber gibt allen Feldern
+       12 Pixel oben und unten. Zusammen mit der festen Höhe von 38 blieben
+       davon 12 Pixel für den Text – bei 14 Pixel Schrift wird er unten
+       abgeschnitten. Genau dieses Muster hat die Auswahl auf der
+       Detailseite unlesbar gemacht. */
+    padding: 0 12px;
   }
 
   /* --- Detailseite --- */
@@ -2679,5 +2685,41 @@ input[type='date']::-webkit-calendar-picker-indicator:hover {
      lange Name, der sonst überläuft. */
   .user-row strong {
     overflow-wrap: anywhere;
+  }
+}
+
+/* ==========================================================================
+   Die Auswahlfelder auf der Detailseite
+   ==========================================================================
+   Status ("Schaue ich") und Bewertung. Sie standen mit einer festen Höhe von
+   38 Pixeln im JavaScript – und genau daran wurde der Text abgeschnitten:
+
+     Gesamthöhe          38 px
+     - Innenabstand      24 px   (12 oben + 12 unten, nur auf dem Telefon)
+     - Rahmen             2 px
+     ------------------------
+     Platz für den Text  12 px   bei 16 px Schriftgröße
+
+   Die Schrift ist auf dem Telefon absichtlich 16 Pixel groß, weil iOS sonst
+   beim Antippen in das Feld hineinzoomt. Zusammen mit dem größeren
+   Innenabstand für die Fingerbedienung passte die alte Höhe nicht mehr.
+
+   Eine Höhe im JavaScript lässt sich von einem Media Query nicht aufheben.
+   Deshalb steht sie jetzt hier – und auf dem Telefon gar nicht. */
+
+.detail-select {
+  width: auto;
+  height: 38px;
+  /* Zeilenhöhe passend zur verbleibenden Innenhöhe, sonst sitzt der Text
+     auch auf dem Rechner nicht mittig. */
+  line-height: 1.2;
+}
+
+@media (max-width: 720px) {
+  .detail-select {
+    /* Keine feste Höhe: Innenabstand und Schriftgröße bestimmen sie. So
+       passt der Text immer hinein, egal wie groß der Browser ihn darstellt. */
+    height: auto;
+    width: 100%;
   }
 }

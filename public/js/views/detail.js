@@ -420,7 +420,10 @@ export async function render_(container, params) {
       el(
         'select',
         {
-          style: { width: 'auto', height: '38px' },
+          // Groesse im Stylesheet (.detail-select), nicht hier: Eine feste
+          // Hoehe im JavaScript laesst sich vom Handy-Query nicht aufheben -
+          // und genau daran wurde der Text unten abgeschnitten.
+          class: 'detail-select',
           onChange: async (event) => {
             try {
               await api.library.update(show.showId, { status: event.target.value });
@@ -505,7 +508,10 @@ export async function render_(container, params) {
       el(
         'select',
         {
-          style: { width: 'auto', height: '38px' },
+          // Groesse im Stylesheet (.detail-select), nicht hier: Eine feste
+          // Hoehe im JavaScript laesst sich vom Handy-Query nicht aufheben -
+          // und genau daran wurde der Text unten abgeschnitten.
+          class: 'detail-select',
           title: 'Meine Bewertung',
           onChange: async (event) => {
             const value = event.target.value === '' ? null : Number(event.target.value);
