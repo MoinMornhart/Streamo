@@ -297,24 +297,30 @@ export function canonicalProviderId(providerId, name) {
 export function mergeOffers(offers) {
   if (!Array.isArray(offers)) return [];
 
-  /** @type {Map<number, object>} */
-  const merged = new Map();
+  // Dieselbe Zuordnung wie beim Katalog, statt einer eigenen, schwächeren.
+  //
+  // Früher lief hier nur die feste ID-Liste (canonicalProviderId). Die Endung
+  // wurde trotzdem vom Namen abgeschnitten – bei einer Variante, die nicht in
+  // der Liste steht, entstand so ein zweiter Eintrag mit gleichem Namen:
+  // "HBO Max Amazon Channel" (1825) hieß danach "HBO Max", behielt aber seine
+  // ID und stand neben dem echten HBO Max (1899). In der Statistik tauchte
+  // der Dienst deshalb zweimal auf.
+  //
+  // mergeProviders() gleicht zusätzlich die Namen innerhalb der Liste ab und
+  // führt die Variante auf den Hauptdienst zurück, sobald er ebenfalls
+  // angeboten wird. TMDB liefert je Angebot genau diese vier Felder, es geht
+  // beim Umbenennen also nichts verloren.
+  const asProviders = offers.map((offer) => ({
+    id: offer.provider_id,
+    name: offer.provider_name ?? '',
+    logo_path: offer.logo_path ?? null,
+    display_priority: offer.display_priority ?? 9999,
+  }));
 
-  for (const offer of offers) {
-    const mainId = canonicalProviderId(offer.provider_id, offer.provider_name);
-    const priority = offer.display_priority ?? 9999;
-
-    const existing = merged.get(mainId);
-
-    if (!existing || priority < (existing.display_priority ?? 9999)) {
-      merged.set(mainId, {
-        ...offer,
-        provider_id: mainId,
-        provider_name: stripVariantSuffix(offer.provider_name ?? ''),
-        display_priority: priority,
-      });
-    }
-  }
-
-  return [...merged.values()];
+  return mergeProviders(asProviders).map((provider) => ({
+    provider_id: provider.id,
+    provider_name: provider.name,
+    logo_path: provider.logo_path,
+    display_priority: provider.display_priority,
+  }));
 }

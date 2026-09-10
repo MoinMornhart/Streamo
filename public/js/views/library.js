@@ -493,7 +493,9 @@ export async function render_(container, _params, query) {
       el(
         'select',
         {
-          style: { flex: '1', height: '28px', fontSize: '12px', padding: '0 6px' },
+          // Aussehen steht in styles.css (.tile-status): Ein Inline-Stil schlug
+          // dort jede Regel und nahm dem Pfeil mit "padding: 0 6px" den Platz.
+          class: 'tile-status',
           title: 'Status ändern',
           onClick: (event) => event.stopPropagation(), // Kachel nicht öffnen
           onChange: async (event) => {

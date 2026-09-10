@@ -122,6 +122,24 @@ check(
 check('Kein Eintrag mit der Varianten-ID', mergedOffers.some((o) => o.provider_id === 1796), false);
 check('Leere Eingabe ergibt eine leere Liste', mergeOffers(undefined), []);
 
+// Eine Variante, die NICHT in der festen ID-Liste steht: Sie darf nicht als
+// zweiter "HBO Max" neben dem echten stehen bleiben (so geschehen in der
+// Statistik), sondern muss über den Namen zum Hauptdienst finden.
+const hboOffers = mergeOffers([
+  { provider_id: 1825, provider_name: 'HBO Max Amazon Channel', logo_path: '/ch.jpg', display_priority: 0 },
+  { provider_id: 1899, provider_name: 'HBO Max', logo_path: '/hbo.jpg', display_priority: 3 },
+]);
+check('Channel ohne ID-Zuordnung: ein Eintrag statt zwei', hboOffers.length, 1);
+check('Er trägt die ID des Hauptdienstes', hboOffers[0]?.provider_id, 1899);
+check('Und dessen Namen', hboOffers[0]?.provider_name, 'HBO Max');
+
+// Gegenprobe: Wird nur der Channel angeboten, gibt es nichts zusammenzuführen.
+const nurChannel = mergeOffers([
+  { provider_id: 1825, provider_name: 'HBO Max Amazon Channel', logo_path: '/ch.jpg', display_priority: 0 },
+]);
+check('Allein angeboten bleibt der Channel erhalten', nurChannel.length, 1);
+check('... mit seiner eigenen ID', nurChannel[0]?.provider_id, 1825);
+
 console.log('\nKauf- und Leihplattformen erkennen');
 
 // Diese gehören nicht in die Abo-Auswahl – man kann sie nicht abonnieren.

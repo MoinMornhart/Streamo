@@ -42,6 +42,25 @@ import {
 import { providerDirectLink } from '../provider-links.js';
 
 /**
+ * Der Produktionsstatus auf Deutsch.
+ *
+ * TMDB übersetzt Titel und Beschreibungen, dieses Feld aber nicht – es kommt
+ * immer englisch, egal welche Sprache angefragt wird. Die Schlüssel sind die
+ * festen Werte aus der TMDB-Dokumentation (Serien und Filme gemischt).
+ */
+const STATUS_DE = {
+  'Returning Series': 'Wird fortgesetzt',
+  Ended: 'Beendet',
+  Canceled: 'Abgesetzt',
+  'In Production': 'In Produktion',
+  Planned: 'Geplant',
+  Pilot: 'Pilotfolge',
+  Released: 'Erschienen',
+  'Post Production': 'In der Nachbearbeitung',
+  Rumored: 'Gerücht',
+};
+
+/**
  * Die Wochentage für den Sehplan.
  *
  * 1 = Montag bis 7 = Sonntag nach ISO-8601 – dieselbe Zählung wie in der
@@ -829,7 +848,10 @@ export async function render_(container, params) {
                   })
                 : el('span', { text: formatRuntime(show.runtime) }),
               show.voteAverage > 0 && el('span', { text: `★ ${show.voteAverage.toFixed(1)}` }),
-              show.status && el('span', { text: show.status }),
+              // TMDB liefert den Status auch bei language=de-DE auf Englisch
+              // ("Ended", "Returning Series"). Bekannte Werte übersetzen,
+              // unbekannte unverändert zeigen statt sie zu verschlucken.
+              show.status && el('span', { text: STATUS_DE[show.status] ?? show.status }),
             ]),
 
             show.genres.length > 0 &&

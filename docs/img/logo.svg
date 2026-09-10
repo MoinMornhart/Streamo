@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120" role="img" aria-label="Streamo">
+  <!-- Das Streamo-Zeichen fuer das README: dasselbe violette "S" wie in der
+       Kopfzeile der App (Akzentfarbe #6c5ce7), als Vektorgrafik gestochen
+       scharf in jeder Groesse. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6c5ce7"/>
+      <stop offset="1" stop-color="#a55eea"/>
+    </linearGradient>
+  </defs>
+  <rect width="120" height="120" rx="28" fill="url(#bg)"/>
+  <text x="60" y="84" text-anchor="middle" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif"
+        font-size="74" font-weight="800" fill="#ffffff">S</text>
+</svg>

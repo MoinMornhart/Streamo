@@ -305,7 +305,7 @@ export async function render_(container) {
               // Die Termine des Tages. Der volle Text steht im Tooltip – in
               // einer Zelle ist kein Platz für "Ocean's 11, 12 und 13".
               ...events.map((event) =>
-                el(`div.cal-chip.${event.kind}`, {
+                el(`div.cal-chip.kind-${event.kind}`, {
                   text: event.summary,
                   title: `${event.summary}\n${event.description}`,
                   onClick: event.showId ? () => navigateTo('/library') : undefined,
@@ -369,9 +369,11 @@ export async function render_(container) {
 
     // Eine Legende, damit die Farbstreifen sprechen.
     el('div.cal-legend', {}, [
-      el('span', {}, [el('i.dot.planned'), 'Vorgemerkt']),
-      el('span', {}, [el('i.dot.expiring'), 'Läuft aus']),
-      el('span', {}, [el('i.dot.episode'), 'Neue Episode']),
+      el('span', {}, [el('i.dot.kind-planned'), 'Vorgemerkt']),
+      el('span', {}, [el('i.dot.kind-expiring'), 'Läuft aus']),
+      el('span', {}, [el('i.dot.kind-episode'), 'Neue Episode']),
+      // Sehplan-Termine stehen ebenfalls im Raster und brauchen ihre Farbe hier.
+      el('span', {}, [el('i.dot.kind-schedule'), 'Sehplan']),
     ]),
 
     gitterSlot,

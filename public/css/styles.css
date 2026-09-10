@@ -2014,6 +2014,12 @@ footer p {
     font-size: 16px;
     padding: 12px 14px;
   }
+  /* Das Kuerzel "padding" oben setzt auch den rechten Innenabstand zurueck -
+     und damit den Platz, den die Grundregel fuer den eigenen Pfeil freihaelt.
+     Ohne diese Regel laeuft der Text unter den Pfeil ("Will ich sehe"). */
+  select {
+    padding-right: 40px;
+  }
   .filters select,
   .filters input {
     height: 38px;
@@ -2025,6 +2031,11 @@ footer p {
        abgeschnitten. Genau dieses Muster hat die Auswahl auf der
        Detailseite unlesbar gemacht. */
     padding: 0 12px;
+  }
+  /* Dasselbe fuer die Filterleiste: Ihr "padding: 0 12px" ist spezifischer
+     als die Regel oben und nimmt dem Pfeil sonst wieder den Platz. */
+  .filters select {
+    padding-right: 34px;
   }
 
   /* --- Detailseite --- */
@@ -2429,18 +2440,21 @@ input[type='date']::-webkit-calendar-picker-indicator:hover {
 }
 
 /* Dieselbe Zuordnung wie bei den Terminen im Raster. */
-.dot.planned {
+/* Die Arten tragen die Vorsilbe kind-, weil .episode schon die Episodenzeilen
+   der Detailseite gestaltet (display: flex, padding: 10px 12px). Ohne Vorsilbe
+   griff diese Regel auch hier und blies Legendenpunkt und Kalendereintrag auf. */
+.dot.kind-planned {
   background: var(--accent);
 }
-.dot.expiring {
+.dot.kind-expiring {
   background: var(--warning);
 }
-.dot.episode {
+.dot.kind-episode {
   background: var(--success);
 }
 /* Sehplan: kein einzelnes Ereignis, sondern ein Rhythmus - deshalb eine
    eigene Farbe neben den drei anderen Arten. */
-.dot.schedule {
+.dot.kind-schedule {
   background: var(--accent-soft);
 }
 
@@ -2532,16 +2546,16 @@ input[type='date']::-webkit-calendar-picker-indicator:hover {
   background: var(--surface-3);
 }
 
-.cal-chip.planned {
+.cal-chip.kind-planned {
   border-left-color: var(--accent);
 }
-.cal-chip.expiring {
+.cal-chip.kind-expiring {
   border-left-color: var(--warning);
 }
-.cal-chip.episode {
+.cal-chip.kind-episode {
   border-left-color: var(--success);
 }
-.cal-chip.schedule {
+.cal-chip.kind-schedule {
   border-left-color: var(--accent-soft);
 }
 
@@ -2570,17 +2584,17 @@ input[type='date']::-webkit-calendar-picker-indicator:hover {
     border-left: none;
   }
 
-  .cal-chip.planned {
+  .cal-chip.kind-planned {
     background: var(--accent);
   }
-  .cal-chip.expiring {
+  .cal-chip.kind-expiring {
     background: var(--warning);
   }
-  .cal-chip.episode {
+  .cal-chip.kind-episode {
     background: var(--success);
   }
 
-  .cal-chip.schedule {
+  .cal-chip.kind-schedule {
     background: var(--accent-soft);
   }
 }
@@ -2722,4 +2736,29 @@ input[type='date']::-webkit-calendar-picker-indicator:hover {
     height: auto;
     width: 100%;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Statusauswahl auf den Kacheln der Bibliothek (public/js/views/library.js)
+   ---------------------------------------------------------------------------
+   Stand vorher als Inline-Stil im JavaScript, mit "padding: 0 6px". Das nahm
+   dem eigenen Pfeil der Grundregel (select, rechts 12 px) den Platz: Auf
+   schmalen Kacheln lief der Text darunter ("Will ich sehe"). Als Klasse gilt
+   die Regel ausserdem vor der allgemeinen Handy-Regel fuer select, die
+   Hoehe und Schrift der grossen Formularfelder setzt. */
+.tile-status {
+  flex: 1;
+  /* Ohne min-width: 0 wuerde das Feld in der Flex-Zeile nie schmaler als
+     sein laengster Eintrag und schoebe den Favoritenknopf aus der Kachel. */
+  min-width: 0;
+  height: 28px;
+  font-size: 12px;
+  padding: 0 22px 0 6px;
+  /* Pfeil naeher an den Rand, passend zum kleineren Feld. */
+  background-position: right 7px center;
+  /* Wird es trotzdem zu eng, endet der Text sichtbar mit "..." statt
+     unter dem Pfeil zu verschwinden. */
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
 }
