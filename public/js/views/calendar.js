@@ -125,7 +125,9 @@ export async function render_(container) {
   let monat = new Date().getMonth();
 
   const gitterSlot = el('div');
-  const titelSlot = el('h2', { style: { margin: 0, minWidth: '190px' } });
+  // Die Mindestbreite steht im Stylesheet (.cal-title), nicht hier: Auf einem
+  // schmalen Telefon muss sie aufgehoben werden, und das geht nur dort.
+  const titelSlot = el('h2.cal-title');
 
   // ------------------------------------------------------------------------
   // Das Abonnement – als Fenster, nicht als Kasten

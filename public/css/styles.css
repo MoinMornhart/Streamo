@@ -132,7 +132,47 @@
   display: none !important;
 }
 
+/* ---------------------------------------------------------------------------
+   Langer Text sprengt nichts mehr
+   ---------------------------------------------------------------------------
+   Ohne diese Regel schiebt ein einzelnes langes Wort seinen Behälter breiter,
+   als der Bildschirm ist – und dann ruckelt die ganze Seite seitlich. Auf dem
+   Telefon fällt das sofort auf, auf dem Rechner nie.
+
+   Betroffen ist bei Streamo einiges: Serientitel ohne Leerzeichen, die
+   Adresse des Kalender-Abonnements, Einladungscodes, dazu die deutschen
+   Wortungetüme, die in dieser Oberfläche vorkommen
+   ("Zwei-Faktor-Anmeldung", "Streaming-Verfügbarkeit").
+
+   break-word statt break-all: Umgebrochen wird nur, wenn ein Wort sonst
+   überläuft – nicht mitten in jedem Wort. Und Silbentrennung dazu, weil
+   Deutsch sie braucht; ohne sie entstehen bei schmalen Spalten
+   Löcher in der Zeile.
+   --------------------------------------------------------------------------- */
+body,
+button,
+input,
+select,
+textarea {
+  overflow-wrap: break-word;
+}
+
+/* Silbentrennung gilt für Fließtext, nicht für Beschriftungen: Ein Knopf mit
+   "Spei-\nchern" oder eine Überschrift mit Trennstrich sieht kaputt aus,
+   selbst wenn es typografisch richtig wäre. */
+button,
+.btn,
+h1,
+h2,
+h3,
+label,
+.chip,
+th {
+  hyphens: manual;
+}
+
 body {
+  hyphens: auto;
   margin: 0;
   background: var(--bg);
   color: var(--text);
@@ -2539,3 +2579,105 @@ input[type='date']::-webkit-calendar-picker-indicator:hover {
   }
 }
 
+
+/* ==========================================================================
+   Nachtrag Handy-Ansicht
+   ==========================================================================
+   Alles unter dieser Überschrift kam nach dem ursprünglichen Durchgang für
+   kleine Bildschirme dazu – Kalender, Dialoge, Trefferlisten – und war
+   deshalb nie dafür eingerichtet. Auf einem 360 Pixel breiten Telefon lief
+   der Text aus seinem Behälter heraus oder wurde zwischen zwei Knöpfen
+   zerquetscht. */
+
+/* --- Der Monatstitel im Kalender --- */
+/* Die Mindestbreite verhindert, dass "September 2026" beim Blättern die
+   Knöpfe daneben hin- und herschiebt. Auf dem Telefon ist dafür kein Platz –
+   dort wird sie im Media Query wieder aufgehoben. */
+.cal-title {
+  margin: 0;
+  min-width: 190px;
+}
+
+/* --- Die Knopfzeile eines Dialogs --- */
+/* Ohne Umbruch stehen "Plan beenden", "Abbrechen" und "Speichern"
+   nebeneinander und laufen auf einem schmalen Fenster heraus. */
+.modal-actions {
+  flex-wrap: wrap;
+}
+
+/* --- Eine Person in der Trefferliste --- */
+/* Der mittlere Teil braucht min-width: 0, sonst weigert sich ein Flex-Element
+   zu schrumpfen und schiebt "+ Anfragen" aus dem Fenster. Das ist die
+   Voreinstellung von Flexbox und die häufigste Ursache für überlaufende
+   Zeilen überhaupt. */
+.person-hit > span:not(.person-avatar):not(.person-add) {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.person-hit > span > div {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Dasselbe bei der Auswahlliste (Filmreihe übernehmen, Titel aufnehmen). */
+.choice-hit > span > div {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 720px) {
+  /* Der Kalenderkopf: Titel und Blättern in eine Zeile, der Abo-Knopf
+     darunter. Mit fester Mindestbreite passte beides nicht nebeneinander. */
+  .cal-title {
+    min-width: 0;
+    font-size: 17px;
+  }
+
+  .cal-header {
+    gap: 8px;
+  }
+
+  /* Dialoge dürfen den Rand ausnutzen – 24 Pixel Innenabstand auf jeder Seite
+     lassen von 360 Pixeln nicht viel übrig. */
+  .modal-overlay {
+    padding: 12px;
+  }
+
+  .modal-box {
+    padding: 18px;
+  }
+
+  /* Knöpfe im Dialog über die volle Breite. Nebeneinander wären sie so
+     schmal, dass die Beschriftung umbricht. */
+  .modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .modal-actions > * {
+    width: 100%;
+    /* Der Knopf, der in der Reihe eigentlich links stehen soll ("Löschen",
+       "Plan beenden"), landet durch column-reverse unten – da gehört er hin. */
+    margin-right: 0 !important;
+  }
+
+  /* Die Ersatzcodes: zwei Spalten sind auf einem Telefon zu eng für
+     "A3KP-9RTM" in Monospace. */
+  .backup-codes {
+    grid-template-columns: 1fr;
+  }
+
+  /* Das Terminfeld auf der Detailseite über die volle Breite – daneben
+     stünde es sonst mit vier Zeichen Platz. */
+  .planned-field {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  /* Die Benutzerliste stapelt schon (siehe weiter oben); hier nur noch der
+     lange Name, der sonst überläuft. */
+  .user-row strong {
+    overflow-wrap: anywhere;
+  }
+}
