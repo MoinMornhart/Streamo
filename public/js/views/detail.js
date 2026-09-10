@@ -37,6 +37,9 @@ import {
   askConfirm,
   modal,
 } from '../ui.js';
+// Baut aus Anbietername und Titel die Suchadresse beim Anbieter selbst, damit
+// ein Klick auf "Prime Video" direkt zu Prime führt statt erst zu JustWatch.
+import { providerDirectLink } from '../provider-links.js';
 
 /**
  * Die Wochentage für den Sehplan.
@@ -85,10 +88,12 @@ function planKurz(plan) {
  *
  * @param {object} availability Ergebnis von buildAvailabilityView (Server)
  * @param {string} region       Für welches Land die Angaben gelten
+ * @param {string} title        Titel der Serie/des Films – für den
+ *                              Direktlink zur Suche beim Anbieter
  * @param {Function} [onSetUntil] Öffnet den Dialog zum Eintragen eines Datums
  * @returns {HTMLElement}
  */
-function availabilityBlock(availability, region, onSetUntil) {
+function availabilityBlock(availability, region, title, onSetUntil) {
   const groups = Object.entries(availability.offers || {});
 
   if (groups.length === 0) {
@@ -112,17 +117,23 @@ function availabilityBlock(availability, region, onSetUntil) {
         el(
           'div.offer-list',
           {},
-          offers.map((offer) =>
-            // Der Link führt zur JustWatch-Seite des Titels. TMDB liefert
-            // genau einen Link pro Region, keinen je Anbieter – deshalb landen
-            // alle Kacheln auf derselben Übersicht.
-            el(
+          offers.map((offer) => {
+            // Wohin der Klick führt:
+            //   1. Direkt zur Suche beim Anbieter, wenn wir dessen Adresse
+            //      kennen (public/js/provider-links.js) – "Prime Video"
+            //      öffnet also Prime Video.
+            //   2. Sonst zur JustWatch-Seite des Titels. TMDB liefert nur
+            //      diesen einen Link pro Region, keinen je Anbieter; für
+            //      unbekannte Dienste ist er der einzige, den wir haben.
+            const direct = providerDirectLink(offer.name, title);
+
+            return el(
               `a.offer${offer.subscribed ? '.subscribed' : ''}`,
               {
-                href: offer.link || '#',
+                href: direct || offer.link || '#',
                 target: '_blank',
                 rel: 'noopener noreferrer',
-                title: `${offer.name} – bei JustWatch öffnen`,
+                title: direct ? `Bei ${offer.name} öffnen` : `${offer.name} – bei JustWatch öffnen`,
               },
               [
                 img(offer.logo_path, 'w92') &&
@@ -145,8 +156,8 @@ function availabilityBlock(availability, region, onSetUntil) {
                     title: `Bis ${formatDate(offer.availableUntil)}`,
                   }),
               ],
-            ),
-          ),
+            );
+          }),
         ),
       ]),
     ),
@@ -545,7 +556,7 @@ export async function render_(container, params) {
           try {
             const result = await api.shows.refresh(show.showId);
             data.availability = result.availability;
-            render(availabilitySlot, availabilityBlock(result.availability, data.region, setUntil));
+            render(availabilitySlot, availabilityBlock(result.availability, data.region, show.title, setUntil));
             toast('Verfügbarkeit aktualisiert.', 'success');
           } catch (error) {
             toast(error.message, 'error');
@@ -766,7 +777,7 @@ export async function render_(container, params) {
       // Block neu zeichnen, ohne die ganze Seite zu laden.
       if (result.availability) data.availability = result.availability;
 
-      render(availabilitySlot, availabilityBlock(data.availability, data.region, setUntil));
+      render(availabilitySlot, availabilityBlock(data.availability, data.region, show.title, setUntil));
 
       toast(values.until ? 'Enddatum eingetragen.' : 'Enddatum entfernt.', 'success');
     } catch (error) {
@@ -775,7 +786,7 @@ export async function render_(container, params) {
   };
 
   const availabilitySlot = el('div', {}, [
-    availabilityBlock(data.availability, data.region, setUntil),
+    availabilityBlock(data.availability, data.region, show.title, setUntil),
   ]);
 
   renderActions();
