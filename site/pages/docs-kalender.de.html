@@ -1,0 +1,40 @@
+<!-- {"path":"docs/kalender.html","lang":"de","alt":"en/docs/calendar.html","title":"Kalender & Sehpläne – Streamo Doku","description":"Termine mit Uhrzeit, Sehpläne, die selbst abhaken, und der Kalender als Abo in Apple, Google, Outlook und ToDoch."} -->
+<article class="doc">
+  <p class="crumbs"><a href="./">Doku</a> / Kalender &amp; Sehpläne</p>
+  <h1>Kalender &amp; Sehpläne</h1>
+  <p>Der Reiter <i>Kalender</i> zeigt ein Monatsraster, in dem jeder Tag steht – auch die leeren. Eingetragen sind vier Dinge: was du dir vorgenommen hast, deine Sehpläne, was bald eine Plattform verlässt und wann neue Episoden erscheinen.</p>
+  <figure><img src="{{base}}{{img}}kalender.png" alt="Monatsraster mit Sehplan-Terminen samt Uhrzeit" loading="lazy"></figure>
+
+  <h2>Sehplan – jeden Montag zwei Folgen</h2>
+  <p>Auf der Detailseite einer Serie stellst du unter <b>🔁 Sehplan</b> ein, an welchen Tagen du sie siehst und wie viele Folgen. Streamo hakt sie an diesen Tagen selbst ab.</p>
+  <ul>
+    <li>Der Plan merkt sich <b>nicht</b>, wo er steht, sondern nimmt jedes Mal die nächsten ungesehenen Folgen. Wer zwischendurch mehr schaut, bekommt keine Folge doppelt.</li>
+    <li>Specials und noch nicht ausgestrahlte Folgen bleiben außen vor.</li>
+    <li>War der Server an einem Plantag aus, wird nachgeholt – höchstens drei Termine, damit nach dem Urlaub nicht eine halbe Staffel abgehakt ist.</li>
+  </ul>
+
+  <h2>Mit Uhrzeit: Termine mit Anfang und Ende</h2>
+  <p>Beim Sehplan und beim Termin auf der Merkliste lässt sich freiwillig eine Uhrzeit angeben. Dann wird aus der Notiz ein richtiger Termin – wie lange er geht, rechnet Streamo aus der Laufzeit aus:</p>
+  <table>
+    <tr><th>Was</th><th>Dauer</th></tr>
+    <tr><td>Sehplan</td><td>die Länge genau der Folgen, die an diesem Abend dran sind – zwei Folgen à 50 Minuten ergeben 20:15 bis 21:55</td></tr>
+    <tr><td>Film auf der Merkliste</td><td>die Filmlänge</td></tr>
+    <tr><td>Serie auf der Merkliste</td><td>eine Folge</td></tr>
+  </table>
+  <p>Kennt TMDB keine Laufzeit, rechnet Streamo mit 45 Minuten je Folge bzw. 120 je Film. Ein Sehplan mit Uhrzeit hakt erst ab, wenn der Termin vorbei ist – nicht schon ab Mitternacht.</p>
+
+  <h2>Im eigenen Kalender abonnieren</h2>
+  <p>Unter <b>📅 Abonnieren</b> im Kalender-Reiter steht die Adresse für dein Kalenderprogramm. Einmal eingerichtet, hält sich der Kalender von selbst aktuell – in der Sprache deines Kontos.</p>
+  <table>
+    <tr><th>Programm</th><th>So geht's</th></tr>
+    <tr><td>Apple Kalender (Mac, iPhone)</td><td>Knopf <i>Apple Kalender</i> – oder Ablage → Neues Kalenderabonnement</td></tr>
+    <tr><td>Google Kalender</td><td>Knopf <i>Google Kalender</i> – oder Weitere Kalender → Per URL</td></tr>
+    <tr><td>Outlook</td><td>Knopf <i>Outlook</i></td></tr>
+    <tr><td>Thunderbird &amp; andere</td><td>Adresse kopieren und als Netzwerkkalender eintragen</td></tr>
+  </table>
+  <p>Termine mit Uhrzeit kommen dort mit echter Anfangs- und Endzeit an, in der Zeitzone deines Geräts; alles andere ganztägig.</p>
+  <p class="note">Die Adresse ist der einzige Nachweis – ein Kalenderprogramm kann sich nicht anmelden. Gib sie nicht weiter. Mit <i>Neue Adresse erzeugen</i> laufen alte Abos ins Leere.</p>
+
+  <h2>Streamo × ToDoch</h2>
+  <p><a href="https://github.com/MoinMornhart/ToDoch">ToDoch</a> – die selbst gehostete To-do- und Kalender-App – übernimmt diesen Kalender automatisch: Abo-Adresse in Streamo kopieren und in ToDoch unter <b>Bereiche → Kalender einbinden</b> einfügen. Ab dann steht jeder geplante Film, jeder Sehplan und jede neue Folge im ToDoch-Kalender, im Hintergrund abgeglichen (alle 15 Minuten bis täglich). Geändert wird in Streamo – ToDoch zieht nach.</p>
+</article>

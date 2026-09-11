@@ -1,0 +1,76 @@
+<!-- {"path":"en/docs/installation.html","lang":"en","alt":"docs/installation.html","title":"Installation – Streamo docs","description":"Install, update and back up Streamo on Proxmox, a Raspberry Pi or a Linux server."} -->
+<article class="doc">
+  <p class="crumbs"><a href="./">Docs</a> / Installation</p>
+  <h1>Installation</h1>
+  <p>Streamo is self-hosted. The easiest way is a container on Proxmox VE, created with a single command – but a Raspberry Pi or any other Debian or Ubuntu system works just as well.</p>
+
+  <h2>Proxmox – one command</h2>
+  <p>Run this in the shell of your Proxmox host:</p>
+  <div class="code"><code id="c1">bash -c "$(curl -fsSL https://raw.githubusercontent.com/MoinMornhart/Streamo/main/scripts/streamo.sh)"</code><button class="copy" data-copy="#c1">Copy</button></div>
+  <p>The installer creates an LXC container, installs Node.js and Streamo in it, sets up a systemd service and tells you the address at the end – after two to four minutes Streamo runs at <code>http://&lt;container-ip&gt;:3000</code>.</p>
+  <table>
+    <tr><th>Setting</th><th>Default</th></tr>
+    <tr><td>System</td><td>Debian 13, unprivileged LXC</td></tr>
+    <tr><td>CPU / RAM</td><td>2 cores / 2048 MB</td></tr>
+    <tr><td>Disk</td><td>8 GB</td></tr>
+    <tr><td>Network</td><td>DHCP on <code>vmbr0</code></td></tr>
+    <tr><td>Port / autostart</td><td>3000 / yes</td></tr>
+  </table>
+  <p>All values can be changed under "Advanced" in the installation dialog.</p>
+
+  <h2>Raspberry Pi and other Linux machines</h2>
+  <p>The same installer runs on any Debian or Ubuntu system, Raspberry Pi OS included:</p>
+  <div class="code"><code id="c2">sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/MoinMornhart/Streamo/main/scripts/install/streamo-install.sh)"</code><button class="copy" data-copy="#c2">Copy</button></div>
+  <p class="note"><b>Use the 64-bit version on the Pi.</b> Streamo needs Node.js 22.13 or newer for the built-in <code>node:sqlite</code>. On 32-bit systems the Node line ends at 22, on 64-bit there is 24. The installer picks the right one by itself and stops with a clear message on an architecture without packages. More in the <a href="https://github.com/MoinMornhart/Streamo/blob/main/docs/RASPBERRY-PI.md">Raspberry Pi guide</a> (German).</p>
+
+  <h2>By hand</h2>
+  <p>You need Node.js 22.13 or newer (Node 24 LTS recommended):</p>
+  <div class="code"><code id="c3">git clone https://github.com/MoinMornhart/Streamo.git
+cd Streamo
+npm install --omit=dev
+npm start</code><button class="copy" data-copy="#c3">Copy</button></div>
+  <p>Streamo then runs at <code>http://localhost:3000</code>. On first visit a wizard walks you through the setup; the account created there becomes the administrator.</p>
+
+  <h2>The TMDB key</h2>
+  <p>Titles, images and availability come through the free TMDB API. The instance needs a key for that <b>once</b>: create an account on <a href="https://www.themoviedb.org/settings/api">themoviedb.org/settings/api</a>, request an API key ("Personal / Education" is enough) and enter it during setup or under <i>Settings → TMDB access</i>. It applies to the whole instance; people you invite don't need their own, and once saved it is never shown again.</p>
+
+  <h2>Updating</h2>
+  <p>In the container a single word is enough – from the Proxmox host, without logging in, use <code>pct exec &lt;CTID&gt; -- update</code>:</p>
+  <div class="code"><code id="c4">update</code><button class="copy" data-copy="#c4">Copy</button></div>
+  <p>The update checks whether there is something new, shows the changes, backs up the database (the last five are kept), fetches the new version and checks that the service responds afterwards. <b>If it doesn't, the previous state is restored automatically</b> – code and database.</p>
+  <table>
+    <tr><th>Command</th><th>Effect</th></tr>
+    <tr><td><code>update</code></td><td>Update, with confirmation</td></tr>
+    <tr><td><code>update --check</code></td><td>Only check whether there's something new</td></tr>
+    <tr><td><code>update --yes</code></td><td>No confirmation – for cron jobs</td></tr>
+    <tr><td><code>update --force</code></td><td>Reinstall even if up to date (repair)</td></tr>
+  </table>
+  <p>Thanks to the automatic rollback, a nightly update via cron is safe too.</p>
+
+  <h2>More commands in the container</h2>
+  <table>
+    <tr><th>Command</th><th>Effect</th></tr>
+    <tr><td><code>streamo status</code> / <code>logs</code> / <code>restart</code></td><td>Check the service, follow the log, restart</td></tr>
+    <tr><td><code>streamo config</code></td><td>Edit <code>.env</code>, restarts afterwards</td></tr>
+    <tr><td><code>streamo domain &lt;d&gt;</code></td><td>Set the domain – needed for passkeys behind a proxy</td></tr>
+    <tr><td><code>streamo admin &lt;name&gt;</code></td><td>Grant admin rights (without a name: list all accounts)</td></tr>
+    <tr><td><code>streamo registration offen</code> / <code>zu</code></td><td>Allow or block accounts without invitation</td></tr>
+    <tr><td><code>streamo backup</code> / <code>info</code></td><td>Back up; version, address, state</td></tr>
+  </table>
+
+  <h2>Backup</h2>
+  <p>Everything important lives in one directory: <code>/opt/streamo/data</code>. Copying it is enough, or use the classic Proxmox backup (vzdump) of the whole container. In the interface, <i>Settings → Data</i> exports library, subscriptions and progress as JSON – handy for moving.</p>
+
+  <h2>Configuration</h2>
+  <p>All values live in <code>.env</code>; each has a sensible default, an empty file works.</p>
+  <table>
+    <tr><th>Variable</th><th>Default</th><th>Meaning</th></tr>
+    <tr><td><code>PORT</code></td><td>3000</td><td>Port of the web interface</td></tr>
+    <tr><td><code>DATA_DIR</code></td><td>./data</td><td>Location of the SQLite database</td></tr>
+    <tr><td><code>STREAMO_REGION</code></td><td>DE</td><td>Country the availability applies to</td></tr>
+    <tr><td><code>STREAMO_LANGUAGE</code></td><td>de-DE</td><td>Language of titles and descriptions</td></tr>
+    <tr><td><code>SYNC_INTERVAL_HOURS</code></td><td>1</td><td>Sync interval; can be changed in the interface</td></tr>
+    <tr><td><code>ALLOW_REGISTRATION</code></td><td>false</td><td>Allow accounts without an invitation?</td></tr>
+    <tr><td><code>TRUST_PROXY</code></td><td>false</td><td><code>true</code> if an HTTPS proxy sits in front</td></tr>
+  </table>
+</article>

@@ -15,7 +15,7 @@ with one glance at **where** every title streams and whether it's **in your subs
 [![Self-hosted](https://img.shields.io/badge/self--hosted-Proxmox%20%C2%B7%20Raspberry%20Pi%20%C2%B7%20Linux-6c5ce7)](#installation)
 [![Windows app](https://img.shields.io/badge/App-Windows-6c5ce7?logo=windows&logoColor=white)](https://github.com/MoinMornhart/Streamo/releases)
 
-**[Deutsch](README.md)** · English
+**[Deutsch](README.md)** · English · 🌐 **[Website & docs](https://moinmornhart.github.io/Streamo/en/)**
 
 [Installation](#installation) · [Features](#what-streamo-does) · [On your phone](#on-your-phone) · [Signing in](#signing-in--password-passkey-two-factor) · [Configuration](#configuration) · [Updating](#updating)
 

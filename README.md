@@ -15,7 +15,7 @@ mit einem Blick darauf, **wo** jeder Titel läuft und ob er **in deinem Abo** st
 [![Selbst gehostet](https://img.shields.io/badge/selbst%20gehostet-Proxmox%20%C2%B7%20Raspberry%20Pi%20%C2%B7%20Linux-6c5ce7)](#installation)
 [![Windows-App](https://img.shields.io/badge/App-Windows-6c5ce7?logo=windows&logoColor=white)](https://github.com/MoinMornhart/Streamo/releases)
 
-Deutsch · **[English](README.en.md)**
+Deutsch · **[English](README.en.md)** · 🌐 **[Webseite & Doku](https://moinmornhart.github.io/Streamo/)**
 
 [Installation](#installation) · [Funktionen](#was-streamo-kann) · [Auf dem Handy](#auf-dem-handy) · [Anmelden](#anmelden--passwort-passkey-zwei-faktor) · [Konfiguration](#konfiguration) · [Aktualisieren](#aktualisieren)
 

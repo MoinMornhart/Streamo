@@ -1,0 +1,36 @@
+<!-- {"path":"docs/sicherheit.html","lang":"de","alt":"en/docs/security.html","title":"Anmelden & Sicherheit – Streamo Doku","description":"Passwort, Passkeys, Zwei-Faktor, Einladungen und HTTPS hinter einem Reverse Proxy."} -->
+<article class="doc">
+  <p class="crumbs"><a href="./">Doku</a> / Anmelden &amp; Sicherheit</p>
+  <h1>Anmelden &amp; Sicherheit</h1>
+  <p>Streamo speichert keine Zugangsdaten fremder Dienste und verschickt keine E-Mails. Deine Daten bleiben auf deinem Server.</p>
+  <figure><img src="{{base}}{{img}}anmeldung.png" alt="Anmeldebildschirm mit Sprachumschalter, Passkey-Knopf und Passwortfeldern" loading="lazy" style="max-width:460px;margin-inline:auto"></figure>
+
+  <h2>Drei Wege zur Anmeldung</h2>
+  <table>
+    <tr><th>Weg</th><th>Womit</th></tr>
+    <tr><td>Benutzername + Passwort</td><td>funktioniert immer, überall</td></tr>
+    <tr><td>E-Mail + Passwort</td><td>die E-Mail ist nur ein zweiter Anmeldename</td></tr>
+    <tr><td><b>Passkey</b></td><td>Windows Hello, Face ID, Fingerabdruck oder Sicherheitsschlüssel</td></tr>
+  </table>
+  <p>Bei einem Passkey verlässt der private Schlüssel nie dein Gerät – Streamo speichert nur den öffentlichen Teil. Selbst wer die ganze Datenbank stiehlt, kann sich damit nicht anmelden. Einrichten unter <i>Einstellungen → Passkeys</i>; mehrere Geräte sind möglich, das Passwort lässt sich danach entfernen.</p>
+
+  <h2>Zwei-Faktor-Anmeldung</h2>
+  <p>Zusätzlich zum Passwort ein sechsstelliger Code aus einer Authenticator-App (Aegis, 2FAS, Google Authenticator …), nach RFC 6238 und gegen deren offizielle Testvektoren geprüft. Dazu gibt es zehn Ersatzcodes, die genau einmal angezeigt werden – bewahre sie auf, denn ohne E-Mail gibt es keinen anderen Weg zurück.</p>
+
+  <h2>Konten und Einladungen</h2>
+  <p>Das erste Konto aus dem Einrichtungsassistenten wird Administrator. Weitere Personen kommen per Einladungslink – einmal nutzbar oder dauerhaft für die ganze Familie – und brauchen keinen eigenen TMDB-Zugang. Die offene Registrierung ist mit Absicht aus: Sonst könnte jeder, der die Adresse findet, ein Konto anlegen.</p>
+
+  <h2>Passkeys brauchen HTTPS und einen Hostnamen</h2>
+  <p>Das verlangt der Browser: kein Passkey über <code>http://</code> (außer <code>localhost</code>) und keiner über eine nackte IP-Adresse. Am einfachsten ist ein Reverse Proxy mit Let's-Encrypt-Zertifikat (Nginx Proxy Manager, Traefik, Caddy) vor <code>http://&lt;container-ip&gt;:3000</code>, danach im Container:</p>
+  <div class="code"><code id="c1">streamo domain streamo.deine-domain.de</code><button class="copy" data-copy="#c1">Kopieren</button></div>
+  <p>Der Befehl trägt <code>TRUST_PROXY</code>, <code>WEBAUTHN_RP_ID</code> und <code>WEBAUTHN_ORIGIN</code> ein und startet neu. Ohne Proxy geht es mit <code>ENABLE_HTTPS=true</code> und einem selbstsignierten Zertifikat.</p>
+  <p class="note">Passkeys sind fest an eine Domain gebunden – das macht sie phishing-sicher. Ziehst du auf eine andere Domain um, musst du sie neu anlegen; das Passwort funktioniert weiter.</p>
+
+  <h2>Unter der Haube</h2>
+  <ul>
+    <li>Passwörter mit scrypt, Sitzungen serverseitig – „Abmelden“ wirkt sofort.</li>
+    <li>Strenge Content-Security-Policy, HSTS, begrenzte Anmeldeversuche.</li>
+    <li>Der TMDB-Schlüssel verlässt den Server nie, auch nicht maskiert.</li>
+    <li>Zwei npm-Abhängigkeiten insgesamt: <code>express</code> und <code>@simplewebauthn/server</code>.</li>
+  </ul>
+</article>

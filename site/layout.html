@@ -1,0 +1,42 @@
+<!doctype html>
+<!--
+  site/layout.html – der gemeinsame Rahmen aller Seiten der Webseite.
+  site/build.mjs setzt den Inhalt aus site/pages/*.html an {{body}} ein und
+  füllt die übrigen {{…}}-Stellen (Sprache, Titel, relativer Pfad {{base}}).
+-->
+<html lang="{{lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{title}}</title>
+<meta name="description" content="{{description}}">
+<meta name="theme-color" content="#0b0e14">
+<meta property="og:title" content="{{title}}">
+<meta property="og:description" content="{{description}}">
+<meta property="og:image" content="https://moinmornhart.github.io/Streamo/images/bibliothek.jpg">
+<link rel="icon" href="{{base}}icon.svg" type="image/svg+xml">
+<link rel="alternate" hreflang="{{altLang}}" href="{{base}}{{alt}}">
+<link rel="stylesheet" href="{{base}}style.css">
+</head>
+<body>
+<header class="top">
+  <nav class="wrap nav" aria-label="Streamo">
+    <a class="brand" href="{{base}}{{home}}"><img src="{{base}}icon.svg" alt="" width="28" height="28"> Streamo</a>
+    <div class="links">
+      <a href="{{base}}{{home}}#features">{{nav.features}}</a>
+      <a href="{{base}}{{home}}docs/">{{nav.docs}}</a>
+      <a href="https://github.com/MoinMornhart/Streamo">GitHub</a>
+      <a class="lang" href="{{base}}{{alt}}" hreflang="{{altLang}}" lang="{{altLang}}">🌐 {{nav.switch}}</a>
+    </div>
+  </nav>
+</header>
+<main class="wrap">
+{{body}}
+</main>
+<footer class="wrap foot">
+  <p>{{nav.footer}} · <a href="https://github.com/MoinMornhart/Streamo">GitHub</a></p>
+  <p class="small">{{nav.attribution}}</p>
+</footer>
+<script src="{{base}}site.js"></script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!-- {"path":"index.html","lang":"de","alt":"en/index.html","title":"Streamo – alle Streaming-Abos an einem Ort","description":"Selbst gehostet: deine Serien- und Filmdatenbank, die bei jedem Titel zeigt, wo er läuft und ob er in deinem Abo steckt. Mit Kalender, Sehplänen und Windows-App."} -->
+<section class="hero">
+  <img class="logo" src="{{base}}icon.svg" alt="" width="84" height="84">
+  <h1>Alle Streaming-Abos.<br><span class="grad">An einem Ort. Auf deinem Server.</span></h1>
+  <p class="lead">Deine eigene Serien- und Filmdatenbank, die bei jedem Titel zeigt, <b>wo</b> er läuft und ob er <b>in deinem Abo</b> steckt – mit Kalender, Sehplänen und Auswertung, welches Abo sich lohnt.</p>
+  <div class="cta">
+    <a class="btn primary" href="#install">Auf Proxmox installieren</a>
+    <a class="btn" href="https://github.com/MoinMornhart/Streamo/releases/latest">⬇️ Windows-App</a>
+    <a class="btn" href="{{base}}docs/">Doku lesen</a>
+  </div>
+  <figure class="shot"><img src="{{base}}{{img}}bibliothek.jpg" alt="Die Bibliothek: Poster mit Anbieter-Logos, grün markiert, was im eigenen Abo enthalten ist" width="1440" height="900"></figure>
+</section>
+
+<section id="install" class="card">
+  <h2>In ein paar Minuten installiert</h2>
+  <p>In der Shell des Proxmox-VE-Hosts ausführen – der Installer legt einen Debian-Container an, installiert alles und nennt dir am Ende die Adresse.</p>
+  <div class="code"><code id="cmd">bash -c "$(curl -fsSL https://raw.githubusercontent.com/MoinMornhart/Streamo/main/scripts/streamo.sh)"</code><button class="copy" data-copy="#cmd">Kopieren</button></div>
+  <p class="small">Kein Proxmox? Derselbe Installer läuft auf jedem Debian- oder Ubuntu-System, auch auf dem Raspberry Pi. <a href="{{base}}docs/installation.html">Zur Installationsanleitung →</a></p>
+</section>
+
+<section id="features">
+  <h2 class="center">Was drin ist</h2>
+  <div class="grid">
+    <article class="feature"><span>📺</span><h3>Wo läuft das?</h3><p>Anbieter-Logos auf jedem Poster, grün umrandet, was dein Abo schon abdeckt – getrennt nach Abo, kostenlos, Leihe und Kauf.</p></article>
+    <article class="feature"><span>↗️</span><h3>Direkt zum Anbieter</h3><p>Ein Klick auf Netflix, Prime Video, Disney+ und gut ein Dutzend weitere öffnet den Dienst mit der Suche nach dem Titel – ohne Umweg über JustWatch.</p></article>
+    <article class="feature"><span>📚</span><h3>Deine Bibliothek</h3><p>Merkliste, Fortschritt je Episode, Bewertung, Favoriten, Notizen. Der Status wechselt von selbst von „will ich sehen“ bis „gesehen“.</p></article>
+    <article class="feature"><span>🗓️</span><h3>Kalender mit Abo</h3><p>Monatsraster mit Terminen, Sehplänen und auslaufenden Angeboten – abonnierbar in Apple, Google und Outlook, in der Sprache deines Kontos.</p></article>
+    <article class="feature"><span>🔁</span><h3>Sehpläne mit Uhrzeit</h3><p>„Montags um 20:15 zwei Folgen“: Streamo hakt sie selbst ab, und im Kalender steht der Abend mit Anfang und Ende – berechnet aus der Länge der Folgen.</p></article>
+    <article class="feature"><span>📊</span><h3>Welches Abo lohnt sich?</h3><p>Bibliothek nach Anbieter, Kündigungskandidaten, und welches weitere Abo dir am meisten freischalten würde.</p></article>
+    <article class="feature"><span>⏳</span><h3>Läuft bald aus</h3><p>Ist bekannt, bis wann ein Titel bei einem Anbieter bleibt, steht es direkt auf der Kachel: „noch 5 Tage“, in den letzten drei Tagen rot.</p></article>
+    <article class="feature"><span>🎬</span><h3>Filmreihen</h3><p>Kingsman, Dune & Co. in der richtigen Reihenfolge, in der Bibliothek ein- und ausklappbar – und per Link teilbar, auch per WhatsApp.</p></article>
+    <article class="feature"><span>✨</span><h3>Entdecken</h3><p>Top-Filme der Woche und des Jahres, Vorschläge aus deiner eigenen Bibliothek mit Begründung und eine Suche, die Tippfehler verzeiht.</p></article>
+    <article class="feature"><span>👥</span><h3>Mehrere Personen</h3><p>Eigene Abos, Listen und Region je Person, Einladungen per Link, Freunde – und was ihr zusammen schauen könnt.</p></article>
+    <article class="feature"><span>🪟</span><h3>Windows-App</h3><p>Eigenes Fenster, Tray, Benachrichtigungen bei neuen Episoden, Suche mit Strg+Umschalt+S. Aktualisiert sich selbst.</p></article>
+    <article class="feature"><span>🌍</span><h3>Deutsch oder English</h3><p>Jede Person stellt die Sprache mit einem Klick um – unabhängig davon, in welcher Sprache Titel und Beschreibungen kommen.</p></article>
+    <article class="feature"><span>🎨</span><h3>Dein Farbschema</h3><p>Eigene Akzentfarbe und Grundton für jedes Konto, auf allen Geräten gleich. Auf dem Handy wie eine App.</p></article>
+    <article class="feature"><span>🔐</span><h3>Sicher anmelden</h3><p>Passwort, Passkey (Windows Hello, Face ID) und Zwei-Faktor mit Authenticator-App. Keine Zugangsdaten fremder Dienste.</p></article>
+    <article class="feature"><span>🚀</span><h3>Wartungsarm</h3><p>Ein Befehl installiert alles, <code>update</code> aktualisiert mit Sicherung und automatischem Rollback. Stündlicher Abgleich der Verfügbarkeit.</p></article>
+  </div>
+</section>
+
+<section>
+  <h2 class="center">So sieht es aus</h2>
+  <figure class="big"><img src="{{base}}{{img}}detail.jpg" alt="Detailseite von Breaking Bad mit Fortschritt und der Aufstellung, wo der Titel läuft" loading="lazy" width="1440" height="940"><figcaption>Detailseite – wo läuft der Titel, und ist er in deinem Abo?</figcaption></figure>
+  <div class="grid two">
+    <figure><img src="{{base}}{{img}}kalender.png" alt="Monatsraster mit Sehplan-Terminen samt Uhrzeit" loading="lazy"><figcaption>Kalender mit Sehplänen</figcaption></figure>
+    <figure><img src="{{base}}{{img}}statistik.png" alt="Statistik: Bibliothek nach Abo und welches weitere Abo sich lohnen würde" loading="lazy"><figcaption>Welches Abo lohnt sich?</figcaption></figure>
+    <figure><img src="{{base}}{{img}}bibliothek-reihen.jpg" alt="Bibliothek nach Filmreihen gruppiert" loading="lazy"><figcaption>Filmreihen</figcaption></figure>
+    <figure><img src="{{base}}{{img}}farbschema.jpg" alt="Dieselbe Bibliothek in Orange auf echtem Schwarz" loading="lazy"><figcaption>Dein Farbschema</figcaption></figure>
+  </div>
+</section>
+
+<section class="card">
+  <div class="split">
+    <div>
+      <h2>Auch auf dem Handy</h2>
+      <p>Dieselbe Oberfläche, fürs Telefon eingerichtet: Die Reiter wandern nach unten, Felder sind groß genug für den Daumen, und auf den Home-Bildschirm gelegt sieht Streamo aus wie eine App.</p>
+      <h2 style="margin-top:28px">Woher kommen die Daten?</h2>
+      <p>Streamo meldet sich <b>nicht</b> bei Netflix & Co. an und braucht keine fremden Zugangsdaten. Du klickst an, welche Abos du hast; die Verfügbarkeit kommt von JustWatch über die kostenlose TMDB-API. Beides wird abgeglichen – stündlich, von selbst.</p>
+    </div>
+    <div class="phones">
+      <figure><img src="{{base}}{{img}}handy-bibliothek.jpg" alt="Die Bibliothek auf dem Handy" loading="lazy"></figure>
+      <figure><img src="{{base}}{{img}}handy-detail.jpg" alt="Detailseite auf dem Handy mit Sehplan" loading="lazy"></figure>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2 class="center">Doku</h2>
+  <div class="grid docgrid">
+    <a class="feature" href="{{base}}docs/installation.html"><span>🚀</span><h3>Installation</h3><p>Proxmox, Raspberry Pi, von Hand, Updates, Sicherung.</p></a>
+    <a class="feature" href="{{base}}docs/funktionen.html"><span>✨</span><h3>Alle Funktionen</h3><p>Bibliothek, Anbieter, Reihen, Auswertung, Freunde …</p></a>
+    <a class="feature" href="{{base}}docs/kalender.html"><span>🗓️</span><h3>Kalender &amp; Sehpläne</h3><p>Termine, Uhrzeiten, Abo in Apple &amp; Google.</p></a>
+    <a class="feature" href="{{base}}docs/sicherheit.html"><span>🔐</span><h3>Anmelden &amp; Sicherheit</h3><p>Passkeys, Zwei-Faktor, Einladungen, HTTPS.</p></a>
+    <a class="feature" href="{{base}}docs/windows.html"><span>🪟</span><h3>Windows-App</h3><p>Download, Tray, Benachrichtigungen, Updates.</p></a>
+  </div>
+</section>

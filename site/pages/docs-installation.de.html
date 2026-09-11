@@ -1,0 +1,76 @@
+<!-- {"path":"docs/installation.html","lang":"de","alt":"en/docs/installation.html","title":"Installation – Streamo Doku","description":"Streamo auf Proxmox, dem Raspberry Pi oder einem Linux-Server installieren, aktualisieren und sichern."} -->
+<article class="doc">
+  <p class="crumbs"><a href="./">Doku</a> / Installation</p>
+  <h1>Installation</h1>
+  <p>Streamo läuft selbst gehostet. Am einfachsten ist ein Container auf Proxmox VE, der mit einem einzigen Befehl entsteht – es geht aber genauso auf einem Raspberry Pi oder jedem anderen Debian- und Ubuntu-System.</p>
+
+  <h2>Proxmox – ein Befehl</h2>
+  <p>In der Shell des Proxmox-Hosts ausführen:</p>
+  <div class="code"><code id="c1">bash -c "$(curl -fsSL https://raw.githubusercontent.com/MoinMornhart/Streamo/main/scripts/streamo.sh)"</code><button class="copy" data-copy="#c1">Kopieren</button></div>
+  <p>Der Installer legt einen LXC-Container an, installiert Node.js und Streamo darin, richtet einen systemd-Dienst ein und nennt dir am Ende die Adresse – nach zwei bis vier Minuten läuft Streamo unter <code>http://&lt;container-ip&gt;:3000</code>.</p>
+  <table>
+    <tr><th>Einstellung</th><th>Vorgabe</th></tr>
+    <tr><td>System</td><td>Debian 13, unprivilegierter LXC</td></tr>
+    <tr><td>CPU / RAM</td><td>2 Kerne / 2048 MB</td></tr>
+    <tr><td>Festplatte</td><td>8 GB</td></tr>
+    <tr><td>Netzwerk</td><td>DHCP an <code>vmbr0</code></td></tr>
+    <tr><td>Port / Autostart</td><td>3000 / ja</td></tr>
+  </table>
+  <p>Alle Werte lassen sich im Installationsdialog unter „Erweitert“ ändern.</p>
+
+  <h2>Raspberry Pi und andere Linux-Rechner</h2>
+  <p>Derselbe Installer läuft auf jedem Debian- oder Ubuntu-System, einschließlich Raspberry Pi OS:</p>
+  <div class="code"><code id="c2">sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/MoinMornhart/Streamo/main/scripts/install/streamo-install.sh)"</code><button class="copy" data-copy="#c2">Kopieren</button></div>
+  <p class="note"><b>Auf dem Pi die 64-Bit-Fassung nehmen.</b> Streamo braucht Node.js 22.13 oder neuer für das eingebaute <code>node:sqlite</code>. Auf 32-Bit-Systemen endet die Node-Reihe bei 22, auf 64-Bit gibt es 24. Der Installer wählt die passende von selbst und bricht bei einer Architektur ohne Pakete mit einer klaren Meldung ab. Mehr dazu in der <a href="https://github.com/MoinMornhart/Streamo/blob/main/docs/RASPBERRY-PI.md">Raspberry-Pi-Anleitung</a>.</p>
+
+  <h2>Von Hand</h2>
+  <p>Voraussetzung ist Node.js 22.13 oder neuer (Node 24 LTS empfohlen):</p>
+  <div class="code"><code id="c3">git clone https://github.com/MoinMornhart/Streamo.git
+cd Streamo
+npm install --omit=dev
+npm start</code><button class="copy" data-copy="#c3">Kopieren</button></div>
+  <p>Streamo läuft dann auf <code>http://localhost:3000</code>. Beim ersten Aufruf führt ein Assistent durch die Einrichtung; das Konto, das dabei entsteht, wird Administrator.</p>
+
+  <h2>Der TMDB-Schlüssel</h2>
+  <p>Titel, Bilder und Verfügbarkeiten kommen über die kostenlose TMDB-API. Dafür braucht die Instanz <b>einmal</b> einen Schlüssel: auf <a href="https://www.themoviedb.org/settings/api">themoviedb.org/settings/api</a> ein Konto anlegen, eine API beantragen („Personal / Education“ genügt) und den Schlüssel beim Einrichten oder unter <i>Einstellungen → TMDB-Zugang</i> eintragen. Er gilt für die ganze Instanz; eingeladene Personen brauchen keinen eigenen, und angezeigt wird er nach dem Speichern nie wieder.</p>
+
+  <h2>Aktualisieren</h2>
+  <p>Im Container genügt ein Wort – vom Proxmox-Host aus ohne Einloggen mit <code>pct exec &lt;CTID&gt; -- update</code>:</p>
+  <div class="code"><code id="c4">update</code><button class="copy" data-copy="#c4">Kopieren</button></div>
+  <p>Das Update sieht nach, ob es etwas Neues gibt, zeigt die Änderungen, sichert die Datenbank (die letzten fünf bleiben), holt die neue Version und prüft, ob der Dienst danach antwortet. <b>Antwortet er nicht, wird automatisch der vorherige Stand wiederhergestellt</b> – Code und Datenbank.</p>
+  <table>
+    <tr><th>Befehl</th><th>Wirkung</th></tr>
+    <tr><td><code>update</code></td><td>Aktualisieren, mit Rückfrage</td></tr>
+    <tr><td><code>update --check</code></td><td>Nur nachsehen, ob es etwas Neues gibt</td></tr>
+    <tr><td><code>update --yes</code></td><td>Ohne Rückfrage – für Cronjobs</td></tr>
+    <tr><td><code>update --force</code></td><td>Auch bei aktueller Version neu installieren (Reparatur)</td></tr>
+  </table>
+  <p>Durch den automatischen Rollback ist auch ein nächtliches Update per Cron ungefährlich.</p>
+
+  <h2>Weitere Befehle im Container</h2>
+  <table>
+    <tr><th>Befehl</th><th>Wirkung</th></tr>
+    <tr><td><code>streamo status</code> / <code>logs</code> / <code>restart</code></td><td>Dienst prüfen, Protokoll mitlesen, neu starten</td></tr>
+    <tr><td><code>streamo config</code></td><td><code>.env</code> bearbeiten, startet danach neu</td></tr>
+    <tr><td><code>streamo domain &lt;d&gt;</code></td><td>Domain eintragen – nötig für Passkeys hinter einem Proxy</td></tr>
+    <tr><td><code>streamo admin &lt;name&gt;</code></td><td>Adminrechte vergeben (ohne Namen: alle Konten auflisten)</td></tr>
+    <tr><td><code>streamo registration offen</code> / <code>zu</code></td><td>Konten ohne Einladung erlauben oder sperren</td></tr>
+    <tr><td><code>streamo backup</code> / <code>info</code></td><td>Sichern; Version, Adresse, Zustand</td></tr>
+  </table>
+
+  <h2>Datensicherung</h2>
+  <p>Alles Wichtige liegt in einem Verzeichnis: <code>/opt/streamo/data</code>. Kopieren genügt, oder klassisch die Proxmox-Sicherung (vzdump) des ganzen Containers. In der Oberfläche exportiert <i>Einstellungen → Daten</i> Bibliothek, Abos und Fortschritt als JSON – gut für einen Umzug.</p>
+
+  <h2>Konfiguration</h2>
+  <p>Alle Werte stehen in <code>.env</code>; jeder hat eine sinnvolle Vorgabe, eine leere Datei funktioniert.</p>
+  <table>
+    <tr><th>Variable</th><th>Vorgabe</th><th>Bedeutung</th></tr>
+    <tr><td><code>PORT</code></td><td>3000</td><td>Port der Weboberfläche</td></tr>
+    <tr><td><code>DATA_DIR</code></td><td>./data</td><td>Speicherort der SQLite-Datenbank</td></tr>
+    <tr><td><code>STREAMO_REGION</code></td><td>DE</td><td>Land, für das die Verfügbarkeit gilt</td></tr>
+    <tr><td><code>STREAMO_LANGUAGE</code></td><td>de-DE</td><td>Sprache von Titeln und Beschreibungen</td></tr>
+    <tr><td><code>SYNC_INTERVAL_HOURS</code></td><td>1</td><td>Abgleichstakt; in der Oberfläche änderbar</td></tr>
+    <tr><td><code>ALLOW_REGISTRATION</code></td><td>false</td><td>Konten ohne Einladung erlauben?</td></tr>
+    <tr><td><code>TRUST_PROXY</code></td><td>false</td><td><code>true</code>, wenn ein HTTPS-Proxy davorsteht</td></tr>
+  </table>
+</article>

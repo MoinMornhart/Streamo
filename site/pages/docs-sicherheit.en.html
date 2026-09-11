@@ -1,0 +1,36 @@
+<!-- {"path":"en/docs/security.html","lang":"en","alt":"docs/sicherheit.html","title":"Sign-in & security – Streamo docs","description":"Password, passkeys, two-factor, invitations and HTTPS behind a reverse proxy."} -->
+<article class="doc">
+  <p class="crumbs"><a href="./">Docs</a> / Sign-in &amp; security</p>
+  <h1>Sign-in &amp; security</h1>
+  <p>Streamo stores no credentials for third-party services and sends no emails. Your data stays on your server.</p>
+  <figure><img src="{{base}}{{img}}anmeldung.png" alt="Sign-in screen with language switch, passkey button and password fields" loading="lazy" style="max-width:460px;margin-inline:auto"></figure>
+
+  <h2>Three ways to sign in</h2>
+  <table>
+    <tr><th>Way</th><th>With</th></tr>
+    <tr><td>Username + password</td><td>always works, everywhere</td></tr>
+    <tr><td>Email + password</td><td>the email is just a second sign-in name</td></tr>
+    <tr><td><b>Passkey</b></td><td>Windows Hello, Face ID, fingerprint or security key</td></tr>
+  </table>
+  <p>With a passkey the private key never leaves your device – Streamo only stores the public part. Even someone who steals the whole database can't sign in with it. Set it up under <i>Settings → Passkeys</i>; several devices are possible, and the password can be removed afterwards.</p>
+
+  <h2>Two-factor sign-in</h2>
+  <p>A six-digit code from an authenticator app (Aegis, 2FAS, Google Authenticator …) in addition to the password, per RFC 6238 and checked against its official test vectors. You also get ten backup codes, shown exactly once – keep them safe, because without email there is no other way back.</p>
+
+  <h2>Accounts and invitations</h2>
+  <p>The first account from the setup wizard becomes the administrator. Others join via invitation link – single-use or permanent for the whole family – and need no TMDB access of their own. Open registration is off on purpose: otherwise anyone who finds the address could create an account.</p>
+
+  <h2>Passkeys need HTTPS and a host name</h2>
+  <p>The browser insists: no passkey over <code>http://</code> (except <code>localhost</code>) and none via a bare IP address. The easiest way is a reverse proxy with a Let's Encrypt certificate (Nginx Proxy Manager, Traefik, Caddy) in front of <code>http://&lt;container-ip&gt;:3000</code>, then in the container:</p>
+  <div class="code"><code id="c1">streamo domain streamo.your-domain.com</code><button class="copy" data-copy="#c1">Copy</button></div>
+  <p>The command sets <code>TRUST_PROXY</code>, <code>WEBAUTHN_RP_ID</code> and <code>WEBAUTHN_ORIGIN</code> and restarts. Without a proxy, <code>ENABLE_HTTPS=true</code> with a self-signed certificate works too.</p>
+  <p class="note">Passkeys are bound to one domain – that's what makes them phishing-proof. If you move to another domain you have to create them again; the password keeps working.</p>
+
+  <h2>Under the hood</h2>
+  <ul>
+    <li>Passwords with scrypt, server-side sessions – "sign out" takes effect immediately.</li>
+    <li>Strict Content Security Policy, HSTS, rate-limited sign-in attempts.</li>
+    <li>The TMDB key never leaves the server, not even masked.</li>
+    <li>Two npm dependencies in total: <code>express</code> and <code>@simplewebauthn/server</code>.</li>
+  </ul>
+</article>

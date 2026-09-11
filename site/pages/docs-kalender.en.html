@@ -1,0 +1,40 @@
+<!-- {"path":"en/docs/calendar.html","lang":"en","alt":"docs/kalender.html","title":"Calendar & watch plans – Streamo docs","description":"Dates with times, watch plans that tick themselves off, and the calendar as a subscription in Apple, Google, Outlook and ToDoch."} -->
+<article class="doc">
+  <p class="crumbs"><a href="./">Docs</a> / Calendar &amp; watch plans</p>
+  <h1>Calendar &amp; watch plans</h1>
+  <p>The <i>Calendar</i> tab shows a month grid with every day – the empty ones too. It contains four things: what you've planned, your watch plans, what's about to leave a platform and when new episodes air.</p>
+  <figure><img src="{{base}}{{img}}kalender.png" alt="Month grid with watch plan sessions including their time" loading="lazy"></figure>
+
+  <h2>Watch plan – two episodes every Monday</h2>
+  <p>On a show's detail page, <b>🔁 Watch plan</b> sets on which days you watch it and how many episodes. Streamo ticks them off by itself on those days.</p>
+  <ul>
+    <li>The plan does <b>not</b> remember where it is; it always takes the next unwatched episodes. Watch more in between and you never get an episode twice.</li>
+    <li>Specials and episodes that haven't aired are left out.</li>
+    <li>If the server was off on a plan day, it catches up – at most three sessions, so you don't come back from holiday to half a season ticked off.</li>
+  </ul>
+
+  <h2>With a time: appointments with a start and an end</h2>
+  <p>Watch plans and watchlist dates can optionally get a time. The note then becomes a proper appointment – Streamo works out how long it takes from the runtime:</p>
+  <table>
+    <tr><th>What</th><th>Length</th></tr>
+    <tr><td>Watch plan</td><td>the length of exactly the episodes up that evening – two 50-minute episodes make 20:15 to 21:55</td></tr>
+    <tr><td>Film on the watchlist</td><td>the film's runtime</td></tr>
+    <tr><td>Show on the watchlist</td><td>one episode</td></tr>
+  </table>
+  <p>If TMDB knows no runtime, Streamo assumes 45 minutes per episode or 120 per film. A watch plan with a time only ticks episodes off once the session is over – not from midnight on.</p>
+
+  <h2>Subscribe in your own calendar</h2>
+  <p><b>📅 Subscribe</b> in the calendar tab shows the address for your calendar app. Set it up once and it keeps itself up to date – in your account's language.</p>
+  <table>
+    <tr><th>App</th><th>How</th></tr>
+    <tr><td>Apple Calendar (Mac, iPhone)</td><td>Button <i>Apple Calendar</i> – or File → New Calendar Subscription</td></tr>
+    <tr><td>Google Calendar</td><td>Button <i>Google Calendar</i> – or Other calendars → From URL</td></tr>
+    <tr><td>Outlook</td><td>Button <i>Outlook</i></td></tr>
+    <tr><td>Thunderbird &amp; others</td><td>Copy the address and add it as a network calendar</td></tr>
+  </table>
+  <p>Sessions with a time arrive with a real start and end, in your device's time zone; everything else is all-day.</p>
+  <p class="note">The address is the only proof – a calendar app can't sign in. Don't share it. <i>Create a new address</i> makes old subscriptions stop working.</p>
+
+  <h2>Streamo × ToDoch</h2>
+  <p><a href="https://github.com/MoinMornhart/ToDoch">ToDoch</a> – the self-hosted to-do and calendar app – picks up this calendar automatically: copy the subscription address in Streamo and paste it in ToDoch under <b>Areas → Add calendars</b>. From then on every film you plan, every watch plan and every new episode shows up in your ToDoch calendar, synced in the background (every 15 minutes up to daily). Change things in Streamo – ToDoch follows.</p>
+</article>
