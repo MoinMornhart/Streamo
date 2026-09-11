@@ -20,7 +20,7 @@
  */
 
 import { api } from './api.js';
-import { render, viewRoot, loading, toast, banner, el } from './ui.js';
+import { render, viewRoot, loading, toast, banner, el, languageSwitch } from './ui.js';
 import { route, startRouter, navigateTo, resolve } from './router.js';
 // Farbschema: Das im Browser gemerkte wendet bereits index.html an, hier
 // kommt das am Konto hinterlegte hinterher.
@@ -72,6 +72,23 @@ export function updateChrome() {
   mobileNav.hidden = !state.user;
 
   if (!state.user) return;
+
+  // Der Umschalter Deutsch / English neben dem Kontokreis – einmal einsetzen.
+  // Die Wahl landet am Konto (PUT /api/settings { uiLanguage }, Migration 14)
+  // und gilt damit auch auf den anderen Geräten.
+  const langSlot = document.getElementById('lang-switch-slot');
+  if (langSlot && !langSlot.hasChildNodes()) {
+    langSlot.append(
+      languageSwitch({ short: true, persist: (code) => api.settings.update({ uiLanguage: code }) }),
+    );
+  }
+
+  // Auf dem Telefon teilt sich die Suche die Kopfzeile mit Sprachumschalter
+  // und Kontokreis. Der volle Platzhalter würde dort abgeschnitten – also
+  // die kurze Fassung.
+  if (window.matchMedia('(max-width: 720px)').matches) {
+    document.getElementById('global-search-input').placeholder = tr('Suchen …');
+  }
 
   const name = state.user.display_name || state.user.username;
 

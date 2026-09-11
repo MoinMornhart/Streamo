@@ -207,7 +207,7 @@ Optional. Everyone has their own subscriptions, library, progress and region. Wh
 
 ### German or English
 
-Each person chooses the interface language under *Settings → Account* – menus, buttons, messages and the calendar subscription follow it on every device. The sign-in screen has a switch in the top right corner. The *content language* is separate: an English interface with German show titles and descriptions is perfectly possible.
+Each person chooses the interface language under *Settings → Account* – menus, buttons, messages and the calendar subscription follow it on every device. Switching takes one click: the header shows **🌐 DE | EN** next to your account circle, on every page and on phones too – and the sign-in screen has the same switch in its top right corner. The *content language* is separate: an English interface with German show titles and descriptions is perfectly possible.
 
 ### Your colour scheme
 

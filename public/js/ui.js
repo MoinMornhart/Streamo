@@ -17,7 +17,7 @@
 
 import { img } from './api.js';
 // Übersetzung der sichtbaren Texte und Gebietsschema für Datumsangaben.
-import { tr, locale } from './i18n.js';
+import { tr, locale, UI_LANGUAGES, getLanguage, setLanguage } from './i18n.js';
 
 /**
  * Attribute, deren Wert sichtbarer Text ist und deshalb übersetzt wird.
@@ -104,6 +104,76 @@ export function render(container, ...nodes) {
 
 /** Der Hauptbereich, in den alle Ansichten rendern (siehe index.html). */
 export const viewRoot = () => document.getElementById('view');
+
+/**
+ * Der Umschalter Deutsch / English.
+ *
+ * Steht an zwei Stellen: in der Kopfzeile neben dem Kontokreis (angemeldet,
+ * eingesetzt von public/js/app.js -> updateChrome) und oben rechts auf den
+ * Anmelde-Bildschirmen (public/js/views/auth.js). Nach der Anmeldung gab es
+ * ihn früher nur als Auswahlfeld tief in den Einstellungen – zu versteckt für
+ * eine Einstellung, nach der man ausgerechnet dann sucht, wenn man die
+ * angezeigte Sprache nicht versteht.
+ *
+ * Die Beschriftungen laufen bewusst NICHT durch die Übersetzung: "Deutsch"
+ * und "English" (bzw. DE und EN) stehen immer in ihrer eigenen Sprache.
+ *
+ * @param {object} [options]
+ * @param {boolean} [options.short] Kürzel "DE"/"EN" mit Weltkugel – für die Kopfzeile
+ * @param {(code: string) => Promise<unknown>} [options.persist]
+ *        Speichert die Wahl zusätzlich am Konto (users.ui_language), damit sie
+ *        auf allen Geräten gilt. Ohne Anmeldung gibt es kein Konto dafür.
+ * @returns {HTMLElement}
+ */
+export function languageSwitch({ short = false, persist } = {}) {
+  const group = el(`div.lang-switch${short ? '.lang-switch-short' : ''}`, { role: 'group' });
+
+  // Zweisprachig und am Übersetzer vorbei gesetzt, damit beide Seiten den
+  // Knopf verstehen.
+  group.setAttribute('aria-label', 'Sprache / Language');
+  group.title = 'Sprache / Language';
+
+  if (short) {
+    // Die Weltkugel ist das Zeichen, das man auch ohne ein Wort Deutsch als
+    // "hier geht es um die Sprache" erkennt.
+    const globe = el('span.lang-globe', { 'aria-hidden': 'true' });
+    globe.textContent = '🌐';
+    group.append(globe);
+  }
+
+  for (const [code, name] of UI_LANGUAGES) {
+    const active = getLanguage() === code;
+
+    const button = el(`button.lang-option${active ? '.active' : ''}`, {
+      type: 'button',
+      lang: code,
+      onClick: async () => {
+        if (getLanguage() === code) return;
+        group.querySelectorAll('button').forEach((other) => (other.disabled = true));
+
+        try {
+          if (persist) await persist(code);
+        } catch (error) {
+          // Speichern am Konto fehlgeschlagen: trotzdem umschalten – dann
+          // gilt die Sprache eben nur in diesem Browser.
+          toast(error.message, 'error');
+        }
+
+        setLanguage(code);
+        // Neu laden statt neu zeichnen: So stehen auch Navigation, Fußzeile
+        // und alles bereits Gezeichnete in der neuen Sprache.
+        window.location.reload();
+      },
+    });
+
+    button.setAttribute('aria-pressed', String(active));
+    button.textContent = short ? code.toUpperCase() : name;
+    if (short) button.title = name;
+    group.append(button);
+  }
+
+  return group;
+}
 
 // --------------------------------------------------------------------------
 // Rückmeldungen

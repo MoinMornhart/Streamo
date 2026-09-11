@@ -333,6 +333,10 @@ img {
   flex-shrink: 0;
   /* Ganz nach rechts in der rechten Spalte. */
   justify-self: end;
+  /* Sprachumschalter und Kontokreis nebeneinander. */
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 /* Mittlere Breiten: Die Navigation braucht rund 650 Pixel. Damit die Suche
@@ -1914,6 +1918,18 @@ footer p {
     gap: 10px;
   }
 
+  /* Der Sprachumschalter bleibt auch auf dem Telefon oben sichtbar – nur
+     etwas kompakter, ohne Weltkugel, damit die Suche Platz behält. */
+  .topbar-right {
+    gap: 8px;
+  }
+  .lang-switch-short .lang-globe {
+    display: none;
+  }
+  .lang-switch-short .lang-option {
+    padding: 5px 9px;
+  }
+
   #global-search {
     flex: 1;
     max-width: none;
@@ -2811,33 +2827,48 @@ input[type='date']::-webkit-calendar-picker-indicator:hover {
 }
 
 /* ---------------------------------------------------------------------------
-   Sprachumschalter auf den Anmelde-Bildschirmen (public/js/views/auth.js)
+   Sprachumschalter Deutsch / English (languageSwitch() in public/js/ui.js)
    ---------------------------------------------------------------------------
-   Klein und oben rechts in der Box: Wer die Sprache nicht versteht, soll ihn
-   trotzdem sofort finden – deshalb stehen die Namen in ihrer eigenen Sprache
-   ("Deutsch", "English") und nicht uebersetzt. */
+   Steht in der Kopfzeile neben dem Kontokreis und oben rechts auf den
+   Anmelde-Bildschirmen. Bewusst auffaellig – mit Rahmen, kraeftiger Schrift
+   und der aktiven Sprache in der Akzentfarbe: Gesucht wird er gerade dann,
+   wenn man die angezeigte Sprache nicht versteht. Die Namen stehen deshalb
+   auch immer in ihrer eigenen Sprache und werden nicht uebersetzt. */
 .auth-box {
   position: relative;
 }
-.lang-switch {
+.auth-box .lang-switch {
   position: absolute;
   top: 16px;
   right: 16px;
+}
+.lang-switch {
   display: flex;
+  align-items: center;
   gap: 2px;
-  padding: 2px;
+  padding: 3px;
   border-radius: 999px;
+  border: 1px solid var(--surface-3);
   background: var(--surface-2, rgba(255, 255, 255, 0.04));
+}
+.lang-globe {
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 4px 0 6px;
 }
 .lang-option {
   border: 0;
   background: transparent;
   color: var(--text-dim);
   font: inherit;
-  font-size: 12px;
-  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 5px 12px;
   border-radius: 999px;
   cursor: pointer;
+}
+.lang-option:disabled {
+  cursor: wait;
 }
 .lang-option:hover {
   color: var(--text);

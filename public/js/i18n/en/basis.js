@@ -33,6 +33,8 @@ export default {
   // Kurz gehalten: Die englische Navigation ist breiter, und bei 1360 Pixeln
   // bleibt der Suche neben der mittigen Navigation nur wenig Platz.
   'Serie oder Film suchen …': 'Search shows & films …',
+  // Kurzfassung für die Kopfzeile auf dem Telefon (public/js/app.js).
+  'Suchen …': 'Search …',
   'Streamo startet …': 'Streamo is starting …',
   '· Daten von': '· Data from',
   '· Streaming-Verfügbarkeit von': '· Streaming availability from',

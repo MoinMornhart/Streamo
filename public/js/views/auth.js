@@ -17,47 +17,15 @@
  */
 
 import { api } from '../api.js';
-import { el, render, toast, errorBox } from '../ui.js';
+// languageSwitch: der Umschalter Deutsch / English oben rechts in der Box.
+// Ohne Anmeldung merkt ihn sich nur der Browser; nach der Anmeldung gilt die
+// am Konto hinterlegte Sprache, sobald eine eingestellt ist.
+import { el, render, toast, errorBox, languageSwitch } from '../ui.js';
 import { state, refreshStatus } from '../app.js';
 import { startRouter, navigateTo } from '../router.js';
 import { isSupported, hasPlatformAuthenticator, usePasskey } from '../passkey.js';
 // Übersetzt Texte, die am Baustein el() vorbei direkt ins DOM geschrieben werden.
-import { tr, UI_LANGUAGES, getLanguage, setLanguage } from '../i18n.js';
-
-/**
- * Der Sprachumschalter oben rechts auf allen Anmelde-Bildschirmen.
- *
- * Hier gibt es noch kein Konto, an dem die Sprache hängen könnte – sie wird
- * im Browser gemerkt (public/js/i18n.js -> setLanguage) und nach der
- * Anmeldung vom Konto übernommen, sobald dort eine eingestellt ist.
- *
- * Die Sprachnamen stehen in ihrer eigenen Sprache und laufen deshalb NICHT
- * durch die Übersetzung: Wer kein Deutsch kann, sucht nach "English", nicht
- * nach "Englisch".
- *
- * @returns {HTMLElement}
- */
-function languageSwitch() {
-  return el(
-    'div.lang-switch',
-    { 'aria-label': 'Sprache' },
-    UI_LANGUAGES.map(([code, name]) => {
-      const button = el(`button.lang-option${getLanguage() === code ? '.active' : ''}`, {
-        type: 'button',
-        lang: code,
-        onClick: () => {
-          if (getLanguage() === code) return;
-          setLanguage(code);
-          // Neu laden statt neu zeichnen: So sind auch die festen Texte aus
-          // index.html und alles bereits Gezeichnete in der neuen Sprache.
-          window.location.reload();
-        },
-      });
-      button.textContent = name; // am Übersetzer vorbei, siehe oben
-      return button;
-    }),
-  );
-}
+import { tr } from '../i18n.js';
 
 /**
  * Die Regionen, die im Auswahlfeld angeboten werden.

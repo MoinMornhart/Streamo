@@ -204,7 +204,7 @@ Optional. Jede Person hat eigene Abos, eigene Bibliothek, eigenen Fortschritt un
 
 ### Deutsch oder Englisch
 
-Jede Person stellt unter *Einstellungen → Konto* die Sprache der Oberfläche ein – Menüs, Knöpfe, Meldungen und das Kalender-Abo folgen ihr, auf allen Geräten. Auf dem Anmeldebildschirm sitzt oben rechts ein Umschalter. Davon getrennt bleibt die *Sprache der Inhalte*: Englische Oberfläche mit deutschen Serientiteln und Beschreibungen geht genauso.
+Jede Person stellt unter *Einstellungen → Konto* die Sprache der Oberfläche ein – Menüs, Knöpfe, Meldungen und das Kalender-Abo folgen ihr, auf allen Geräten. Umgeschaltet wird mit einem Klick: In der Kopfzeile steht neben dem Kontokreis **🌐 DE | EN**, auf jeder Seite und auch auf dem Handy – ebenso oben rechts auf dem Anmeldebildschirm. Davon getrennt bleibt die *Sprache der Inhalte*: Englische Oberfläche mit deutschen Serientiteln und Beschreibungen geht genauso.
 
 Die Windows-App richtet ihr Tray-Menü und ihre Meldungen nach der Sprache des Systems.
 
