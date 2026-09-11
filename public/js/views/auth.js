@@ -21,6 +21,43 @@ import { el, render, toast, errorBox } from '../ui.js';
 import { state, refreshStatus } from '../app.js';
 import { startRouter, navigateTo } from '../router.js';
 import { isSupported, hasPlatformAuthenticator, usePasskey } from '../passkey.js';
+// Übersetzt Texte, die am Baustein el() vorbei direkt ins DOM geschrieben werden.
+import { tr, UI_LANGUAGES, getLanguage, setLanguage } from '../i18n.js';
+
+/**
+ * Der Sprachumschalter oben rechts auf allen Anmelde-Bildschirmen.
+ *
+ * Hier gibt es noch kein Konto, an dem die Sprache hängen könnte – sie wird
+ * im Browser gemerkt (public/js/i18n.js -> setLanguage) und nach der
+ * Anmeldung vom Konto übernommen, sobald dort eine eingestellt ist.
+ *
+ * Die Sprachnamen stehen in ihrer eigenen Sprache und laufen deshalb NICHT
+ * durch die Übersetzung: Wer kein Deutsch kann, sucht nach "English", nicht
+ * nach "Englisch".
+ *
+ * @returns {HTMLElement}
+ */
+function languageSwitch() {
+  return el(
+    'div.lang-switch',
+    { 'aria-label': 'Sprache' },
+    UI_LANGUAGES.map(([code, name]) => {
+      const button = el(`button.lang-option${getLanguage() === code ? '.active' : ''}`, {
+        type: 'button',
+        lang: code,
+        onClick: () => {
+          if (getLanguage() === code) return;
+          setLanguage(code);
+          // Neu laden statt neu zeichnen: So sind auch die festen Texte aus
+          // index.html und alles bereits Gezeichnete in der neuen Sprache.
+          window.location.reload();
+        },
+      });
+      button.textContent = name; // am Übersetzer vorbei, siehe oben
+      return button;
+    }),
+  );
+}
 
 /**
  * Die Regionen, die im Auswahlfeld angeboten werden.
@@ -116,7 +153,7 @@ export function render_(container, options = {}) {
           const button = form.querySelector('button[type=submit]');
 
           button.disabled = true;
-          button.textContent = 'Wird eingerichtet …';
+          button.textContent = tr('Wird eingerichtet …');
 
           try {
             await api.auth.setup({
@@ -141,7 +178,7 @@ export function render_(container, options = {}) {
           } catch (error) {
             render(messageSlot, errorBox(error.message));
             button.disabled = false;
-            button.textContent = 'Streamo einrichten';
+            button.textContent = tr('Streamo einrichten');
           }
         },
       },
@@ -230,7 +267,7 @@ export function render_(container, options = {}) {
           const button = form.querySelector('button[type=submit]');
 
           button.disabled = true;
-          button.textContent = 'Konto wird angelegt …';
+          button.textContent = tr('Konto wird angelegt …');
 
           try {
             await api.auth.register({
@@ -250,7 +287,7 @@ export function render_(container, options = {}) {
           } catch (error) {
             render(messageSlot, errorBox(error.message));
             button.disabled = false;
-            button.textContent = 'Konto anlegen';
+            button.textContent = tr('Konto anlegen');
           }
         },
       },
@@ -329,7 +366,7 @@ export function render_(container, options = {}) {
           const button = form.querySelector('button[type=submit]');
 
           button.disabled = true;
-          button.textContent = 'Wird geprüft …';
+          button.textContent = tr('Wird geprüft …');
 
           try {
             const result = await api.auth.loginTwoFactor(options.pendingToken, data.code);
@@ -358,7 +395,7 @@ export function render_(container, options = {}) {
             }
 
             button.disabled = false;
-            button.textContent = 'Bestätigen';
+            button.textContent = tr('Bestätigen');
 
             // Für den nächsten Versuch leeren und den Fokus zurückgeben.
             const input = form.querySelector('#code');
@@ -455,7 +492,7 @@ export function render_(container, options = {}) {
           const button = form.querySelector('button[type=submit]');
 
           button.disabled = true;
-          button.textContent = 'Konto wird angelegt …';
+          button.textContent = tr('Konto wird angelegt …');
 
           try {
             await api.auth.register({
@@ -478,7 +515,7 @@ export function render_(container, options = {}) {
           } catch (error) {
             render(messageSlot, errorBox(error.message));
             button.disabled = false;
-            button.textContent = 'Konto anlegen';
+            button.textContent = tr('Konto anlegen');
           }
         },
       },
@@ -582,7 +619,7 @@ export function render_(container, options = {}) {
 
     const label = button.textContent;
     button.disabled = true;
-    button.textContent = 'Warte auf dein Gerät …';
+    button.textContent = tr('Warte auf dein Gerät …');
 
     try {
       const options = await api.auth.passkeyLoginOptions();
@@ -645,7 +682,7 @@ export function render_(container, options = {}) {
         const button = form.querySelector('button[type=submit]');
 
         button.disabled = true;
-        button.textContent = 'Anmelden …';
+        button.textContent = tr('Anmelden …');
 
         try {
           const result = await api.auth.login(data.username, data.password);
@@ -670,7 +707,7 @@ export function render_(container, options = {}) {
         } catch (error) {
           render(messageSlot, errorBox(error.message));
           button.disabled = false;
-          button.textContent = 'Anmelden';
+          button.textContent = tr('Anmelden');
         }
       },
     },
@@ -698,6 +735,7 @@ export function render_(container, options = {}) {
     el('div.auth-screen', {}, [
       el('div.auth-box', {}, [
         el('div.auth-logo', {}, [el('span.brand-mark', { text: 'S' }), 'Streamo']),
+        languageSwitch(),
         el('p.auth-sub', { text: 'Alle Abos an einem Ort. Melde dich an.' }),
         passkeySlot,
         form,
@@ -742,11 +780,11 @@ export function render_(container, options = {}) {
         const isWindows = navigator.userAgent.includes('Windows');
         const isApple = /Mac|iPhone|iPad/.test(navigator.userAgent);
 
-        passkeyButton.textContent = isWindows
+        passkeyButton.textContent = tr(isWindows
           ? '🔑 Mit Windows Hello anmelden'
           : isApple
             ? '🔑 Mit Touch ID oder Face ID anmelden'
-            : '🔑 Mit Passkey anmelden';
+            : '🔑 Mit Passkey anmelden');
       }
 
       passkeySlot.hidden = false;

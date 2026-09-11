@@ -35,6 +35,8 @@ import {
   modal,
 } from '../ui.js';
 import { navigateTo } from '../router.js';
+// Übersetzt Texte, die am Baustein el() vorbei direkt ins DOM geschrieben werden.
+import { tr, locale } from '../i18n.js';
 
 /** Die Spaltenköpfe. Montag zuerst – so ist es hierzulande üblich. */
 const WOCHENTAGE = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
@@ -206,7 +208,7 @@ export async function render_(container) {
               const ok = await copyToClipboard(data.subscription.url);
 
               if (ok) {
-                event.currentTarget.textContent = '✓ Kopiert';
+                event.currentTarget.textContent = tr('✓ Kopiert');
                 toast('Adresse kopiert – in deinem Kalender einfügen.', 'success');
               } else {
                 urlField.select();
@@ -267,7 +269,7 @@ export async function render_(container) {
   // ------------------------------------------------------------------------
   /** Zeichnet den gerade gewählten Monat. */
   const zeichneMonat = () => {
-    titelSlot.textContent = new Date(jahr, monat, 1).toLocaleDateString('de-DE', {
+    titelSlot.textContent = new Date(jahr, monat, 1).toLocaleDateString(locale(), {
       month: 'long',
       year: 'numeric',
     });
@@ -307,7 +309,9 @@ export async function render_(container) {
               ...events.map((event) =>
                 el(`div.cal-chip.kind-${event.kind}`, {
                   text: event.summary,
-                  title: `${event.summary}\n${event.description}`,
+                  // Getrennt übersetzen: Als ein zusammengeklebter Text fände
+                  // sich weder Eintrag noch Muster (siehe public/js/i18n.js).
+                  title: `${tr(event.summary)}\n${tr(event.description)}`,
                   onClick: event.showId ? () => navigateTo('/library') : undefined,
                 }),
               ),

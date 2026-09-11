@@ -42,6 +42,8 @@ import {
   loadTheme,
   saveTheme,
 } from '../theme.js';
+// Übersetzt Texte, die am Baustein el() vorbei direkt ins DOM geschrieben werden.
+import { tr, UI_LANGUAGES, getLanguage, setLanguage } from '../i18n.js';
 
 /** Dieselben Listen wie im Einrichtungsassistenten (views/auth.js). */
 const REGIONS = [
@@ -95,6 +97,18 @@ export async function render_(container) {
   const regionSelect = select('region', REGIONS, data.user.region);
   const languageSelect = select('language', LANGUAGES, data.user.language);
 
+  // Die Sprache der Oberfläche – nicht zu verwechseln mit der Sprache der
+  // Inhalte darüber: Die eine betrifft Menüs und Knöpfe, die andere Titel und
+  // Beschreibungen von TMDB. Wer die Oberfläche englisch, die Serien aber
+  // deutsch haben will, stellt beides getrennt ein.
+  //
+  // Die Namen stehen in ihrer eigenen Sprache und werden deshalb nach dem
+  // Bauen gesetzt – el() würde sonst "Deutsch" zu "German" übersetzen.
+  const uiLanguageSelect = select('uiLanguage', UI_LANGUAGES, getLanguage());
+  for (const option of uiLanguageSelect.options) {
+    option.textContent = UI_LANGUAGES.find(([code]) => code === option.value)[1];
+  }
+
   // Die E-Mail ist optional und dient nur als zweiter Anmeldename.
   const emailInput = el('input', {
     type: 'email',
@@ -131,6 +145,12 @@ export async function render_(container) {
       el('div.hint', { text: 'Sprache von Titeln, Beschreibungen und Postern.' }),
     ]),
 
+    el('div.field', {}, [
+      el('label', { for: 'uiLanguage', text: 'Sprache der Oberfläche' }),
+      uiLanguageSelect,
+      el('div.hint', { text: 'Menüs, Knöpfe und Meldungen. Gilt für dein Konto auf allen Geräten.' }),
+    ]),
+
     el('button.btn.btn-primary', {
       text: 'Konto speichern',
       onClick: async (event) => {
@@ -140,6 +160,8 @@ export async function render_(container) {
             displayName: displayNameInput.value,
             region: regionSelect.value,
             language: languageSelect.value,
+            // Landet in users.ui_language (Migration 14) und reist so mit.
+            uiLanguage: uiLanguageSelect.value,
           });
 
           // Die E-Mail hat einen eigenen Endpunkt, weil sie eigene Prüfungen
@@ -152,6 +174,14 @@ export async function render_(container) {
           }
 
           // Region wirkt sich auf die ganze Oberfläche aus – Zustand neu laden.
+          // Neue Sprache der Oberfläche: neu laden, damit wirklich alles –
+          // auch Navigation und Fußzeile – in der neuen Sprache steht.
+          if (uiLanguageSelect.value !== getLanguage()) {
+            setLanguage(uiLanguageSelect.value);
+            window.location.reload();
+            return;
+          }
+
           await refreshStatus();
           toast('Gespeichert. Die neue Region gilt ab sofort.', 'success');
         } catch (error) {
@@ -246,7 +276,7 @@ export async function render_(container) {
       if (name === null) return; // abgebrochen
 
       button.disabled = true;
-      button.textContent = 'Warte auf dein Gerät …';
+      button.textContent = tr('Warte auf dein Gerät …');
 
       try {
         const options = await api.auth.passkeyRegisterOptions();
@@ -258,7 +288,7 @@ export async function render_(container) {
       } catch (error) {
         toast(error.message, 'error');
         button.disabled = false;
-        button.textContent = '+ Passkey hinzufügen';
+        button.textContent = tr('+ Passkey hinzufügen');
       }
     };
 
@@ -638,7 +668,7 @@ export async function render_(container) {
    */
   const startSetup = async (button) => {
     button.disabled = true;
-    button.textContent = 'Wird vorbereitet …';
+    button.textContent = tr('Wird vorbereitet …');
 
     let setup;
     try {
@@ -646,7 +676,7 @@ export async function render_(container) {
     } catch (error) {
       toast(error.message, 'error');
       button.disabled = false;
-      button.textContent = 'Einrichten';
+      button.textContent = tr('Einrichten');
       return;
     }
 
@@ -769,7 +799,7 @@ export async function render_(container) {
             style: { width: '100%', marginTop: '16px' },
             onClick: async (event) => {
               const ok = await copyToClipboard(text);
-              event.currentTarget.textContent = ok ? '✓ Kopiert' : 'Kopieren nicht möglich';
+              event.currentTarget.textContent = tr(ok ? '✓ Kopiert' : 'Kopieren nicht möglich');
             },
           }),
 
@@ -1306,10 +1336,10 @@ export async function render_(container) {
         const status = await api.settings.syncStatus();
 
         if (status.state.running) {
-          syncStatusLine.textContent = `Abgleich läuft … ${status.state.done} von ${status.state.total}`;
+          syncStatusLine.textContent = tr(`Abgleich läuft … ${status.state.done} von ${status.state.total}`);
         } else {
           clearInterval(timer);
-          syncStatusLine.textContent = `Letzter Abgleich: ${timeAgo(status.state.lastRunAt)} – ${status.state.lastResult ?? 'fertig'}`;
+          syncStatusLine.textContent = tr(`Letzter Abgleich: ${timeAgo(status.state.lastRunAt)} – ${status.state.lastResult ?? 'fertig'}`);
           toast('Abgleich abgeschlossen.', 'success');
         }
       } catch {
@@ -1391,7 +1421,7 @@ export async function render_(container) {
           title: 'Prüft für alle Titel deiner Bibliothek, wo sie gerade laufen',
           onClick: async () => {
             await api.settings.startSync('availability');
-            syncStatusLine.textContent = 'Abgleich gestartet …';
+            syncStatusLine.textContent = tr('Abgleich gestartet …');
             pollSync();
           },
         }),
@@ -1400,7 +1430,7 @@ export async function render_(container) {
           title: 'Zusätzlich Metadaten und Anbieter-Katalog',
           onClick: async () => {
             await api.settings.startSync('full');
-            syncStatusLine.textContent = 'Vollständiger Abgleich gestartet …';
+            syncStatusLine.textContent = tr('Vollständiger Abgleich gestartet …');
             pollSync();
           },
         }),

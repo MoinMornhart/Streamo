@@ -22,6 +22,8 @@
 import { api, img } from '../api.js';
 import { el, render, posterCard, empty, toast, STATUS_LABELS } from '../ui.js';
 import { navigateTo } from '../router.js';
+// Übersetzt Texte, die am Baustein el() vorbei direkt ins DOM geschrieben werden.
+import { tr } from '../i18n.js';
 
 // ===========================================================================
 // Was sich die Bibliothek über Sitzungen hinweg merkt
@@ -201,8 +203,8 @@ function collectionSection(group, expanded, actions) {
 
     // Das Dreieck zeigt, was ein Klick bewirkt: nach rechts = aufklappen,
     // nach unten = zuklappen.
-    toggle.textContent = isOpen ? '▾' : '▸';
-    toggle.title = isOpen ? 'Reihe einklappen' : 'Reihe ausklappen';
+    toggle.textContent = tr(isOpen ? '▾' : '▸');
+    toggle.title = tr(isOpen ? 'Reihe einklappen' : 'Reihe ausklappen');
     toggle.setAttribute('aria-expanded', String(isOpen));
 
     // Die Pfeile erst berechnen, wenn der Streifen sichtbar ist – an einem
@@ -524,7 +526,7 @@ export async function render_(container, _params, query) {
           try {
             await api.library.update(entry.showId, { favorite: next });
             entry.favorite = next;
-            event.target.textContent = next ? '♥' : '♡';
+            event.target.textContent = tr(next ? '♥' : '♡');
           } catch (error) {
             toast(error.message, 'error');
           }

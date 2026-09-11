@@ -60,6 +60,8 @@ router.get('/', (req, res) => {
       isAdmin: Boolean(req.user.is_admin),
       region: req.user.region || runtime.region,
       language: req.user.language || runtime.language,
+      // Sprache der Oberfläche; null = nicht festgelegt (Browser entscheidet).
+      uiLanguage: req.user.ui_language || null,
     },
     global: {
       // Der TMDB-Schlüssel selbst verlässt den Server NIE – auch nicht
@@ -91,7 +93,7 @@ router.get('/', (req, res) => {
 
 /**
  * PUT /api/settings
- * Persönliche Einstellungen. Body: { region?, language?, displayName? }
+ * Persönliche Einstellungen. Body: { region?, language?, uiLanguage?, displayName?, theme? }
  *
  * Die Region ist die wichtigste Einstellung überhaupt: Sie entscheidet,
  * welche Anbieter im Katalog stehen und welche Verfügbarkeiten geladen werden.
@@ -113,6 +115,18 @@ router.put('/', (req, res) => {
   if (req.body?.language) {
     updates.push('language = ?');
     params.push(String(req.body.language).trim());
+  }
+
+  // Sprache der Oberfläche. Nur bekannte Werte: Ein unbekannter würde im
+  // Frontend zwar still auf Deutsch zurückfallen, gehört aber gar nicht erst
+  // in die Datenbank. Die Liste entspricht UI_LANGUAGES in public/js/i18n.js.
+  if (req.body?.uiLanguage !== undefined) {
+    const uiLanguage = String(req.body.uiLanguage).trim();
+    if (!['de', 'en'].includes(uiLanguage)) {
+      return res.status(400).json({ error: 'Unbekannte Sprache.' });
+    }
+    updates.push('ui_language = ?');
+    params.push(uiLanguage);
   }
 
   if (req.body?.displayName !== undefined) {

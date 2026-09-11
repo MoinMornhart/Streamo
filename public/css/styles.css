@@ -2762,3 +2762,40 @@ input[type='date']::-webkit-calendar-picker-indicator:hover {
   white-space: nowrap;
   overflow: hidden;
 }
+
+/* ---------------------------------------------------------------------------
+   Sprachumschalter auf den Anmelde-Bildschirmen (public/js/views/auth.js)
+   ---------------------------------------------------------------------------
+   Klein und oben rechts in der Box: Wer die Sprache nicht versteht, soll ihn
+   trotzdem sofort finden – deshalb stehen die Namen in ihrer eigenen Sprache
+   ("Deutsch", "English") und nicht uebersetzt. */
+.auth-box {
+  position: relative;
+}
+.lang-switch {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--surface-2, rgba(255, 255, 255, 0.04));
+}
+.lang-option {
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.lang-option:hover {
+  color: var(--text);
+}
+.lang-option.active {
+  background: var(--accent);
+  color: #fff;
+}

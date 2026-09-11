@@ -16,6 +16,14 @@
  */
 
 import { img } from './api.js';
+// Übersetzung der sichtbaren Texte und Gebietsschema für Datumsangaben.
+import { tr, locale } from './i18n.js';
+
+/**
+ * Attribute, deren Wert sichtbarer Text ist und deshalb übersetzt wird.
+ * Bewusst ohne "alt": Dort stehen fast immer Titel und Anbieternamen.
+ */
+const TRANSLATED_ATTRIBUTES = new Set(['title', 'placeholder', 'aria-label']);
 
 /**
  * Erzeugt ein DOM-Element.
@@ -33,6 +41,9 @@ import { img } from './api.js';
  * @returns {HTMLElement}
  */
 export function el(tag, props = {}, children = []) {
+  // Übersetzung: Sichtbare Texte laufen durch tr() (public/js/i18n.js). Bei
+  // Deutsch gibt tr() den Text unverändert zurück; bei Englisch schlägt es im
+  // Wörterbuch nach. So müssen die Ansichten selbst nichts davon wissen.
   // "div.card.big" -> Tag "div", Klassen "card big"
   const [tagName, ...classes] = tag.split('.');
   const node = document.createElement(tagName);
@@ -44,7 +55,7 @@ export function el(tag, props = {}, children = []) {
     if (key === 'text') {
       // textContent statt innerHTML: Serientitel kommen aus einer fremden API
       // und könnten sonst Markup einschleusen.
-      node.textContent = String(value);
+      node.textContent = tr(String(value));
     } else if (key === 'html') {
       node.innerHTML = value;
     } else if (key === 'onClick') {
@@ -61,6 +72,10 @@ export function el(tag, props = {}, children = []) {
       Object.assign(node.dataset, value);
     } else if (key === 'className') {
       node.className = value;
+    } else if (TRANSLATED_ATTRIBUTES.has(key)) {
+      // Tooltips, Platzhalter und Beschriftungen für Screenreader sind
+      // ebenso sichtbarer Text wie der Inhalt selbst.
+      node.setAttribute(key, tr(String(value)));
     } else if (key in node && key !== 'list') {
       // Echte Eigenschaften (value, checked, disabled, hidden …) direkt setzen.
       node[key] = value;
@@ -71,7 +86,7 @@ export function el(tag, props = {}, children = []) {
 
   for (const child of [].concat(children)) {
     if (child === null || child === undefined || child === false) continue;
-    node.append(child instanceof Node ? child : document.createTextNode(String(child)));
+    node.append(child instanceof Node ? child : document.createTextNode(tr(String(child))));
   }
 
   return node;
@@ -83,6 +98,7 @@ export function el(tag, props = {}, children = []) {
  * @param {...(Node|null|false)} nodes
  */
 export function render(container, ...nodes) {
+  // (Übersetzt wird schon beim Bauen in el() – hier nur einhängen.)
   container.replaceChildren(...nodes.flat().filter(Boolean));
 }
 
@@ -449,7 +465,7 @@ export async function askConfirm({ title, text, confirmLabel = 'Ja', danger = fa
           const ok = await copyToClipboard(url);
 
           if (ok) {
-            copyButton.textContent = '✓ Kopiert';
+            copyButton.textContent = tr('✓ Kopiert');
             toast('Link kopiert – jetzt einfach einfügen und verschicken.', 'success');
             setTimeout(() => close(), 800);
           } else {
@@ -651,10 +667,10 @@ export function plannedLabel(iso) {
   // Innerhalb der nächsten Woche reicht der Wochentag – "Freitag" sagt mehr
   // als "12.9.", wenn es ohnehin bald ist.
   if (days < 7) {
-    return `📅 ${target.toLocaleDateString('de-DE', { weekday: 'long' })}`;
+    return `📅 ${target.toLocaleDateString(locale(), { weekday: 'long' })}`;
   }
 
-  return `📅 ${target.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })}`;
+  return `📅 ${target.toLocaleDateString(locale(), { day: 'numeric', month: 'short' })}`;
 }
 
 /**
@@ -666,7 +682,9 @@ export function formatDate(iso) {
   if (!iso) return '–';
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' });
+  // Das Gebietsschema folgt der Sprache der Oberfläche: "15. März 2024"
+  // oder "15 March 2024".
+  return date.toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 /**

@@ -39,6 +39,9 @@ import crypto from 'node:crypto';
 import { all, get, run } from './db.js';
 // Sehplaene liefern wiederkehrende Termine - siehe src/watchplan.js.
 import { parseWeekdays, nextOccurrences } from './watchplan.js';
+// Dieselbe Übersetzung wie im Browser: Der Feed geht an ein Kalenderprogramm,
+// dort gibt es kein el(), das übersetzen könnte. Die Datei kommt ohne DOM aus.
+import { translate } from '../public/js/i18n.js';
 
 /**
  * Wie weit der Kalender in die Zukunft blickt.
@@ -105,7 +108,8 @@ export function findUserByCalendarToken(token) {
 
   return (
     get(
-      'SELECT id, username, display_name, region FROM users WHERE calendar_token = ?',
+      // ui_language: In dieser Sprache stehen die Termine im Feed.
+      'SELECT id, username, display_name, region, ui_language FROM users WHERE calendar_token = ?',
       String(token),
     ) ?? null
   );
@@ -377,7 +381,7 @@ function foldLine(line) {
  * @param {string} [options.baseUrl] Für Links zurück in die Anwendung
  * @returns {string}
  */
-export function buildIcs(events, { name, baseUrl } = {}) {
+export function buildIcs(events, { name, baseUrl, lang = 'de' } = {}) {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -388,7 +392,7 @@ export function buildIcs(events, { name, baseUrl } = {}) {
     'METHOD:PUBLISH',
     // Apple Kalender und Google zeigen diesen Namen an, statt die Adresse.
     `X-WR-CALNAME:${escapeText(name)}`,
-    'X-WR-CALDESC:Geplante Titel, auslaufende Angebote und neue Episoden aus Streamo.',
+    `X-WR-CALDESC:${escapeText(translate('Geplante Titel, auslaufende Angebote und neue Episoden aus Streamo.', lang))}`,
     // Wie oft das Programm nachsehen soll. Beides angeben: Apple hält sich an
     // REFRESH-INTERVAL, ältere Programme an X-PUBLISHED-TTL.
     'REFRESH-INTERVAL;VALUE=DURATION:PT6H',
@@ -416,8 +420,11 @@ export function buildIcs(events, { name, baseUrl } = {}) {
       `DTSTAMP:${stamp}`,
       `DTSTART;VALUE=DATE:${day}`,
       `DTEND;VALUE=DATE:${nextDay.toISOString().slice(0, 10).replace(/-/g, '')}`,
-      `SUMMARY:${escapeText(event.summary)}`,
-      `DESCRIPTION:${escapeText(event.description)}`,
+      // Die Termine entstehen auf Deutsch (collectEvents) und werden erst hier
+      // in die Sprache des Kontos gebracht – so bleibt collectEvents dieselbe
+      // Quelle für den Reiter im Browser, der selbst übersetzt.
+      `SUMMARY:${escapeText(translate(event.summary, lang))}`,
+      `DESCRIPTION:${escapeText(translate(event.description, lang))}`,
       // Zurück in die Anwendung, direkt zum Titel.
       baseUrl && event.showId ? `URL:${baseUrl}/library` : null,
       // Ganztägig und ohne Belegung des Kalenders – es ist eine Notiz, kein

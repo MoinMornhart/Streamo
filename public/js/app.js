@@ -25,6 +25,8 @@ import { route, startRouter, navigateTo, resolve } from './router.js';
 // Farbschema: Das im Browser gemerkte wendet bereits index.html an, hier
 // kommt das am Konto hinterlegte hinterher.
 import { applyTheme, saveTheme } from './theme.js';
+// Sprache der Oberfläche: setzen, erkennen, feste Texte übersetzen.
+import { setLanguage, detectLanguage, translateStatic, tr } from './i18n.js';
 
 /**
  * Der gemeinsame Zustand.
@@ -76,7 +78,7 @@ export function updateChrome() {
   // Der Kreis oben rechts zeigt den ersten Buchstaben des Namens.
   document.getElementById('user-initial').textContent = name.charAt(0).toUpperCase();
   document.getElementById('user-name').textContent = name;
-  document.getElementById('user-region').textContent = `Region ${state.region}`;
+  document.getElementById('user-region').textContent = tr(`Region ${state.region}`);
   document.getElementById('footer-version').textContent = `v${state.version}`;
 
   // Hinweis, solange kein TMDB-Key hinterlegt ist. Ohne ihn funktionieren
@@ -95,6 +97,9 @@ export function updateChrome() {
  * Fragt den Anmeldezustand beim Server ab und aktualisiert `state`.
  * @returns {Promise<object>} die Antwort von /api/auth/status
  */
+/** Wurden die festen Texte aus index.html schon übersetzt? */
+let staticTranslated = false;
+
 export async function refreshStatus() {
   const status = await api.auth.status();
 
@@ -103,6 +108,18 @@ export async function refreshStatus() {
   state.version = status.version;
   state.region = status.user?.region || status.defaults.region;
   state.allowRegistration = Boolean(status.allowRegistration);
+
+  // Die Sprache der Oberfläche: am Konto hinterlegt, sonst die im Browser
+  // gemerkte oder die des Browsers (siehe public/js/i18n.js). Sie muss stehen,
+  // bevor die erste Ansicht gezeichnet wird – el() übersetzt beim Bauen.
+  setLanguage(status.user?.ui_language || detectLanguage());
+
+  // Die festen Texte aus index.html (Navigation, Menü, Fußzeile) entstehen
+  // nicht über el(). Einmal übersetzen genügt: Ein Sprachwechsel lädt neu.
+  if (!staticTranslated) {
+    translateStatic(document.body);
+    staticTranslated = true;
+  }
 
   // Das am Konto hinterlegte Farbschema anwenden – so gilt dieselbe Farbe
   // auch in einem Browser, in dem sie noch nie eingestellt wurde.

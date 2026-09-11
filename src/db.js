@@ -967,6 +967,32 @@ const MIGRATIONS = [
         ON watch_plans(active, last_run_on);
     `);
   },
+
+  // -------------------------------------------------------------------------
+  // Version 14 -> Sprache der Oberfläche je Konto
+  // -------------------------------------------------------------------------
+  // "de" oder "en". Getrennt von users.language, der Sprache der INHALTE:
+  // Die bestimmt, in welcher Sprache TMDB Titel und Beschreibungen liefert,
+  // diese hier nur Menüs, Knöpfe und Meldungen. Beides kann auseinanderfallen
+  // – englische Oberfläche, deutsche Serientitel ist ein üblicher Wunsch.
+  //
+  // NULL heißt "nicht festgelegt": Dann gilt, was der Browser sich gemerkt
+  // hat oder als Sprache meldet (public/js/i18n.js -> detectLanguage).
+  //
+  // Verknüpfungen:
+  //   - src/auth.js -> getUserBySession() liefert das Feld mit
+  //   - src/routes/settings.js -> PUT /api/settings { uiLanguage }
+  //   - src/routes/public.js -> Kalender-Feed in dieser Sprache
+  //   - public/js/app.js -> stellt die Oberfläche beim Start danach ein
+  () => {
+    const columns = db.prepare('PRAGMA table_info(users)').all();
+
+    // ALTER TABLE kennt kein IF NOT EXISTS – deshalb vorher nachsehen, wie in
+    // den Migrationen 2, 5 und 6.
+    if (!columns.some((column) => column.name === 'ui_language')) {
+      db.exec('ALTER TABLE users ADD COLUMN ui_language TEXT');
+    }
+  },
 ];
 
 /**

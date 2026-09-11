@@ -20,6 +20,8 @@
 
 import { api } from '../api.js';
 import { el, render, posterCard, empty, toast, enrichWithAvailability } from '../ui.js';
+// Übersetzt Texte, die am Baustein el() vorbei direkt ins DOM geschrieben werden.
+import { tr } from '../i18n.js';
 
 /**
  * Zeichnet die Suchergebnisse.
@@ -70,16 +72,16 @@ export async function render_(container, _params, query) {
         event.stopPropagation();
 
         button.disabled = true;
-        button.textContent = 'Wird geladen …';
+        button.textContent = tr('Wird geladen …');
 
         try {
           await api.library.add(item.tmdbId, item.mediaType, 'watchlist');
-          button.textContent = '✓ In der Bibliothek';
+          button.textContent = tr('✓ In der Bibliothek');
           item.inLibrary = true;
           toast(`„${item.title}" ist jetzt in deiner Bibliothek.`, 'success');
         } catch (error) {
           button.disabled = false;
-          button.textContent = '+ Hinzufügen';
+          button.textContent = tr('+ Hinzufügen');
           toast(error.message, 'error');
         }
       },

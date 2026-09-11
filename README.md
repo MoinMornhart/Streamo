@@ -15,6 +15,8 @@ mit einem Blick darauf, **wo** jeder Titel läuft und ob er **in deinem Abo** st
 [![Selbst gehostet](https://img.shields.io/badge/selbst%20gehostet-Proxmox%20%C2%B7%20Raspberry%20Pi%20%C2%B7%20Linux-6c5ce7)](#installation)
 [![Windows-App](https://img.shields.io/badge/App-Windows-6c5ce7?logo=windows&logoColor=white)](https://github.com/MoinMornhart/Streamo/releases)
 
+Deutsch · **[English](README.en.md)**
+
 [Installation](#installation) · [Funktionen](#was-streamo-kann) · [Auf dem Handy](#auf-dem-handy) · [Anmelden](#anmelden--passwort-passkey-zwei-faktor) · [Konfiguration](#konfiguration) · [Aktualisieren](#aktualisieren)
 
 <br>
@@ -37,6 +39,7 @@ mit einem Blick darauf, **wo** jeder Titel läuft und ob er **in deinem Abo** st
 | 📊 **Auswertung** | Welches Abo sich lohnt, welches du kündigen kannst |
 | 👥 **Mehrere Personen** | Eigene Abos und Listen je Person, Freunde, gemeinsame Vorschläge |
 | 🔐 **Sicher anmelden** | Passwort, Passkey, Zwei-Faktor mit Authenticator-App |
+| 🌍 **Deutsch oder Englisch** | Jede Person wählt die Sprache der Oberfläche, unabhängig von der Sprache der Inhalte |
 | 🏠 **Bei dir zu Hause** | Ein Befehl auf Proxmox oder dem Raspberry Pi, keine Zugangsdaten fremder Dienste |
 
 ---
@@ -105,7 +108,7 @@ Streamo läuft dann auf <http://localhost:3000>. Beim ersten Aufruf führt dich 
 
 Neben der Weboberfläche gibt es eine App für den PC: **[Installer herunterladen](https://github.com/MoinMornhart/Streamo/releases)**
 
-Sie zeigt dieselbe Oberfläche in einem eigenen Programmfenster und kann dazu, was der Browser nicht kann: im Infobereich weiterlaufen, bei neuen Episoden benachrichtigen, mit Windows starten und die Suche per `Strg`+`Umschalt`+`S` öffnen. Details in [desktop/README.md](desktop/README.md).
+Sie zeigt dieselbe Oberfläche in einem eigenen Programmfenster und kann dazu, was der Browser nicht kann: im Infobereich weiterlaufen, bei neuen Episoden benachrichtigen, mit Windows starten und die Suche per `Strg`+`Umschalt`+`S` öffnen. Ihre Menüs folgen der Sprache des Systems. Details in [desktop/README.md](desktop/README.md).
 
 Die App hält sich selbst aktuell: Sie sieht kurz nach dem Start und danach alle vier Stunden nach, lädt im Hintergrund und fragt dann, ob neu gestartet werden soll. Wer ablehnt, bekommt das Update beim nächsten Beenden. Beim Start leert sie außerdem einmal ihren Zwischenspeicher – sonst könnte sie nach einem Server-Update noch die alte Oberfläche zeigen.
 
@@ -199,6 +202,12 @@ Optional. Jede Person hat eigene Abos, eigene Bibliothek, eigenen Fortschritt un
 
 **Freunde** – Seht euch gegenseitig die Listen an und lasst Streamo ausrechnen, was ihr *zusammen* schauen könnt: auf Grundlage eurer beider Abos und dessen, was ihr euch vorgenommen habt. Dazu Empfehlungen mit einem Satz Begründung – das ist der Unterschied zwischen „schau dir das an" und einem Link.
 
+### Deutsch oder Englisch
+
+Jede Person stellt unter *Einstellungen → Konto* die Sprache der Oberfläche ein – Menüs, Knöpfe, Meldungen und das Kalender-Abo folgen ihr, auf allen Geräten. Auf dem Anmeldebildschirm sitzt oben rechts ein Umschalter. Davon getrennt bleibt die *Sprache der Inhalte*: Englische Oberfläche mit deutschen Serientiteln und Beschreibungen geht genauso.
+
+Die Windows-App richtet ihr Tray-Menü und ihre Meldungen nach der Sprache des Systems.
+
 ### Dein Farbschema
 
 Streamo war violett, weil sich irgendjemand einmal für Violett entscheiden musste. Jede Person wählt ihre eigene Akzentfarbe – acht Vorgaben oder ein freier Farbwähler – und dazu einen Grundton: Dunkelblau oder echtes Schwarz. Die Einstellung gilt für dein Konto, nicht für die ganze Instanz, und reist zu deinen anderen Geräten mit.
@@ -235,7 +244,7 @@ Das Ergebnis ist dasselbe, nur ohne Passwort-Weitergabe.
 
 ## Anmelden – Passwort, Passkey, Zwei-Faktor
 
-<img align="right" src="docs/img/anmeldung.png" alt="Der Anmeldebildschirm mit Passkey-Knopf, Passwortfeldern und Konto erstellen" width="380">
+<img align="right" src="docs/img/anmeldung.png" alt="Der Anmeldebildschirm mit Sprachumschalter, Passkey-Knopf, Passwortfeldern und Konto erstellen" width="380">
 
 Drei Wege, die nebeneinander bestehen:
 
@@ -508,6 +517,8 @@ Streamo/
 │   └── js/
 │       ├── api.js          Der einzige Weg zum Server
 │       ├── ui.js           Bausteine (Poster-Kachel, Dialoge, Formatierer)
+│       ├── i18n.js         Deutsch oder Englisch – übersetzt an einer Stelle
+│       ├── i18n/           Das englische Wörterbuch
 │       ├── theme.js        Akzentfarbe und Grundton
 │       ├── provider-links.js  Direktlinks zu den Anbietern
 │       ├── router.js       Routing über die Adressleiste
@@ -520,7 +531,7 @@ Streamo/
 │   ├── make-admin.mjs      Adminrechte auf der Konsole vergeben
 │   ├── registration.mjs    Offene Registrierung ein- und ausschalten
 │   └── install/            Installation im Container und auf dem Pi
-├── tests/                  Über 580 Prüfungen, ohne Test-Framework
+├── tests/                  Über 600 Prüfungen, ohne Test-Framework
 └── docs/                   Anleitungen (Proxmox, Raspberry Pi) und Bilder
 ```
 
@@ -537,7 +548,8 @@ Der gesamte Code ist durchgehend auf Deutsch kommentiert – jede Verknüpfung z
 - **Der zweite Faktor dagegen ist selbst geschrieben** (`src/totp.js`), und das ist kein Widerspruch: Hier gibt es nichts zu erfinden. `node:crypto` liefert HMAC-SHA1 fertig, der Rest ist Byte-Schieberei nach einer klar beschriebenen Norm – und RFC 6238 bringt offizielle Testvektoren mit, gegen die `npm run test:totp` prüft.
 - **SQLite über `node:sqlite`** – in Node eingebaut und ab Version 22.13 ohne Zusatzschalter nutzbar. Keine native Kompilierung, kein Datenbankserver. Die gesamte Installation ist eine Datei plus ein Verzeichnis.
 - **Kein Frontend-Build.** Die Oberfläche besteht aus nativen ES-Modulen. Kein Webpack, kein `npm run build`, kein Bundle – Dateien kopieren genügt.
-- **Kein Test-Framework.** Die Tests unter `tests/` sind gewöhnliche Skripte, die etwas tun und das Ergebnis vergleichen. `npm run test:all` führt sie alle aus. Über 580 Prüfungen, keine einzige Abhängigkeit dafür.
+- **Übersetzung, ohne die Ansichten umzuschreiben.** Der deutsche Text im Code ist selbst der Schlüssel; `el()` in `ui.js` übersetzt beim Bauen der Elemente. Fehlt ein Eintrag, bleibt es deutsch – kaputt gehen kann dabei nichts, und bei Deutsch ist die Übersetzung ganz abgeschaltet.
+- **Kein Test-Framework.** Die Tests unter `tests/` sind gewöhnliche Skripte, die etwas tun und das Ergebnis vergleichen. `npm run test:all` führt sie alle aus. Über 600 Prüfungen, keine einzige Abhängigkeit dafür.
 - **Alle Filter stehen in der URL.** Jede Ansicht der Bibliothek ist verlinkbar, der Zurück-Knopf funktioniert. Die zuletzt benutzten merkt sich der Browser zusätzlich.
 - **Keine Browser-Dialoge.** Kein `prompt()`, kein `confirm()` – alle Fenster sind Teil der Oberfläche und tragen deine Akzentfarbe.
 

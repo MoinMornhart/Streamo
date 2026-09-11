@@ -20,6 +20,8 @@
 
 import { api } from '../api.js';
 import { el, render, empty, formatDate } from '../ui.js';
+// t() für den Fortschritt "3 von 10", tr() für die Einheit dahinter.
+import { t, tr } from '../i18n.js';
 
 /**
  * Baut die Kachel für einen einzelnen Erfolg.
@@ -55,7 +57,10 @@ function achievementCard(achievement, unlocked) {
           el('div', { style: { marginTop: '8px' } }, [
             el('div.progress-bar', {}, [el('span', { style: { width: `${percent}%` } })]),
             el('div.achievement-progress', {
-              text: `${progress.current} von ${progress.goal}${progress.unit ? ` ${progress.unit}` : ''}`,
+              // Explizit übersetzt statt über ein Muster: "{0} von {1}{2}" wäre
+              // so allgemein, dass es fremde Sätze mit "von" zerlegen würde.
+              text: t('{current} von {goal}', { current: progress.current, goal: progress.goal }) +
+                (progress.unit ? ` ${tr(progress.unit)}` : ''),
             }),
           ]),
 

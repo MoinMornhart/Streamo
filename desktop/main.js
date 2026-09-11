@@ -53,6 +53,75 @@ const fs = require('node:fs');
 // Abschnitt "Updates" weiter unten.
 const { autoUpdater } = require('electron-updater');
 
+// ==========================================================================
+// Sprache: Deutsch oder Englisch, nach dem Betriebssystem
+// ==========================================================================
+// Das Programmfenster zeigt die Weboberfläche, und die hat ihren eigenen
+// Umschalter (public/js/i18n.js). Tray-Menü, Benachrichtigungen und
+// Update-Dialoge zeichnet dagegen Electron selbst – sie richten sich nach der
+// Sprache des Systems: Deutsch auf einem deutschen Windows, sonst Englisch.
+//
+// Schlüssel ist der deutsche Text, wie er im Code steht; {name} sind
+// Platzhalter für eingesetzte Werte. Dasselbe Prinzip wie im Wörterbuch der
+// Weboberfläche, nur klein genug für eine Datei.
+const EN = {
+  'Streamo öffnen': 'Open Streamo',
+  Weiterschauen: 'Continue watching',
+  'Meine Bibliothek': 'My library',
+  Entdecken: 'Discover',
+  'Bei neuen Episoden benachrichtigen': 'Notify me about new episodes',
+  'Mit Windows starten': 'Start with Windows',
+  'Beim Schließen im Hintergrund lassen': 'Keep running in the background when closed',
+  'Update installieren und neu starten': 'Install update and restart',
+  'Nach Updates suchen': 'Check for updates',
+  'Update-Protokoll öffnen': 'Open update log',
+  'Anderen Server verbinden …': 'Connect to another server …',
+  Beenden: 'Quit',
+  'Streamo ist unter {url} nicht erreichbar ({reason}).': 'Streamo is not reachable at {url} ({reason}).',
+  '1 ungesehene Episode': '1 unwatched episode',
+  '{n} ungesehene Episoden': '{n} unwatched episodes',
+  ' · läuft bei {where}': ' · on {where}',
+  'Streamo wird aktualisiert': 'Streamo is updating',
+  'Version {version} wird im Hintergrund geladen.': 'Version {version} is downloading in the background.',
+  'Streamo ist auf dem neuesten Stand.': 'Streamo is up to date.',
+  'Installierte Version: {version}': 'Installed version: {version}',
+  'Alles klar': 'OK',
+  'Update bereit': 'Update ready',
+  'Streamo {version} ist fertig heruntergeladen.': 'Streamo {version} has finished downloading.',
+  'Beim Neustart wird es installiert. Du kannst auch später neu starten – dann geschieht es automatisch beim nächsten Beenden.':
+    'It will be installed on restart. You can also restart later – then it happens automatically the next time you quit.',
+  'Jetzt neu starten': 'Restart now',
+  Später: 'Later',
+  'Die Suche nach Updates ist fehlgeschlagen.': 'Checking for updates failed.',
+  'Im Entwicklungsmodus gibt es keine Updates.': 'There are no updates in development mode.',
+  'Bitte gib die Adresse deines Servers ein.': 'Please enter the address of your server.',
+  'Die Adresse muss mit http:// oder https:// beginnen.': 'The address must start with http:// or https://.',
+  'Der Server antwortet mit Fehler {status}.': 'The server responds with error {status}.',
+  'Unter dieser Adresse antwortet kein Streamo.': 'No Streamo answers at this address.',
+  'Keine Verbindung: {reason}. Läuft der Server, und stimmt die Adresse?':
+    'No connection: {reason}. Is the server running, and is the address right?',
+};
+
+/**
+ * Übersetzt einen Text in die Sprache des Systems und setzt Werte ein.
+ *
+ * Erst zur Laufzeit aufrufen, nicht beim Laden der Datei: app.getLocale()
+ * liefert die Sprache verlässlich erst, wenn Electron bereit ist – und alle
+ * Stellen, die L() benutzen, laufen ohnehin erst danach.
+ *
+ * @param {string} text     deutscher Text (Schlüssel in EN)
+ * @param {object} [values] Werte für {name}-Platzhalter
+ * @returns {string}
+ */
+function L(text, values = {}) {
+  const german = String(app.getLocale() || 'de').toLowerCase().startsWith('de');
+  let out = german ? text : EN[text] ?? text;
+  for (const [name, value] of Object.entries(values)) {
+    out = out.split(`{${name}}`).join(String(value));
+  }
+  return out;
+}
+
 // --------------------------------------------------------------------------
 // Einstellungen der App.
 //
@@ -307,7 +376,7 @@ function createWindow() {
     if (errorCode === -3) return;
 
     showConnectScreen({
-      error: `Streamo ist unter ${url} nicht erreichbar (${errorDescription}).`,
+      error: L('Streamo ist unter {url} nicht erreichbar ({reason}).', { url, reason: errorDescription }),
     });
   });
 
@@ -385,14 +454,14 @@ function createTray() {
   }
 
   const menu = Menu.buildFromTemplate([
-    { label: 'Streamo öffnen', click: showWindow },
+    { label: L('Streamo öffnen'), click: showWindow },
     { type: 'separator' },
-    { label: 'Weiterschauen', click: () => openRoute('/library?status=watching') },
-    { label: 'Meine Bibliothek', click: () => openRoute('/library') },
-    { label: 'Entdecken', click: () => openRoute('/') },
+    { label: L('Weiterschauen'), click: () => openRoute('/library?status=watching') },
+    { label: L('Meine Bibliothek'), click: () => openRoute('/library') },
+    { label: L('Entdecken'), click: () => openRoute('/') },
     { type: 'separator' },
     {
-      label: 'Bei neuen Episoden benachrichtigen',
+      label: L('Bei neuen Episoden benachrichtigen'),
       type: 'checkbox',
       checked: settings.notifyNewEpisodes,
       click: (item) => {
@@ -402,13 +471,13 @@ function createTray() {
       },
     },
     {
-      label: 'Mit Windows starten',
+      label: L('Mit Windows starten'),
       type: 'checkbox',
       checked: settings.autoStart,
       click: (item) => setAutoStart(item.checked),
     },
     {
-      label: 'Beim Schließen im Hintergrund lassen',
+      label: L('Beim Schließen im Hintergrund lassen'),
       type: 'checkbox',
       checked: settings.minimizeToTray,
       click: (item) => saveSettings({ minimizeToTray: item.checked }),
@@ -419,19 +488,19 @@ function createTray() {
     // Update-Bereichs und sagt deutlich, was passiert.
     updateReady
       ? {
-          label: 'Update installieren und neu starten',
+          label: L('Update installieren und neu starten'),
           click: () => {
             reallyQuitting = true;
             autoUpdater.quitAndInstall();
           },
         }
-      : { label: 'Nach Updates suchen', click: checkForUpdatesManually },
+      : { label: L('Nach Updates suchen'), click: checkForUpdatesManually },
 
     // Der direkte Weg zum Protokoll. Wenn die Selbstaktualisierung wieder
     // einmal nicht tut, was sie soll, steht hier warum – ohne dass man erst
     // %APPDATA% suchen muss.
     {
-      label: 'Update-Protokoll öffnen',
+      label: L('Update-Protokoll öffnen'),
       click: () => {
         // shell.openPath öffnet die Datei im Standardprogramm für .log,
         // meistens dem Editor. Gibt es sie noch nicht, wird sie leer
@@ -448,9 +517,9 @@ function createTray() {
       },
     },
 
-    { label: 'Anderen Server verbinden …', click: () => showConnectScreen() },
+    { label: L('Anderen Server verbinden …'), click: () => showConnectScreen() },
     {
-      label: 'Beenden',
+      label: L('Beenden'),
       click: () => {
         reallyQuitting = true;
         app.quit();
@@ -539,8 +608,8 @@ async function checkForNewEpisodes() {
       new Notification({
         title: entry.title,
         body:
-          `${unseen} ungesehene ${unseen === 1 ? 'Episode' : 'Episoden'}` +
-          (where ? ` · läuft bei ${where}` : ''),
+          (unseen === 1 ? L('1 ungesehene Episode') : L('{n} ungesehene Episoden', { n: unseen })) +
+          (where ? L(' · läuft bei {where}', { where }) : ''),
         icon: appIcon(),
         silent: false,
       })
@@ -684,8 +753,8 @@ function setupUpdater() {
     updateLog('info', `Neue Version verfügbar: ${info.version}`);
 
     new Notification({
-      title: 'Streamo wird aktualisiert',
-      body: `Version ${info.version} wird im Hintergrund geladen.`,
+      title: L('Streamo wird aktualisiert'),
+      body: L('Version {version} wird im Hintergrund geladen.', { version: info.version }),
       icon: appIcon(),
     }).show();
   });
@@ -698,9 +767,9 @@ function setupUpdater() {
       dialog.showMessageBox(mainWindow, {
         type: 'info',
         title: 'Streamo',
-        message: 'Streamo ist auf dem neuesten Stand.',
-        detail: `Installierte Version: ${app.getVersion()}`,
-        buttons: ['Alles klar'],
+        message: L('Streamo ist auf dem neuesten Stand.'),
+        detail: L('Installierte Version: {version}', { version: app.getVersion() }),
+        buttons: [L('Alles klar')],
       });
       manualUpdateCheck = false;
     }
@@ -726,11 +795,11 @@ function setupUpdater() {
 
     const { response } = await dialog.showMessageBox(mainWindow, {
       type: 'info',
-      title: 'Update bereit',
-      message: `Streamo ${info.version} ist fertig heruntergeladen.`,
+      title: L('Update bereit'),
+      message: L('Streamo {version} ist fertig heruntergeladen.', { version: info.version }),
       detail:
-        'Beim Neustart wird es installiert. Du kannst auch später neu starten – dann geschieht es automatisch beim nächsten Beenden.',
-      buttons: ['Jetzt neu starten', 'Später'],
+        L('Beim Neustart wird es installiert. Du kannst auch später neu starten – dann geschieht es automatisch beim nächsten Beenden.'),
+      buttons: [L('Jetzt neu starten'), L('Später')],
       defaultId: 0,
       cancelId: 1,
     });
@@ -752,9 +821,9 @@ function setupUpdater() {
       dialog.showMessageBox(mainWindow, {
         type: 'warning',
         title: 'Streamo',
-        message: 'Die Suche nach Updates ist fehlgeschlagen.',
+        message: L('Die Suche nach Updates ist fehlgeschlagen.'),
         detail: String(error?.message ?? error),
-        buttons: ['Alles klar'],
+        buttons: [L('Alles klar')],
       });
       manualUpdateCheck = false;
     }
@@ -784,8 +853,8 @@ function checkForUpdatesManually() {
     dialog.showMessageBox(mainWindow, {
       type: 'info',
       title: 'Streamo',
-      message: 'Im Entwicklungsmodus gibt es keine Updates.',
-      buttons: ['Alles klar'],
+      message: L('Im Entwicklungsmodus gibt es keine Updates.'),
+      buttons: [L('Alles klar')],
     });
     return;
   }
@@ -811,12 +880,12 @@ function checkForUpdatesManually() {
 ipcMain.handle('streamo:test-connection', async (event, url) => {
   const base = String(url || '').trim().replace(/\/+$/, '');
 
-  if (!base) return { ok: false, error: 'Bitte gib die Adresse deines Servers ein.' };
+  if (!base) return { ok: false, error: L('Bitte gib die Adresse deines Servers ein.') };
 
   if (!/^https?:\/\//.test(base)) {
     return {
       ok: false,
-      error: 'Die Adresse muss mit http:// oder https:// beginnen.',
+      error: L('Die Adresse muss mit http:// oder https:// beginnen.'),
     };
   }
 
@@ -825,7 +894,7 @@ ipcMain.handle('streamo:test-connection', async (event, url) => {
     const response = await net.fetch(`${base}/api/health`);
 
     if (!response.ok) {
-      return { ok: false, error: `Der Server antwortet mit Fehler ${response.status}.` };
+      return { ok: false, error: L('Der Server antwortet mit Fehler {status}.', { status: response.status }) };
     }
 
     const health = await response.json();
@@ -833,14 +902,14 @@ ipcMain.handle('streamo:test-connection', async (event, url) => {
     // Auf ein Feld prüfen, das nur Streamo liefert – sonst würde jede
     // beliebige Webseite als gültig durchgehen.
     if (health.status !== 'ok') {
-      return { ok: false, error: 'Unter dieser Adresse antwortet kein Streamo.' };
+      return { ok: false, error: L('Unter dieser Adresse antwortet kein Streamo.') };
     }
 
     return { ok: true, version: health.version, hasApiKey: health.hasApiKey, url: base };
   } catch (error) {
     return {
       ok: false,
-      error: `Keine Verbindung: ${error.message}. Läuft der Server, und stimmt die Adresse?`,
+      error: L('Keine Verbindung: {reason}. Läuft der Server, und stimmt die Adresse?', { reason: error.message }),
     };
   }
 });

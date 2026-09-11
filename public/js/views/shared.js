@@ -23,6 +23,8 @@
 
 import { api, img } from '../api.js';
 import { el, render, empty, formatRuntime } from '../ui.js';
+// Übersetzt Texte, die am Baustein el() vorbei direkt ins DOM geschrieben werden.
+import { tr } from '../i18n.js';
 
 /**
  * Baut die Zeile eines Titels in der geteilten Liste.
@@ -143,7 +145,7 @@ export async function render_(container, params) {
 
   // Der Seitentitel wird gesetzt, damit ein geteilter Link im Browser-Tab
   // und in der Verlaufsliste erkennbar bleibt.
-  document.title = `${collection.name} · Streamo`;
+  document.title = tr(`${collection.name} · Streamo`);
 
   render(
     container,

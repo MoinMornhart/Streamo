@@ -255,6 +255,47 @@
       const connectButton = document.getElementById('connect');
       const messageBox = document.getElementById('message');
 
+      // --------------------------------------------------------------------
+      // Englisch, wenn das System nicht deutsch ist
+      // --------------------------------------------------------------------
+      // Diese Seite erscheint, bevor überhaupt ein Server gewählt ist – die
+      // Spracheinstellung des Kontos kennt sie also noch nicht. Deshalb richtet
+      // sie sich nach der Sprache des Systems. Die Weboberfläche danach hat
+      // ihren eigenen Umschalter (public/js/i18n.js).
+      //
+      // Schlüssel ist der deutsche Text, wie er im HTML steht (Leerraum
+      // zusammengefasst) – dasselbe Prinzip wie im Wörterbuch der Oberfläche.
+      const EN = {
+        'Streamo verbinden': 'Connect Streamo',
+        'Verbinde dich mit deinem Server.': 'Connect to your server.',
+        'Adresse deines Servers': 'Your server address',
+        'https://streamo.deine-domain.de': 'https://streamo.your-domain.com',
+        'Die Adresse, unter der du Streamo im Browser aufrufst. Mit':
+          'The address you open Streamo at in the browser. With',
+        'davor, wenn du Passkeys nutzen möchtest.': 'in front if you want to use passkeys.',
+        'Selbstsigniertes Zertifikat akzeptieren – nötig, wenn Streamo HTTPS ohne offizielles Zertifikat ausliefert. Gilt nur für genau diesen Server.':
+          'Accept a self-signed certificate – needed if Streamo serves HTTPS without an official certificate. Applies to this server only.',
+        Verbinden: 'Connect',
+        'Verbinde …': 'Connecting …',
+        'Läuft Streamo noch nicht? Der Installationsbefehl für Proxmox steht auf':
+          'Streamo not running yet? The install command for Proxmox is at',
+        'Streamo {version} gefunden. Wird geladen …': 'Found Streamo {version}. Loading …',
+      };
+      const ENGLISH = !String(navigator.language || 'de').toLowerCase().startsWith('de');
+      const L = (text) => (ENGLISH ? EN[text] ?? text : text);
+
+      if (ENGLISH) {
+        document.documentElement.lang = 'en';
+        document.title = L(document.title);
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) {
+          const node = walker.currentNode;
+          const core = node.nodeValue.replace(/\s+/g, ' ').trim();
+          if (core && EN[core]) node.nodeValue = ` ${EN[core]} `;
+        }
+        urlInput.placeholder = L(urlInput.placeholder);
+      }
+
       /**
        * Zeigt eine Meldung über dem Formular.
        * @param {string} text
@@ -303,7 +344,7 @@
         const url = urlInput.value.trim();
 
         connectButton.disabled = true;
-        connectButton.textContent = 'Verbinde …';
+        connectButton.textContent = L('Verbinde …');
         showMessage('');
 
         // Die Einstellung muss VOR dem Test gespeichert sein, sonst lehnt die
@@ -317,11 +358,11 @@
         if (!result.ok) {
           showMessage(result.error, 'error');
           connectButton.disabled = false;
-          connectButton.textContent = 'Verbinden';
+          connectButton.textContent = L('Verbinden');
           return;
         }
 
-        showMessage(`Streamo ${result.version} gefunden. Wird geladen …`, 'success');
+        showMessage(L('Streamo {version} gefunden. Wird geladen …').replace('{version}', result.version), 'success');
 
         await window.streamoDesktop.connect(result.url, selfSignedBox.checked);
       }

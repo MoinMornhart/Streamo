@@ -36,6 +36,8 @@ import {
   askConfirm,
 } from '../ui.js';
 import { navigateTo } from '../router.js';
+// Übersetzt Texte, die am Baustein el() vorbei direkt ins DOM geschrieben werden.
+import { tr } from '../i18n.js';
 
 /**
  * Baut die Kachel einer Reihe für die Übersicht.
@@ -590,7 +592,7 @@ async function renderDetail(container, id) {
             title: 'Nimmt alle noch fehlenden Teile in deine Bibliothek auf',
             onClick: async (event) => {
               event.currentTarget.disabled = true;
-              event.currentTarget.textContent = 'Wird hinzugefügt …';
+              event.currentTarget.textContent = tr('Wird hinzugefügt …');
 
               try {
                 const result = await api.collections.addToLibrary(collection.id);

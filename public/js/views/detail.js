@@ -40,6 +40,8 @@ import {
 // Baut aus Anbietername und Titel die Suchadresse beim Anbieter selbst, damit
 // ein Klick auf "Prime Video" direkt zu Prime führt statt erst zu JustWatch.
 import { providerDirectLink } from '../provider-links.js';
+// Übersetzt Texte, die am Baustein el() vorbei direkt ins DOM geschrieben werden.
+import { tr } from '../i18n.js';
 
 /**
  * Der Produktionsstatus auf Deutsch.
@@ -410,7 +412,7 @@ export async function render_(container, params) {
    * @param {{watched:number,total:number,percent:number}} progress
    */
   const updateProgress = (progress) => {
-    progressText.textContent = `${progress.watched} von ${progress.total || '?'} Episoden gesehen (${progress.percent} %)`;
+    progressText.textContent = tr(`${progress.watched} von ${progress.total || '?'} Episoden gesehen (${progress.percent} %)`);
     progressFill.style.width = `${progress.percent}%`;
   };
   updateProgress(data.progress);
@@ -527,7 +529,7 @@ export async function render_(container, params) {
           try {
             await api.library.update(show.showId, { favorite: next });
             data.library.favorite = next;
-            event.target.textContent = next ? '♥ Favorit' : '♡ Favorit';
+            event.target.textContent = tr(next ? '♥ Favorit' : '♡ Favorit');
           } catch (error) {
             toast(error.message, 'error');
           }
@@ -571,7 +573,7 @@ export async function render_(container, params) {
         title: 'Streaming-Verfügbarkeit jetzt neu bei TMDB abfragen',
         onClick: async (event) => {
           event.target.disabled = true;
-          event.target.textContent = 'Prüfe …';
+          event.target.textContent = tr('Prüfe …');
           try {
             const result = await api.shows.refresh(show.showId);
             data.availability = result.availability;
@@ -581,7 +583,7 @@ export async function render_(container, params) {
             toast(error.message, 'error');
           } finally {
             event.target.disabled = false;
-            event.target.textContent = '↻ Aktualisieren';
+            event.target.textContent = tr('↻ Aktualisieren');
           }
         },
       }),

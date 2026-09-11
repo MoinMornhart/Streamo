@@ -25,6 +25,8 @@
 
 import { api, img } from '../api.js';
 import { el, render, toast, empty, loading } from '../ui.js';
+// Übersetzt Texte, die am Baustein el() vorbei direkt ins DOM geschrieben werden.
+import { tr } from '../i18n.js';
 
 /**
  * Zeichnet die Anbieter-Auswahl.
@@ -47,10 +49,10 @@ export async function render_(container) {
 
   /** Aktualisiert Zähler und Speichern-Knopf nach jeder Änderung. */
   const updateHeader = () => {
-    counter.textContent = `${selected.size} von ${data.providers.length} Anbietern verknüpft`;
+    counter.textContent = tr(`${selected.size} von ${data.providers.length} Anbietern verknüpft`);
     saveButton.disabled = false;
   };
-  counter.textContent = `${selected.size} von ${data.providers.length} Anbietern verknüpft`;
+  counter.textContent = tr(`${selected.size} von ${data.providers.length} Anbietern verknüpft`);
 
   if (data.providers.length === 0) {
     render(
@@ -131,22 +133,22 @@ export async function render_(container) {
   // ------------------------------------------------------------------------
   saveButton.addEventListener('click', async () => {
     saveButton.disabled = true;
-    saveButton.textContent = 'Speichert …';
+    saveButton.textContent = tr('Speichert …');
 
     try {
       await api.providers.setAll([...selected]);
       toast(`${selected.size} Anbieter verknüpft.`, 'success');
-      saveButton.textContent = 'Gespeichert ✓';
+      saveButton.textContent = tr('Gespeichert ✓');
 
       // Nach kurzer Zeit zurück auf den normalen Text – der Knopf soll nicht
       // dauerhaft "Gespeichert" behaupten, wenn danach weitergeklickt wird.
       setTimeout(() => {
-        saveButton.textContent = 'Auswahl speichern';
+        saveButton.textContent = tr('Auswahl speichern');
       }, 2000);
     } catch (error) {
       toast(error.message, 'error');
       saveButton.disabled = false;
-      saveButton.textContent = 'Auswahl speichern';
+      saveButton.textContent = tr('Auswahl speichern');
     }
   });
 
@@ -164,7 +166,7 @@ export async function render_(container) {
           text: '↻ Katalog aktualisieren',
           onClick: async (event) => {
             event.target.disabled = true;
-            event.target.textContent = 'Lädt …';
+            event.target.textContent = tr('Lädt …');
             try {
               await api.providers.catalog(true);
               toast('Katalog aktualisiert.', 'success');
@@ -172,7 +174,7 @@ export async function render_(container) {
             } catch (error) {
               toast(error.message, 'error');
               event.target.disabled = false;
-              event.target.textContent = '↻ Katalog aktualisieren';
+              event.target.textContent = tr('↻ Katalog aktualisieren');
             }
           },
         }),

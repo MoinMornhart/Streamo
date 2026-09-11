@@ -96,7 +96,12 @@ router.get('/calendar/:token.ics', (req, res) => {
   const forwardedHost = config.trustProxy ? req.headers['x-forwarded-host'] : null;
   const host = String(forwardedHost || req.headers.host || '').split(',')[0].trim();
 
-  const ics = buildIcs(events, { name, baseUrl: `${protocol}://${host}` });
+  const ics = buildIcs(events, {
+    name,
+    baseUrl: `${protocol}://${host}`,
+    // Die Sprache der Oberfläche des Kontos (Migration 14); ohne Angabe Deutsch.
+    lang: user.ui_language || 'de',
+  });
 
   res.setHeader('X-Robots-Tag', 'noindex, nofollow');
 
