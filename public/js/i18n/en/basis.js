@@ -30,7 +30,9 @@ export default {
   Abmelden: 'Sign out',
   Konto: 'Account',
   Suche: 'Search',
-  'Serie oder Film suchen …': 'Search for a show or film …',
+  // Kurz gehalten: Die englische Navigation ist breiter, und bei 1360 Pixeln
+  // bleibt der Suche neben der mittigen Navigation nur wenig Platz.
+  'Serie oder Film suchen …': 'Search shows & films …',
   'Streamo startet …': 'Streamo is starting …',
   '· Daten von': '· Data from',
   '· Streaming-Verfügbarkeit von': '· Streaming availability from',

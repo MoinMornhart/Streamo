@@ -234,7 +234,12 @@ img {
   top: 0;
   z-index: 50;
   height: var(--topbar-height);
-  display: flex;
+  /* Drei Spalten: links Logo und Suche, in der Mitte die Navigation, rechts
+     das Konto. Die äußeren sind gleich breit (je 1fr) – nur so steht die
+     Navigation wirklich in der Mitte der Leiste und nicht bloß in der Mitte
+     des Platzes, der zwischen Suche und Konto übrig bleibt. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 20px;
   padding: 0 22px;
@@ -269,9 +274,19 @@ img {
   color: #fff;
 }
 
+/* Die linke Spalte: Logo und daneben die Suche, die den Rest ausfüllt. */
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-width: 0;
+}
+
 #global-search {
   flex: 1;
   max-width: 460px;
+  /* Darf schmaler werden, damit die Navigation mittig bleiben kann. */
+  min-width: 0;
 }
 #global-search input {
   width: 100%;
@@ -292,7 +307,7 @@ img {
 #topbar nav {
   display: flex;
   gap: 4px;
-  margin-left: auto;
+  justify-self: center;
 }
 #topbar nav a {
   padding: 7px 13px;
@@ -316,6 +331,29 @@ img {
 .topbar-right {
   position: relative;
   flex-shrink: 0;
+  /* Ganz nach rechts in der rechten Spalte. */
+  justify-self: end;
+}
+
+/* Mittlere Breiten: Die Navigation braucht rund 650 Pixel. Damit die Suche
+   links daneben nicht zu einem Strich schrumpft, rücken die Einträge etwas
+   zusammen – und unter 1360 Pixeln gibt es die Mitte nicht mehr: Dann steht
+   die Navigation wie früher rechts, und die Suche bekommt den Platz. */
+@media (max-width: 1439px) {
+  #topbar nav a {
+    padding: 7px 9px;
+  }
+}
+@media (min-width: 721px) and (max-width: 1359px) {
+  #topbar {
+    display: flex;
+  }
+  .topbar-left {
+    flex: 1;
+  }
+  #topbar nav {
+    margin-left: auto;
+  }
 }
 
 /* ---------------------------------------------------------------------------
@@ -1849,6 +1887,9 @@ footer p {
 
   /* --- Kopfzeile: nur noch Logo, Suche, Konto --- */
   #topbar {
+    /* Auf dem Telefon keine Mitte: Die Navigation wandert nach unten, oben
+       bleiben Logo, Suche und Konto nebeneinander. */
+    display: flex;
     height: var(--topbar-height);
     padding: 0 12px;
     /* Unter die Statusleiste bzw. Aussparung schieben, aber den Inhalt
@@ -1865,6 +1906,12 @@ footer p {
   /* Die Navigation in der Kopfzeile weicht der unteren Leiste. */
   #topbar nav {
     display: none;
+  }
+
+  /* Logo und Suche teilen sich die ganze Breite bis zum Konto. */
+  .topbar-left {
+    flex: 1;
+    gap: 10px;
   }
 
   #global-search {
