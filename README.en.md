@@ -170,6 +170,10 @@ All of it can be subscribed to – Apple Calendar, Google Calendar, Thunderbird.
 > [!IMPORTANT]
 > The address is the only proof – a calendar app can't sign in. That makes it as sensitive as a password. You can create a new one at any time, which makes old subscriptions stop working.
 
+### Streamo × ToDoch
+
+[ToDoch](https://github.com/MoinMornhart/ToDoch) – the self-hosted to-do and calendar app – picks up this calendar automatically: copy the subscription address here and paste it in ToDoch under **Areas → Add calendars**. From then on every film you plan, every watch plan and every new episode shows up in your ToDoch calendar, synced in the background (every 15 minutes up to daily). Change things in Streamo – ToDoch follows.
+
 ### Watch plan – two episodes every Monday
 
 That's how people actually watch shows: not at some point, but in a rhythm. Set on which days you watch a show and how many episodes – Streamo ticks them off by itself on those days.

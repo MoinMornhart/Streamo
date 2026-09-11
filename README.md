@@ -167,6 +167,10 @@ Das Ganze lässt sich abonnieren – Apple Kalender, Google Kalender, Thunderbir
 > [!IMPORTANT]
 > Die Adresse ist der einzige Nachweis – ein Kalenderprogramm kann sich nicht anmelden. Sie ist damit so schutzbedürftig wie ein Passwort und lässt sich jederzeit neu erzeugen, wodurch alte Abonnements ins Leere laufen.
 
+### Streamo × ToDoch
+
+[ToDoch](https://github.com/MoinMornhart/ToDoch) – die selbst gehostete To-do- und Kalender-App – übernimmt diesen Kalender automatisch: Abo-Adresse hier kopieren und in ToDoch unter **Bereiche → Kalender einbinden** einfügen. Ab dann steht jeder geplante Film, jeder Sehplan und jede neue Folge im ToDoch-Kalender, im Hintergrund abgeglichen (alle 15 Minuten bis täglich). Geändert wird in Streamo – ToDoch zieht nach.
+
 ### Sehplan – jeden Montag zwei Folgen
 
 So schaut man Serien tatsächlich: nicht irgendwann, sondern in einem Rhythmus. Stell bei einer Serie ein, an welchen Tagen du sie siehst und wie viele Folgen – Streamo hakt sie an diesen Tagen selbst ab.
