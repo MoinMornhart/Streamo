@@ -993,6 +993,34 @@ const MIGRATIONS = [
       db.exec('ALTER TABLE users ADD COLUMN ui_language TEXT');
     }
   },
+
+  // -------------------------------------------------------------------------
+  // Version 15 -> Uhrzeit für Sehplan und Merklisten-Termin
+  // -------------------------------------------------------------------------
+  // "Montags um 20:15 zwei Folgen" statt nur "montags zwei Folgen". Mit
+  // Uhrzeit wird im Kalender ein Termin mit Anfang und Ende daraus; wie lange
+  // er geht, ergibt sich aus der Länge der Folgen bzw. des Films.
+  //
+  // Format "HH:MM". NULL heißt ohne Uhrzeit – dann bleibt alles ganztägig
+  // wie bisher.
+  //
+  // Verknüpfungen:
+  //   - src/watchplan.js -> watch_plans.watch_time; abgehakt wird erst nach
+  //                         dem Termin
+  //   - src/routes/library.js -> library.planned_time zum Merklisten-Termin
+  //   - src/calendar.js -> Termine mit Anfang und Ende, auch im Feed
+  () => {
+    // ALTER TABLE kennt kein IF NOT EXISTS – deshalb vorher nachsehen.
+    const planColumns = db.prepare('PRAGMA table_info(watch_plans)').all();
+    if (!planColumns.some((column) => column.name === 'watch_time')) {
+      db.exec('ALTER TABLE watch_plans ADD COLUMN watch_time TEXT');
+    }
+
+    const libraryColumns = db.prepare('PRAGMA table_info(library)').all();
+    if (!libraryColumns.some((column) => column.name === 'planned_time')) {
+      db.exec('ALTER TABLE library ADD COLUMN planned_time TEXT');
+    }
+  },
 ];
 
 /**

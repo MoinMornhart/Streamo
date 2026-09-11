@@ -127,6 +127,7 @@ export default {
   'Nimm die Serie zuerst in deine Bibliothek auf.': 'Add the show to your library first.',
   'Wähle mindestens einen Wochentag.': 'Pick at least one weekday.',
   'Zwischen 1 und 20 Folgen je Termin.': 'Between 1 and 20 episodes each time.',
+  'Bitte eine Uhrzeit wie 20:15 angeben.': 'Please enter a time like 20:15.',
   'Ungültige Anbieter-ID.': 'Invalid provider ID.',
 
   // --- Filmreihen ---------------------------------------------------------------------------------

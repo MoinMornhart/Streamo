@@ -93,7 +93,10 @@ function planKurz(plan) {
 
   const folgen = `${plan.episodesPerRun} ${plan.episodesPerRun === 1 ? 'Folge' : 'Folgen'}`;
 
-  return `${tage} · ${folgen}`;
+  // Mit Uhrzeit: "Mo, Do · 20:15 · 2 Folgen".
+  const uhr = plan.time ? ` · ${plan.time}` : '';
+
+  return `${tage}${uhr} · ${folgen}`;
 }
 
 /**
@@ -507,6 +510,17 @@ export async function render_(container, params) {
                 await api.library.update(show.showId, { plannedFor: value });
                 data.library.planned_for = value;
 
+                // Die Uhrzeit gibt es nur mit Datum. Ohne Datum löscht der
+                // Server sie gleich mit (src/routes/library.js).
+                const zeitFeld = event.target.parentElement.querySelector('input[type="time"]');
+                if (zeitFeld) {
+                  zeitFeld.disabled = !value;
+                  if (!value) {
+                    zeitFeld.value = '';
+                    data.library.planned_time = null;
+                  }
+                }
+
                 toast(
                   value ? `Vorgemerkt für den ${formatDate(value)}.` : 'Termin entfernt.',
                   'success',
@@ -519,6 +533,35 @@ export async function render_(container, params) {
               }
             },
           }),
+
+          // Die Uhrzeit, ebenso freiwillig. Mit ihr steht im Kalender ein
+          // Termin mit Anfang und Ende; das Ende ergibt sich aus der Länge des
+          // Films bzw. einer Folge.
+          el('input', {
+            type: 'time',
+            value: data.library.planned_time ?? '',
+            title: 'Uhrzeit (freiwillig)',
+            disabled: !data.library.planned_for,
+            onChange: async (event) => {
+              const value = event.target.value || null;
+
+              try {
+                await api.library.update(show.showId, { plannedTime: value });
+                data.library.planned_time = value;
+                toast(value ? 'Uhrzeit gespeichert.' : 'Uhrzeit entfernt.', 'success');
+              } catch (error) {
+                toast(error.message, 'error');
+                event.target.value = data.library.planned_time ?? '';
+              }
+            },
+          }),
+
+          // Wie lange es ungefähr geht – damit man die Uhrzeit passend wählt.
+          show.runtime > 0 &&
+            el('span.small.muted', {
+              text: `≈ ${formatRuntime(show.runtime)}`,
+              title: show.mediaType === 'tv' ? 'Länge einer Folge' : 'Länge des Films',
+            }),
         ]),
 
       // Favorit
@@ -658,6 +701,14 @@ export async function render_(container, params) {
           ),
         );
 
+        // Die Uhrzeit ist freiwillig. Mit ihr steht jeder Termin mit Anfang
+        // und Ende im Kalender, und abgehakt wird erst nach dem Termin.
+        const uhrzeit = el('input', {
+          type: 'time',
+          value: data.plan?.time ?? '',
+          style: { width: '100%' },
+        });
+
         return [
           el('div.field', {}, [
             el('label', { text: 'An welchen Tagen?' }),
@@ -669,6 +720,14 @@ export async function render_(container, params) {
             anzahl,
             el('div.hint', {
               text: 'Specials und noch nicht ausgestrahlte Folgen bleiben außen vor.',
+            }),
+          ]),
+
+          el('div.field', {}, [
+            el('label', { text: 'Um wie viel Uhr? (freiwillig)' }),
+            uhrzeit,
+            el('div.hint', {
+              text: 'Mit Uhrzeit steht der Plan als Termin mit Anfang und Ende im Kalender – wie lange er geht, ergibt sich aus der Länge der Folgen. Abgehakt wird dann erst nach dem Termin.',
             }),
           ]),
 
@@ -684,7 +743,11 @@ export async function render_(container, params) {
             el('button.btn.btn-primary', {
               text: 'Speichern',
               onClick: () =>
-                close({ weekdays: [...gewaehlt], episodesPerRun: Number(anzahl.value) }),
+                close({
+                  weekdays: [...gewaehlt],
+                  episodesPerRun: Number(anzahl.value),
+                  time: uhrzeit.value || null,
+                }),
             }),
           ]),
         ];

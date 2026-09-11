@@ -147,7 +147,8 @@ router.get('/:mediaType/:tmdbId', async (req, res, next) => {
     const entry = get(
       // planned_for ist der freiwillige Termin von der Merkliste – ohne ihn
       // stünde das Feld auf der Detailseite immer leer, egal was gesetzt ist.
-      'SELECT status, rating, favorite, notes, added_at, planned_for FROM library WHERE user_id = ? AND show_id = ?',
+      // planned_time: die freiwillige Uhrzeit dazu (Migration 15).
+      'SELECT status, rating, favorite, notes, added_at, planned_for, planned_time FROM library WHERE user_id = ? AND show_id = ?',
       req.user.id,
       show.id,
     );
@@ -526,7 +527,7 @@ router.put('/:showId/until', (req, res) => {
 
 /**
  * PUT /api/shows/:showId/plan
- * Body: { weekdays: [1,4], episodesPerRun: 2, active?: true }
+ * Body: { weekdays: [1,4], episodesPerRun: 2, time?: "20:15", active?: true }
  *
  * Legt einen Sehplan an oder ändert ihn: "jeden Montag zwei Folgen".
  *
@@ -561,6 +562,8 @@ router.put('/:showId/plan', (req, res) => {
     const plan = savePlan(req.user.id, show.id, {
       weekdays: req.body?.weekdays,
       episodesPerRun: req.body?.episodesPerRun,
+      // Uhrzeit, freiwillig (Migration 15). Leer = ganztägig wie bisher.
+      time: req.body?.time,
       active: req.body?.active,
     });
 

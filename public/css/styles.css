@@ -2877,3 +2877,46 @@ input[type='date']::-webkit-calendar-picker-indicator:hover {
   background: var(--accent);
   color: #fff;
 }
+
+/* ---------------------------------------------------------------------------
+   Uhrzeit bei Sehplan und Merklisten-Termin (Migration 15)
+   ---------------------------------------------------------------------------
+   Im Kalender steht die Uhrzeit fett vor dem Titel, damit man den Abend auf
+   einen Blick sieht (public/js/views/calendar.js). Ziffern gleich breit,
+   sonst tanzen 20:15 und 21:00 untereinander hin und her. */
+.cal-time {
+  font-weight: 700;
+  margin-right: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Das Uhrzeitfeld neben dem Datum auf der Detailseite: so schmal wie nötig,
+   und ausgegraut, solange kein Datum gesetzt ist. */
+.planned-field input[type='time'] {
+  width: auto;
+}
+.planned-field input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* "Sehen am" und die Dauer daneben ("≈ 2 Std. 15 Min.") duerfen nicht
+   umbrechen – in der Knopfzeile der Detailseite ist wenig Platz, und ohne
+   diese Regel stand die Dauer ueber vier Zeilen verteilt. */
+.planned-field > span {
+  white-space: nowrap;
+}
+
+/* Auf dem Telefon passen Datum, Uhrzeit und Dauer nicht in eine Zeile – die
+   Felder sind dort wegen der 16-px-Schrift (gegen das Hineinzoomen von iOS)
+   breiter. Deshalb darf die Zeile umbrechen und in der Hoehe wachsen, statt
+   ueber den Rand hinauszulaufen. */
+@media (max-width: 720px) {
+  .planned-field {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 38px;
+    padding: 6px 11px;
+    row-gap: 6px;
+  }
+}

@@ -720,7 +720,7 @@ export function formatRuntime(minutes) {
  * @param {string} iso "YYYY-MM-DD"
  * @returns {string}
  */
-export function plannedLabel(iso) {
+export function plannedLabel(iso, time = null) {
   const target = new Date(`${iso}T00:00:00`);
 
   const today = new Date();
@@ -730,17 +730,24 @@ export function plannedLabel(iso) {
   // nachsieht, soll für morgen "Morgen" lesen und nicht schon "Heute".
   const days = Math.round((target - today) / 86_400_000);
 
+  // Ein vergangener Termin braucht keine Uhrzeit mehr – verpasst ist verpasst.
   if (days < 0) return '⏰ überfällig';
-  if (days === 0) return '📅 Heute';
-  if (days === 1) return '📅 Morgen';
+
+  // Die Uhrzeit, falls eine gesetzt ist: "Freitag, 20:15". "Heute" und
+  // "Morgen" werden hier schon übersetzt, weil el() den zusammengesetzten
+  // Text sonst nicht wiederfände.
+  const um = time ? `, ${time}` : '';
+
+  if (days === 0) return tr('📅 Heute') + um;
+  if (days === 1) return tr('📅 Morgen') + um;
 
   // Innerhalb der nächsten Woche reicht der Wochentag – "Freitag" sagt mehr
   // als "12.9.", wenn es ohnehin bald ist.
   if (days < 7) {
-    return `📅 ${target.toLocaleDateString(locale(), { weekday: 'long' })}`;
+    return `📅 ${target.toLocaleDateString(locale(), { weekday: 'long' })}${um}`;
   }
 
-  return `📅 ${target.toLocaleDateString(locale(), { day: 'numeric', month: 'short' })}`;
+  return `📅 ${target.toLocaleDateString(locale(), { day: 'numeric', month: 'short' })}${um}`;
 }
 
 /**
@@ -915,7 +922,7 @@ export function posterCard(item, options = {}) {
       // Freiwillig – die allermeisten Einträge haben keinen, und ohne einen
       // sieht die Kachel aus wie immer. Wer einen gesetzt hat, sieht beim
       // Überfliegen, was als Nächstes drankommt.
-      item.plannedFor && el('div.poster-planned', { text: plannedLabel(item.plannedFor) }),
+      item.plannedFor && el('div.poster-planned', { text: plannedLabel(item.plannedFor, item.plannedTime) }),
 
       // Begründung einer persönlichen Empfehlung ("Weil du … gesehen hast").
       // Gesetzt wird sie von src/recommend.js; überall sonst fehlt das Feld

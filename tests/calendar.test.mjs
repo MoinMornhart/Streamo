@@ -300,6 +300,61 @@ const uidsNochmal = [...nochmal.matchAll(/UID:(.+)/g)].map((m) => m[1].trim());
 
 check('und beim nächsten Abruf dieselben', uidsNochmal, uids);
 
+// ===========================================================================
+// Termine mit Uhrzeit
+// ===========================================================================
+// Mit Uhrzeit wird aus der Notiz ein Termin mit Anfang und Ende. Das Ende
+// ergibt sich aus der Laufzeit – beim Film aus der Filmlänge.
+console.log('\nTermine mit Uhrzeit');
+
+run("INSERT INTO shows (tmdb_id, media_type, title, runtime) VALUES (7001,'movie','Lange Nacht',175)");
+const langeNacht = get('SELECT id FROM shows WHERE tmdb_id = 7001').id;
+run(
+  "INSERT INTO library (user_id, show_id, status, planned_for, planned_time) VALUES (?,?,'watchlist',?,'20:15')",
+  morni, langeNacht, tag(3),
+);
+
+// Einer, der über Mitternacht geht: 23:00 plus 150 Minuten.
+run("INSERT INTO shows (tmdb_id, media_type, title, runtime) VALUES (7002,'movie','Spätvorstellung',150)");
+const spaet = get('SELECT id FROM shows WHERE tmdb_id = 7002').id;
+run(
+  "INSERT INTO library (user_id, show_id, status, planned_for, planned_time) VALUES (?,?,'watchlist',?,'23:00')",
+  morni, spaet, tag(3),
+);
+
+const mitUhrzeit = calendar.collectEvents(morni, 'DE').filter((event) => event.time);
+const nachtTermin = mitUhrzeit.find((event) => event.title === 'Lange Nacht');
+const spaetTermin = mitUhrzeit.find((event) => event.title === 'Spätvorstellung');
+
+check('Der Termin trägt seine Uhrzeit', nachtTermin?.time, '20:15');
+check('Die Dauer ist die Filmlänge', nachtTermin?.minutes, 175);
+check('Er endet um 23:10', nachtTermin?.endTime, '23:10');
+check('am selben Tag', nachtTermin?.endDate, tag(3));
+check('Über Mitternacht endet er am Folgetag', spaetTermin?.endDate, tag(4));
+check('um 01:30', spaetTermin?.endTime, '01:30');
+
+const alleAmTag = calendar.collectEvents(morni, 'DE').filter((event) => event.date === tag(3));
+check(
+  'Am selben Tag in der Reihenfolge der Uhrzeit',
+  alleAmTag.filter((event) => event.time).map((event) => event.time),
+  ['20:15', '23:00'],
+);
+
+const icsZeit = calendar.buildIcs(mitUhrzeit, { name: 'Mit Uhrzeit' });
+const kompakt = (datum) => datum.replace(/-/g, '');
+
+check('DTSTART mit Uhrzeit, ohne Zeitzone', icsZeit.includes(`DTSTART:${kompakt(tag(3))}T201500\r\n`), true);
+check('DTEND ist Anfang plus Laufzeit', icsZeit.includes(`DTEND:${kompakt(tag(3))}T231000\r\n`), true);
+check('über Mitternacht auch im Feed', icsZeit.includes(`DTEND:${kompakt(tag(4))}T013000\r\n`), true);
+check('kein reines Datum bei Terminen mit Uhrzeit', icsZeit.includes('DTSTART;VALUE=DATE:'), false);
+
+const ohneUhrzeit = calendar.collectEvents(morni, 'DE').filter((event) => !event.time);
+check(
+  'Termine ohne Uhrzeit bleiben ganztägig',
+  calendar.buildIcs(ohneUhrzeit, { name: 'Ganztägig' }).includes('DTSTART;VALUE=DATE:'),
+  true,
+);
+
 console.log('\nEin leerer Kalender');
 
 const leer = calendar.buildIcs([], { name: 'Leer' });

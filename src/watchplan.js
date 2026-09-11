@@ -93,6 +93,86 @@ function heute() {
   return `${now.getFullYear()}-${monat}-${tag}`;
 }
 
+/**
+ * Ein Datum als "YYYY-MM-DD", LOKAL gerechnet.
+ *
+ * Nicht toISOString(): Das rechnet nach UTC um, und lokale Mitternacht ist
+ * in deutscher Zeit 22 oder 23 Uhr UTC des Vortags – das Ergebnis läge einen
+ * Tag zu früh.
+ *
+ * @param {Date} date
+ * @returns {string}
+ */
+function isoTag(date) {
+  const monat = String(date.getMonth() + 1).padStart(2, '0');
+  const tag = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${monat}-${tag}`;
+}
+
+/** Die aktuelle Uhrzeit als "HH:MM". */
+function jetzt() {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+}
+
+// ===========================================================================
+// Uhrzeit und Dauer
+// ===========================================================================
+
+/**
+ * So lange dauert eine Folge, wenn weder die Folge selbst noch die Serie eine
+ * Laufzeit bei TMDB hat – in Minuten. Eine übliche Dramaserie.
+ */
+export const FALLBACK_EPISODE_MINUTES = 45;
+
+/**
+ * Bringt eine Uhrzeit auf die gespeicherte Form "HH:MM".
+ *
+ * "8:05" wird zu "08:05" – sonst sortierten "8:05" und "20:15" falsch.
+ * Leer heißt "keine Uhrzeit".
+ *
+ * @param {*} value
+ * @returns {string|null}
+ * @throws bei einer unbrauchbaren Angabe wie "25:00" oder "abends"
+ */
+export function normalizeTime(value) {
+  if (value === null || value === undefined || value === '') return null;
+
+  const match = String(value).trim().match(/^(\d{1,2}):(\d{2})$/);
+
+  if (!match || Number(match[1]) > 23 || Number(match[2]) > 59) {
+    throw new Error('Bitte eine Uhrzeit wie 20:15 angeben.');
+  }
+
+  return `${match[1].padStart(2, '0')}:${match[2]}`;
+}
+
+/**
+ * "20:15" -> Minuten seit Mitternacht.
+ * @param {string} time
+ * @returns {number}
+ */
+export function toMinutes(time) {
+  const [stunden, minuten] = String(time).split(':').map(Number);
+  return stunden * 60 + minuten;
+}
+
+/**
+ * Wie lange ein Block Folgen dauert.
+ *
+ * Jede Folge mit ihrer eigenen Laufzeit, wenn TMDB sie kennt
+ * (episodes.runtime) – Staffelfinale sind oft deutlich länger. Sonst die
+ * übliche Folgenlänge der Serie (shows.runtime), sonst 45 Minuten.
+ *
+ * @param {{runtime?: number|null}[]} folgen
+ * @param {number|null} [serienLaufzeit]
+ * @returns {number} Minuten
+ */
+export function blockMinutes(folgen, serienLaufzeit) {
+  const standard = serienLaufzeit > 0 ? serienLaufzeit : FALLBACK_EPISODE_MINUTES;
+  return folgen.reduce((summe, folge) => summe + (folge.runtime > 0 ? folge.runtime : standard), 0);
+}
+
 // ===========================================================================
 // Lesen und Schreiben
 // ===========================================================================
@@ -116,6 +196,8 @@ export function getPlan(userId, showId) {
   return {
     weekdays: parseWeekdays(row.weekdays),
     episodesPerRun: row.episodes_per_run,
+    // "20:15" oder null (ohne Uhrzeit, ganztägig). Migration 15.
+    time: row.watch_time ?? null,
     active: Boolean(row.active),
     lastRunOn: row.last_run_on,
     createdAt: row.created_at,
@@ -130,6 +212,7 @@ export function getPlan(userId, showId) {
  * @param {object} plan
  * @param {number[]} plan.weekdays
  * @param {number} plan.episodesPerRun
+ * @param {string|null} [plan.time] Uhrzeit "HH:MM", freiwillig
  * @param {boolean} [plan.active]
  * @returns {object} der gespeicherte Plan
  * @throws bei unsinnigen Angaben
@@ -147,17 +230,22 @@ export function savePlan(userId, showId, plan) {
     throw new Error('Zwischen 1 und 20 Folgen je Termin.');
   }
 
+  // Wirft bei Unsinn – die Route gibt die Meldung als 400 weiter.
+  const time = normalizeTime(plan.time);
+
   run(
-    `INSERT INTO watch_plans (user_id, show_id, weekdays, episodes_per_run, active)
-     VALUES (?,?,?,?,?)
+    `INSERT INTO watch_plans (user_id, show_id, weekdays, episodes_per_run, watch_time, active)
+     VALUES (?,?,?,?,?,?)
      ON CONFLICT(user_id, show_id) DO UPDATE SET
         weekdays         = excluded.weekdays,
         episodes_per_run = excluded.episodes_per_run,
+        watch_time       = excluded.watch_time,
         active           = excluded.active`,
     userId,
     showId,
     weekdays,
     perRun,
+    time,
     plan.active === false ? 0 : 1,
   );
 
@@ -203,6 +291,7 @@ export function listPlans(userId) {
     mediaType: row.media_type,
     weekdays: parseWeekdays(row.weekdays),
     episodesPerRun: row.episodes_per_run,
+    time: row.watch_time ?? null,
     active: Boolean(row.active),
     lastRunOn: row.last_run_on,
   }));
@@ -228,7 +317,9 @@ export function listPlans(userId) {
  */
 export function nextUnwatched(userId, showId, limit) {
   return all(
-    `SELECT e.id, e.season_number, e.episode_number, e.name
+    // runtime: Aus den Laufzeiten dieser Folgen ergibt sich, wie lange ein
+    // Termin mit Uhrzeit dauert (blockMinutes).
+    `SELECT e.id, e.season_number, e.episode_number, e.name, e.runtime
        FROM episodes e
       WHERE e.show_id = ?
         AND e.season_number > 0
@@ -289,14 +380,16 @@ export function countDueDays(weekdays, nach, bis) {
  *
  * @param {object} [opts]
  * @param {string} [opts.today] Für Tests
+ * @param {string} [opts.now]   Uhrzeit "HH:MM", für Tests
  * @returns {{plans: number, episodes: number, details: object[]}}
  */
 export function runDuePlans(opts = {}) {
   const tag = opts.today || heute();
+  const uhrzeit = opts.now || jetzt();
   const heuteWochentag = isoWeekday(new Date(`${tag}T00:00:00`));
 
   const plans = all(
-    `SELECT p.*, s.title
+    `SELECT p.*, s.title, s.runtime AS show_runtime
        FROM watch_plans p
        JOIN shows s ON s.id = p.show_id
       WHERE p.active = 1
@@ -313,22 +406,40 @@ export function runDuePlans(opts = {}) {
     if (weekdays.length === 0) continue;
 
     // Wie viele Termine sind abzuarbeiten? Heute selbst zählt nur, wenn heute
-    // ein Plantag ist; dazu kommen versäumte Termine seit dem letzten Lauf.
-    let termine = weekdays.includes(heuteWochentag) ? 1 : 0;
+    // ein Plantag ist – und bei einem Plan mit Uhrzeit erst, wenn der Termin
+    // vorbei ist: "Um 20:15 zwei Folgen" heißt, dass sie gegen 22 Uhr gesehen
+    // sind, nicht schon ab Mitternacht davor. Wie lange der Termin geht,
+    // ergibt sich aus der Länge genau der Folgen, die dran sind.
+    let heuteFaellig = weekdays.includes(heuteWochentag);
 
-    if (plan.last_run_on) {
-      // Bis gestern zählen – heute ist oben schon berücksichtigt.
-      const gestern = new Date(`${tag}T00:00:00`);
-      gestern.setDate(gestern.getDate() - 1);
+    if (heuteFaellig && plan.watch_time) {
+      const dauer = blockMinutes(
+        nextUnwatched(plan.user_id, plan.show_id, plan.episodes_per_run),
+        plan.show_runtime,
+      );
+      // Endet der Termin nach Mitternacht, ist er heute nie vorbei – dann
+      // holt ihn morgen das Nachholen unten ab.
+      heuteFaellig = toMinutes(uhrzeit) >= toMinutes(plan.watch_time) + dauer;
+    }
 
-      const gestrigISO = gestern.toISOString().slice(0, 10);
+    let termine = heuteFaellig ? 1 : 0;
 
-      if (plan.last_run_on < gestrigISO) {
-        termine += countDueDays(weekdays, plan.last_run_on, gestrigISO);
-      }
+    // Dazu versäumte Termine seit dem letzten Lauf, bis gestern gezählt.
+    const gestern = new Date(`${tag}T00:00:00`);
+    gestern.setDate(gestern.getDate() - 1);
+    const gestrigISO = isoTag(gestern);
+
+    if (plan.last_run_on && plan.last_run_on < gestrigISO) {
+      termine += countDueDays(weekdays, plan.last_run_on, gestrigISO);
     }
 
     if (termine === 0) continue;
+
+    // Bis wann gilt dieser Lauf? Steht heute noch ein Termin mit Uhrzeit aus,
+    // nur bis gestern – sonst fiele der heutige Termin weg, sobald versäumte
+    // nachgeholt wurden.
+    const heuteOffen = weekdays.includes(heuteWochentag) && !heuteFaellig;
+    const laufTag = heuteOffen ? gestrigISO : tag;
 
     // Nach einem langen Ausfall nicht eine halbe Staffel auf einmal abhaken.
     termine = Math.min(termine, MAX_CATCH_UP);
@@ -338,7 +449,7 @@ export function runDuePlans(opts = {}) {
     // Nichts mehr zu sehen? Dann trotzdem den Lauf vermerken, sonst versucht
     // es der Plan jede Stunde erneut.
     if (folgen.length === 0) {
-      run('UPDATE watch_plans SET last_run_on = ? WHERE id = ?', tag, plan.id);
+      run('UPDATE watch_plans SET last_run_on = ? WHERE id = ?', laufTag, plan.id);
       continue;
     }
 
@@ -364,7 +475,7 @@ export function runDuePlans(opts = {}) {
         plan.show_id,
       );
 
-      run('UPDATE watch_plans SET last_run_on = ? WHERE id = ?', tag, plan.id);
+      run('UPDATE watch_plans SET last_run_on = ? WHERE id = ?', laufTag, plan.id);
     });
 
     episodenGesamt += folgen.length;

@@ -34,6 +34,8 @@ import { getRuntimeSettings } from '../tmdb.js';
 import { checkAchievements } from '../achievements.js';
 // Fuer die Gruppierung nach Filmreihen (?group=collections).
 import { findCollectionForShow } from '../collections.js';
+// Prüft und vereinheitlicht die Uhrzeit zum Merklisten-Termin ("8:05" -> "08:05").
+import { normalizeTime } from '../watchplan.js';
 // Macht die Suche in der Bibliothek nachsichtig gegenueber Tippfehlern.
 import { matches, rank } from '../fuzzy.js';
 import {
@@ -94,6 +96,8 @@ function buildEntry(row, ctx) {
     notes: row.notes,
     // Der freiwillige Termin von der Merkliste. null = keiner gesetzt.
     plannedFor: row.planned_for ?? null,
+    // Die Uhrzeit dazu, "20:15" oder null.
+    plannedTime: row.planned_time ?? null,
     addedAt: row.added_at,
     updatedAt: row.updated_at,
 
@@ -211,6 +215,8 @@ router.get('/', (req, res) => {
             -- Der freiwillige Termin von der Merkliste. Ohne diese Spalte
             -- käme im Frontend immer null an, egal was gesetzt ist.
             l.planned_for,
+            -- Die freiwillige Uhrzeit dazu (Migration 15).
+            l.planned_time,
             s.tmdb_id, s.media_type, s.title, s.original_title, s.overview, s.poster_path,
             s.backdrop_path, s.first_air_date, s.status AS status_text, s.genres,
             s.number_of_seasons, s.number_of_episodes, s.vote_average, s.runtime,
@@ -424,6 +430,14 @@ router.patch('/:showId', (req, res) => {
     if (value === null || value === '') {
       updates.push('planned_for = ?');
       params.push(null);
+
+      // Ohne Tag keine Uhrzeit – sonst stünde beim nächsten Datum plötzlich
+      // wieder eine alte Uhrzeit da. (Kommt die Uhrzeit in derselben Anfrage
+      // mit, setzt der Block darunter sie.)
+      if (req.body?.plannedTime === undefined) {
+        updates.push('planned_time = ?');
+        params.push(null);
+      }
     } else {
       const date = String(value).slice(0, 10);
 
@@ -436,6 +450,21 @@ router.patch('/:showId', (req, res) => {
       updates.push('planned_for = ?');
       params.push(date);
     }
+  }
+
+  // Die Uhrzeit zum Termin – ebenso freiwillig. Mit ihr wird im Kalender ein
+  // Termin mit Anfang und Ende daraus; das Ende ergibt sich aus der Länge des
+  // Films bzw. einer Folge (src/calendar.js).
+  if (req.body?.plannedTime !== undefined) {
+    let time;
+    try {
+      time = normalizeTime(req.body.plannedTime);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    updates.push('planned_time = ?');
+    params.push(time);
   }
 
   if (updates.length === 0) {

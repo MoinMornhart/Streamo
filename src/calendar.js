@@ -38,7 +38,19 @@
 import crypto from 'node:crypto';
 import { all, get, run } from './db.js';
 // Sehplaene liefern wiederkehrende Termine - siehe src/watchplan.js.
-import { parseWeekdays, nextOccurrences } from './watchplan.js';
+import {
+  parseWeekdays,
+  nextOccurrences,
+  // Für Termine mit Uhrzeit: welche Folgen dran sind und wie lange sie gehen.
+  nextUnwatched,
+  blockMinutes,
+  FALLBACK_EPISODE_MINUTES,
+} from './watchplan.js';
+
+/**
+ * So lange dauert ein Film, dessen Laufzeit TMDB nicht kennt – in Minuten.
+ */
+const FALLBACK_FILM_MINUTES = 120;
 // Dieselbe Übersetzung wie im Browser: Der Feed geht an ein Kalenderprogramm,
 // dort gibt es kein el(), das übersetzen könnte. Die Datei kommt ohne DOM aus.
 import { translate } from '../public/js/i18n.js';
@@ -139,7 +151,7 @@ export function collectEvents(userId, region) {
   // 1. Was man sich vorgenommen hat
   // -------------------------------------------------------------------------
   for (const row of all(
-    `SELECT l.show_id, l.planned_for, s.title, s.media_type
+    `SELECT l.show_id, l.planned_for, l.planned_time, s.title, s.media_type, s.runtime
        FROM library l
        JOIN shows s ON s.id = l.show_id
       WHERE l.user_id = ?
@@ -160,6 +172,17 @@ export function collectEvents(userId, region) {
       summary: `📺 ${row.title}`,
       description: `Du hast dir vorgenommen, ${row.media_type === 'tv' ? 'diese Serie' : 'diesen Film'} zu sehen.`,
       showId: row.show_id,
+      // Mit Uhrzeit: Anfang und Ende. Ein Film dauert so lange wie der Film,
+      // bei einer Serie ist es eine Folge – mehr hat man sich nicht vorgenommen.
+      ...zeitraum(
+        row.planned_for,
+        row.planned_time,
+        row.runtime > 0
+          ? row.runtime
+          : row.media_type === 'movie'
+            ? FALLBACK_FILM_MINUTES
+            : FALLBACK_EPISODE_MINUTES,
+      ),
     });
   }
 
@@ -252,7 +275,7 @@ export function collectEvents(userId, region) {
   // "zwei Folgen" behauptet, wäre falsch. Deshalb eine begrenzte Zahl
   // einzelner Termine – so weit, wie die Serie überhaupt reicht.
   for (const row of all(
-    `SELECT p.show_id, p.weekdays, p.episodes_per_run, s.title,
+    `SELECT p.show_id, p.weekdays, p.episodes_per_run, p.watch_time, s.title, s.runtime,
             -- Wie viele ungesehene Folgen gibt es überhaupt noch? Mehr
             -- Termine als Folgen wären eine Luftbuchung.
             (SELECT COUNT(*) FROM episodes e
@@ -275,7 +298,16 @@ export function collectEvents(userId, region) {
     // aber ein halbes Jahr voraus, sonst füllt eine lange Serie den Kalender.
     const termine = Math.min(Math.ceil(row.offen / row.episodes_per_run), 26);
 
-    for (const datum of nextOccurrences(weekdays, termine)) {
+    // Mit Uhrzeit dauert jeder Termin so lange wie genau seine Folgen: der
+    // erste Montag die nächsten zwei, der zweite die zwei danach. So wird ein
+    // Abend mit dem Staffelfinale auch im Kalender länger.
+    const folgen = row.watch_time
+      ? nextUnwatched(userId, row.show_id, termine * row.episodes_per_run)
+      : [];
+
+    nextOccurrences(weekdays, termine).forEach((datum, index) => {
+      const block = folgen.slice(index * row.episodes_per_run, (index + 1) * row.episodes_per_run);
+
       events.push({
         // Das Datum gehört in die Kennung: Jeder Termin ist ein eigener
         // Eintrag, und ohne das Datum hätten alle dieselbe.
@@ -286,11 +318,45 @@ export function collectEvents(userId, region) {
         summary: `📅 ${row.title}: ${row.episodes_per_run} ${row.episodes_per_run === 1 ? 'Folge' : 'Folgen'}`,
         description: `Nach deinem Sehplan. Streamo hakt die Folgen an diesem Tag automatisch ab.`,
         showId: row.show_id,
+        ...zeitraum(
+          datum,
+          row.watch_time,
+          blockMinutes(block, row.runtime) || row.episodes_per_run * FALLBACK_EPISODE_MINUTES,
+        ),
       });
-    }
+    });
   }
 
-  return events.sort((a, b) => a.date.localeCompare(b.date));
+  // Nach Tag, innerhalb eines Tages nach Uhrzeit; Ganztägiges zuerst.
+  return events.sort(
+    (a, b) => a.date.localeCompare(b.date) || (a.time ?? '').localeCompare(b.time ?? ''),
+  );
+}
+
+/**
+ * Anfang und Ende eines Termins mit Uhrzeit.
+ *
+ * Gerechnet wird mit "nackten" Uhrzeiten ohne Zeitzone: 20:15 plus 110
+ * Minuten ist 22:05, egal wo. Deshalb in UTC – dort gibt es keine
+ * Zeitumstellung, die eine Stunde verschlucken könnte. Über Mitternacht
+ * hinweg wird der Folgetag daraus.
+ *
+ * @param {string} date    "YYYY-MM-DD"
+ * @param {string|null} time "HH:MM" oder null
+ * @param {number} minutes Dauer
+ * @returns {object} {} ohne Uhrzeit, sonst { time, minutes, endDate, endTime }
+ */
+export function zeitraum(date, time, minutes) {
+  if (!time || !(minutes > 0)) return {};
+
+  const ende = new Date(new Date(`${date}T${time}:00Z`).getTime() + minutes * 60_000);
+
+  return {
+    time,
+    minutes,
+    endDate: ende.toISOString().slice(0, 10),
+    endTime: ende.toISOString().slice(11, 16),
+  };
 }
 
 /** Der heutige Tag als "YYYY-MM-DD". */
@@ -412,14 +478,24 @@ export function buildIcs(events, { name, baseUrl, lang = 'de' } = {}) {
     const nextDay = new Date(`${event.date}T00:00:00Z`);
     nextDay.setUTCDate(nextDay.getUTCDate() + 1);
 
+    // Mit Uhrzeit: echter Anfang und echtes Ende. Als "schwebende" Ortszeit
+    // ohne Zeitzone (kein Z, kein TZID) – RFC 5545 erlaubt das ausdrücklich,
+    // und jedes Kalenderprogramm zeigt 20:15 dann als 20:15 in der Zeitzone
+    // des Geräts. Genau das ist gemeint: um Viertel nach acht vor dem
+    // Fernseher, wo auch immer der steht.
+    const zeitStempel = (datum, uhr) => `${datum.replace(/-/g, '')}T${uhr.replace(':', '')}00`;
+    const mitUhrzeit = Boolean(event.time && event.endDate && event.endTime);
+
     lines.push(
       'BEGIN:VEVENT',
       // Die Kennung muss stabil UND weltweit eindeutig sein. Der Domain-Teil
       // sorgt dafür, dass sie nicht mit der eines anderen Programms kollidiert.
       `UID:${event.uid}@streamo`,
       `DTSTAMP:${stamp}`,
-      `DTSTART;VALUE=DATE:${day}`,
-      `DTEND;VALUE=DATE:${nextDay.toISOString().slice(0, 10).replace(/-/g, '')}`,
+      mitUhrzeit ? `DTSTART:${zeitStempel(event.date, event.time)}` : `DTSTART;VALUE=DATE:${day}`,
+      mitUhrzeit
+        ? `DTEND:${zeitStempel(event.endDate, event.endTime)}`
+        : `DTEND;VALUE=DATE:${nextDay.toISOString().slice(0, 10).replace(/-/g, '')}`,
       // Die Termine entstehen auf Deutsch (collectEvents) und werden erst hier
       // in die Sprache des Kontos gebracht – so bleibt collectEvents dieselbe
       // Quelle für den Reiter im Browser, der selbst übersetzt.

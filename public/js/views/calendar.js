@@ -307,13 +307,20 @@ export async function render_(container) {
               // Die Termine des Tages. Der volle Text steht im Tooltip – in
               // einer Zelle ist kein Platz für "Ocean's 11, 12 und 13".
               ...events.map((event) =>
-                el(`div.cal-chip.kind-${event.kind}`, {
-                  text: event.summary,
-                  // Getrennt übersetzen: Als ein zusammengeklebter Text fände
-                  // sich weder Eintrag noch Muster (siehe public/js/i18n.js).
-                  title: `${tr(event.summary)}\n${tr(event.description)}`,
-                  onClick: event.showId ? () => navigateTo('/library') : undefined,
-                }),
+                el(
+                  `div.cal-chip.kind-${event.kind}`,
+                  {
+                    // Getrennt übersetzen: Als ein zusammengeklebter Text fände
+                    // sich weder Eintrag noch Muster (siehe public/js/i18n.js).
+                    // Mit Uhrzeit steht der Zeitraum obenan: "20:15–21:55".
+                    title:
+                      (event.time ? `${event.time}–${event.endTime}\n` : '') +
+                      `${tr(event.summary)}\n${tr(event.description)}`,
+                    onClick: event.showId ? () => navigateTo('/library') : undefined,
+                  },
+                  // Die Uhrzeit vorn, fett – so sieht man den Abend auf einen Blick.
+                  [event.time && el('span.cal-time', { text: event.time }), event.summary],
+                ),
               ),
             ],
           );

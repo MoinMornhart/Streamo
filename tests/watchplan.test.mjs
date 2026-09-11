@@ -354,6 +354,71 @@ check(
 );
 
 // ===========================================================================
+// Mit Uhrzeit: erst nach dem Termin abhaken
+// ===========================================================================
+// "Montags um 20:00 zwei Folgen" heißt, dass sie gegen 21:40 gesehen sind.
+// Wer um 21 Uhr in die App schaut, soll dort nicht schon Haken sehen, die
+// noch gar nicht stimmen.
+console.log('\nMit Uhrzeit');
+
+check('Uhrzeit wird vereinheitlicht', plan.normalizeTime('8:05'), '08:05');
+check('Leer heißt: keine Uhrzeit', plan.normalizeTime(''), null);
+
+let uhrzeitFehler = null;
+try {
+  plan.normalizeTime('25:00');
+} catch (error) {
+  uhrzeitFehler = error.message;
+}
+check('Unsinn wird abgelehnt', uhrzeitFehler, 'Bitte eine Uhrzeit wie 20:15 angeben.');
+
+check(
+  'Laufzeiten werden addiert, fehlende mit der Serienlänge ergänzt',
+  plan.blockMinutes([{ runtime: 50 }, { runtime: null }], 45),
+  95,
+);
+check('Ohne jede Angabe 45 Minuten je Folge', plan.blockMinutes([{}, {}], null), 90);
+
+// Frischer Stand: nichts gesehen, jede Folge 50 Minuten lang.
+run('DELETE FROM watched_episodes WHERE user_id = ? AND show_id = ?', morni, showId);
+run('UPDATE episodes SET runtime = 50 WHERE show_id = ?', showId);
+
+const mitZeit = plan.savePlan(morni, showId, { weekdays: [1], episodesPerRun: 2, time: '20:00' });
+check('Die Uhrzeit wird gespeichert', mitZeit.time, '20:00');
+
+// 2026-09-14 ist ein Montag. Zwei Folgen à 50 Minuten: 20:00 bis 21:40.
+const MO_ZEIT = '2026-09-14';
+check('Um 21:00 läuft der Termin noch – nichts abgehakt', plan.runDuePlans({ today: MO_ZEIT, now: '21:00' }).episodes, 0);
+check('und der Tag ist noch nicht verbucht', plan.getPlan(morni, showId).lastRunOn, null);
+check('Um 21:40 ist er vorbei – zwei Folgen', plan.runDuePlans({ today: MO_ZEIT, now: '21:40' }).episodes, 2);
+check('Danach an diesem Abend nichts mehr', plan.runDuePlans({ today: MO_ZEIT, now: '23:59' }).episodes, 0);
+check('Insgesamt genau zwei', gesehen(), 2);
+
+// Nachholen und ein heute noch offener Termin vertragen sich: Plan montags
+// und donnerstags, zuletzt gelaufen am Montag, den 14. Am Montag, den 21.,
+// um 12 Uhr ist der Donnerstag dazwischen versäumt – der wird nachgeholt.
+// Der Termin am Abend des 21. darf dabei NICHT verloren gehen.
+plan.savePlan(morni, showId, { weekdays: [1, 4], episodesPerRun: 2, time: '20:00' });
+run('UPDATE watch_plans SET last_run_on = ? WHERE user_id = ? AND show_id = ?', MO_ZEIT, morni, showId);
+
+check('Mittags wird nur der versäumte Donnerstag nachgeholt', plan.runDuePlans({ today: '2026-09-21', now: '12:00' }).episodes, 2);
+check('verbucht ist bis gestern, nicht bis heute', plan.getPlan(morni, showId).lastRunOn, '2026-09-20');
+check('Am Abend kommt der heutige Termin dazu', plan.runDuePlans({ today: '2026-09-21', now: '21:45' }).episodes, 2);
+check('und jetzt ist heute verbucht', plan.getPlan(morni, showId).lastRunOn, '2026-09-21');
+
+// Ein Termin, der über Mitternacht geht, ist am selben Tag nie vorbei – er
+// wird am nächsten Tag nachgeholt.
+plan.savePlan(morni, showId, { weekdays: [1], episodesPerRun: 2, time: '23:30' });
+run('UPDATE watch_plans SET last_run_on = ? WHERE user_id = ? AND show_id = ?', '2026-09-21', morni, showId);
+check('Montag 23:59: der Termin läuft noch', plan.runDuePlans({ today: '2026-09-28', now: '23:59' }).episodes, 0);
+check('Dienstag früh wird er nachgeholt', plan.runDuePlans({ today: '2026-09-29', now: '06:00' }).episodes, 2);
+
+// Ohne Uhrzeit bleibt alles wie bisher: gleich am Morgen des Plantags.
+plan.savePlan(morni, showId, { weekdays: [1], episodesPerRun: 1, time: null });
+check('Ohne Uhrzeit: keine gespeichert', plan.getPlan(morni, showId).time, null);
+check('und schon um 00:05 abgehakt', plan.runDuePlans({ today: '2026-10-05', now: '00:05' }).episodes, 1);
+
+// ===========================================================================
 console.log('');
 console.log(
   failures === 0

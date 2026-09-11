@@ -159,6 +159,16 @@ export default {
   // Der Knopf zeigt einen bestehenden Plan als "🔁 Mo, Do · 1 Folge" – das
   // Symbol klebt am ersten Stück, deshalb ein eigenes Muster.
   '🔁 {0}': '🔁 {0}',
+  // Uhrzeit für Sehplan und Merklisten-Termin (Migration 15).
+  'Um wie viel Uhr? (freiwillig)': 'At what time? (optional)',
+  'Mit Uhrzeit steht der Plan als Termin mit Anfang und Ende im Kalender – wie lange er geht, ergibt sich aus der Länge der Folgen. Abgehakt wird dann erst nach dem Termin.':
+    'With a time, the plan shows up in the calendar as an appointment with a start and an end – its length follows from the episode runtimes. Episodes are then ticked off only once it is over.',
+  'Uhrzeit (freiwillig)': 'Time (optional)',
+  'Uhrzeit gespeichert.': 'Time saved.',
+  'Uhrzeit entfernt.': 'Time removed.',
+  '≈ {0}': '≈ {0}',
+  'Länge einer Folge': 'Length of one episode',
+  'Länge des Films': 'Length of the film',
   'Rhythmus ändern oder Plan beenden': 'Change the rhythm or end the plan',
   'Zum Beispiel: jeden Montag zwei Folgen – Streamo hakt sie dann selbst ab':
     'For example: two episodes every Monday – Streamo then ticks them off for you',

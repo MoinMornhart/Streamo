@@ -144,7 +144,7 @@ Search for shows and films and add them to your list. Five states (*Want to watc
 
 **Episode progress** – tick off seasons and episodes, one at a time, a whole season or "everything up to here". The status switches automatically from *Want to watch* to *Watching* and at the end to *Watched*.
 
-**A date, if you like** – on the watchlist you can set a day for any title – Friday night, the weekend, when the final season comes out. Optional: without a date the list behaves as before. The tile then says *"Tomorrow"* or *"Friday"*, afterwards *"overdue"*, and the library can be sorted by *Planned date*. A long watchlist turns into an order instead of a graveyard of good intentions.
+**A date, if you like** – on the watchlist you can set a day for any title – Friday night, the weekend, when the final season comes out. Optional: without a date the list behaves as before. The tile then says *"Tomorrow"* or *"Friday"*, afterwards *"overdue"*, and the library can be sorted by *Planned date*. A long watchlist turns into an order instead of a graveyard of good intentions. Add a time and it becomes a proper appointment in the calendar: for a film it ends after the film's runtime, for a show after one episode.
 
 **Leaving soon** – if it's known until when a title stays on a provider, the tile says so: *"5 days left"*, in red for the last three days. Skimming the library shows you what should come up this week.
 
@@ -177,6 +177,8 @@ That's how people actually watch shows: not at some point, but in a rhythm. Set 
 The plan does **not** remember where it is; it always takes the next unwatched episodes. If you spontaneously watch five episodes one evening and tick them off by hand, next Monday you won't get the same ones again – the plan continues from where you are. Specials and episodes that haven't aired yet are left out.
 
 If the server was off on a plan day, it catches up – capped at three dates, so you don't come back from holiday to half a season marked as watched. Upcoming dates are in the calendar.
+
+**With a time** – if you like, add when you watch: "Mondays at 8:15 pm". Every session then appears in the calendar with a start and an end, including the subscribed one. Streamo works out how long it takes from the runtimes of exactly the episodes that are up next – two 50-minute episodes make 20:15 to 21:55, and an evening with the season finale gets longer accordingly. Episodes are then ticked off only once the session is over.
 
 ### Statistics that answer a question
 

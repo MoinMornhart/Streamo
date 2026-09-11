@@ -141,7 +141,7 @@ Suche Serien und Filme und leg sie auf deine Liste. Fünf Zustände (*Will ich s
 
 **Episoden-Fortschritt** – Staffeln und Episoden abhaken, einzeln, staffelweise oder „alles bis hierhin". Der Status wechselt automatisch von *Will ich sehen* auf *Schaue ich* und am Ende auf *Gesehen*.
 
-**Ein Termin, wenn du willst** – Auf der Merkliste lässt sich zu jedem Titel ein Tag eintragen – Freitagabend, das Wochenende, wenn die letzte Staffel erscheint. Freiwillig: Ohne Datum verhält sich die Liste wie bisher. Auf der Kachel steht dann *„Morgen"* oder *„Freitag"*, nach dem Termin *„überfällig"*, und die Bibliothek lässt sich nach *Geplanter Termin* sortieren. Aus einer langen Merkliste wird so eine Reihenfolge statt eines Friedhofs guter Vorsätze.
+**Ein Termin, wenn du willst** – Auf der Merkliste lässt sich zu jedem Titel ein Tag eintragen – Freitagabend, das Wochenende, wenn die letzte Staffel erscheint. Freiwillig: Ohne Datum verhält sich die Liste wie bisher. Auf der Kachel steht dann *„Morgen"* oder *„Freitag"*, nach dem Termin *„überfällig"*, und die Bibliothek lässt sich nach *Geplanter Termin* sortieren. Aus einer langen Merkliste wird so eine Reihenfolge statt eines Friedhofs guter Vorsätze. Mit Uhrzeit dazu wird im Kalender ein richtiger Termin daraus: Beim Film endet er nach der Filmlänge, bei einer Serie nach einer Folge.
 
 **Läuft bald aus** – Ist bekannt, bis wann ein Titel bei einem Anbieter läuft, steht es direkt auf der Kachel: *„Noch 5 Tage"*, in den letzten drei Tagen rot. So sieht man beim Überfliegen der Bibliothek, was diese Woche noch drankommen sollte.
 
@@ -174,6 +174,8 @@ So schaut man Serien tatsächlich: nicht irgendwann, sondern in einem Rhythmus. 
 Der Plan merkt sich dabei **nicht**, wo er steht, sondern nimmt jedes Mal die nächsten ungesehenen Folgen. Wer an einem Abend spontan fünf Folgen schaut und von Hand abhakt, bekommt am nächsten Montag nicht dieselben noch einmal – der Plan macht dort weiter, wo du bist. Specials und noch nicht ausgestrahlte Folgen bleiben außen vor.
 
 War der Server an einem Plantag aus, wird nachgeholt – gedeckelt auf drei Termine, damit nach dem Urlaub nicht eine halbe Staffel als gesehen dasteht. Die kommenden Termine stehen im Kalender.
+
+**Mit Uhrzeit** – Wer mag, gibt dazu an, wann geschaut wird: „montags um 20:15“. Dann steht jeder Termin mit Anfang und Ende im Kalender, auch im abonnierten. Wie lange er geht, rechnet Streamo aus der Länge genau der Folgen aus, die dran sind – zwei Folgen à 50 Minuten ergeben 20:15 bis 21:55, ein Abend mit dem Staffelfinale wird entsprechend länger. Abgehakt wird dann erst, wenn der Termin vorbei ist.
 
 ### Auswertung, die eine Frage beantwortet
 
