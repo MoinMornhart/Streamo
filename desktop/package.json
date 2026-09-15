@@ -1,6 +1,6 @@
 {
   "name": "streamo-desktop",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Streamo für den PC – eigenes Fenster, Tray-Symbol, Benachrichtigungen bei neuen Episoden.",
   "main": "main.js",
   "license": "MIT",
@@ -22,7 +22,7 @@
   },
   "devDependencies": {
     "electron": "^44.3.0",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^26.15.3"
   },
   "build": {
     "appId": "de.mornhart.streamo",
@@ -47,7 +47,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "assets/icon.ico"
@@ -61,12 +63,17 @@
       "shortcutName": "Streamo"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "AudioVideo",
       "icon": "assets/icon.png"
     },
     "mac": {
-      "target": ["dmg"],
+      "target": [
+        "dmg"
+      ],
       "category": "public.app-category.entertainment",
       "icon": "assets/icon.icns"
     }

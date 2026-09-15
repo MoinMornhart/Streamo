@@ -1,0 +1,52 @@
+# ---------------------------------------------------------------------------
+# .github/dependabot.yml – Abhängigkeiten aktuell halten
+# ---------------------------------------------------------------------------
+# Dependabot sieht jede Woche nach neuen Versionen und legt dafür Pull-Requests
+# an. Die Tests (.github/workflows/test.yml) laufen gegen jeden davon – was
+# grün ist, kann gemergt werden.
+#
+# Drei Stellen haben Abhängigkeiten:
+#   /          -> der Server: express und @simplewebauthn/server
+#   /desktop   -> die Windows-App: electron, electron-builder, electron-updater
+#   Actions    -> die Bausteine der Workflows (checkout, setup-node, Pages …)
+#
+# Kleine Updates (Patch/Minor) kommen je Stelle gebündelt in EINEM Pull-Request,
+# damit nicht jede Woche fünf einzelne auflaufen. Hauptversionen kommen einzeln:
+# Die können etwas ändern und wollen für sich angeschaut werden.
+# ---------------------------------------------------------------------------
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 'Abhängigkeiten (Server)'
+    groups:
+      server-kleine-updates:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /desktop
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 'Abhängigkeiten (Desktop)'
+    groups:
+      desktop-kleine-updates:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: 'Abhängigkeiten (Actions)'
+    groups:
+      actions:
+        patterns: ['*']
