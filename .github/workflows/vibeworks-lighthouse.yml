@@ -1,0 +1,100 @@
+# Von VibeWorks angelegt: Lighthouse-Check der Live-Seite – Änderungen bitte in VibeWorks vornehmen.
+# Prüft einmal pro Woche Leistung, Barrierefreiheit, Best Practices und SEO (Lighthouse)
+# sowie kaputte Links (lychee) – kostenlos im GitHub-Runner, ohne KI und ohne Zugriff auf den Code.
+# Datei löschen = Check aus.
+name: VibeWorks Lighthouse
+
+on:
+  push:
+    paths: [".github/workflows/vibeworks-lighthouse.yml"]
+  schedule:
+    - cron: "41 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vibeworks-lighthouse
+  cancel-in-progress: true
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      LIVE_URL: "https://streamo.morncloud.de/"
+    steps:
+      - name: Lighthouse
+        continue-on-error: true
+        run: >-
+          npx -y lighthouse@12 "$LIVE_URL" --output=json --output-path=lh.json --quiet
+          --only-categories=performance,accessibility,best-practices,seo
+          --chrome-flags="--headless=new --no-sandbox"
+
+      - name: Kaputte Links (lychee)
+        continue-on-error: true
+        run: >-
+          docker run --rm -v "$PWD:/out" lycheeverse/lychee:latest
+          --format json --output /out/links.json --max-concurrency 8 --timeout 20 --no-progress "$LIVE_URL"
+
+      - name: Zusammenfassen
+        run: |
+          python3 - <<'PY'
+          import datetime, json, os
+
+          def load(path):
+              try:
+                  with open(path, encoding="utf-8") as f:
+                      return json.load(f)
+              except Exception:
+                  return None
+
+          out = {
+              "version": 1,
+              "url": os.environ.get("LIVE_URL", ""),
+              "finishedAt": datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+              "tools": {},
+              "scores": {},
+              "metrics": {},
+              "brokenLinks": [],
+              "error": None,
+          }
+
+          lh = load("lh.json")
+          out["tools"]["lighthouse"] = lh is not None
+          if lh:
+              if lh.get("runtimeError"):
+                  out["error"] = str((lh.get("runtimeError") or {}).get("message") or "")[:300]
+              for key, name in (("performance", "performance"), ("accessibility", "accessibility"), ("best-practices", "bestPractices"), ("seo", "seo")):
+                  score = ((lh.get("categories") or {}).get(key) or {}).get("score")
+                  if isinstance(score, (int, float)):
+                      out["scores"][name] = round(score * 100)
+              audits = lh.get("audits") or {}
+              for key, name in (("largest-contentful-paint", "lcp"), ("first-contentful-paint", "fcp"), ("total-blocking-time", "tbt"), ("cumulative-layout-shift", "cls")):
+                  value = (audits.get(key) or {}).get("numericValue")
+                  if isinstance(value, (int, float)):
+                      out["metrics"][name] = round(value, 3) if name == "cls" else round(value)
+          elif not out["error"]:
+              out["error"] = "Lighthouse lieferte keinen Bericht"
+
+          links = load("links.json")
+          out["tools"]["lychee"] = links is not None
+          for items in ((links or {}).get("error_map") or (links or {}).get("fail_map") or {}).values():
+              for x in items or []:
+                  status = x.get("status") if isinstance(x, dict) else None
+                  code = status.get("code") if isinstance(status, dict) else None
+                  text = status.get("text") if isinstance(status, dict) else status
+                  if len(out["brokenLinks"]) < 50:
+                      out["brokenLinks"].append({"url": str(x.get("url", ""))[:500], "status": code if isinstance(code, int) else None, "text": str(text or "")[:200]})
+
+          with open("vibeworks-lighthouse.json", "w", encoding="utf-8") as f:
+              json.dump(out, f)
+          print(json.dumps({"scores": out["scores"], "brokenLinks": len(out["brokenLinks"])}))
+          PY
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: vibeworks-lighthouse
+          path: vibeworks-lighthouse.json
+          retention-days: 14
