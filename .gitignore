@@ -16,3 +16,6 @@ dist/
 
 # Die gebaute Webseite (node site/build.mjs) – GitHub Pages baut sie selbst.
 _site/
+
+# Von VibeWorks (Dateifilter)
+*.key
