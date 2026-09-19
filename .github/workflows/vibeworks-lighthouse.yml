@@ -1,5 +1,5 @@
 # Von VibeWorks angelegt: Lighthouse-Check der Live-Seite – Änderungen bitte in VibeWorks vornehmen.
-# Prüft einmal pro Woche Leistung, Barrierefreiheit, Best Practices und SEO (Lighthouse)
+# Prüft nach Zeitplan Leistung, Barrierefreiheit, Best Practices und SEO (Lighthouse)
 # sowie kaputte Links (lychee) – kostenlos im GitHub-Runner, ohne KI und ohne Zugriff auf den Code.
 # Datei löschen = Check aus.
 name: VibeWorks Lighthouse
