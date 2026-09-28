@@ -47,7 +47,7 @@ jobs:
 
     steps:
       - name: Quellen auschecken
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Node.js einrichten
         uses: actions/setup-node@v7
@@ -87,7 +87,7 @@ jobs:
         run: npm run build:win
 
       - name: Ergebnis anhängen
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: Streamo-Windows-Installer
           # Nur den Installer und die Prüfsummen, nicht das gesamte
