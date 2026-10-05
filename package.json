@@ -38,7 +38,7 @@
     "test:all": "npm test && npm run test:migration && npm run test:achievements && npm run test:collections && npm run test:friends && npm run test:invites && npm run test:fuzzy && npm run test:recommend && npm run test:totp && npm run test:until && npm run test:calendar && npm run test:watchplan && npm run test:links && npm run test:i18n && npm run test:template && npm run test:arch && npm run test:update"
   },
   "dependencies": {
-    "@simplewebauthn/server": "^14.0.2",
+    "@simplewebauthn/server": "^14.0.3",
     "express": "^5.1.0"
   },
   "keywords": [
