@@ -395,9 +395,10 @@ export function parseCookies(header) {
  *              kann eine XSS-Lücke die Session nicht stehlen.
  *   SameSite=Lax – das Cookie wird bei fremden POST-Requests nicht
  *              mitgeschickt; das ist der CSRF-Schutz dieser Anwendung.
- *   Secure   – nur über HTTPS senden. Automatisch aktiv, wenn TRUST_PROXY=true
- *              gesetzt ist, denn dann steht ein TLS-Proxy davor. Im nackten
- *              LAN-Betrieb ohne HTTPS würde das Flag das Login unmöglich machen.
+ *   Secure   – nur über HTTPS senden. Aktiv, wenn TRUST_PROXY=true (TLS-Proxy
+ *              davor) ODER ENABLE_HTTPS=true (Streamo liefert selbst per HTTPS).
+ *              Im nackten LAN-Betrieb ohne HTTPS bleibt das Flag aus, sonst
+ *              wäre das Login unmöglich.
  *   Max-Age  – Lebensdauer in Sekunden, passend zu sessions.expires_at.
  *
  * @param {import('express').Response} res
@@ -411,7 +412,9 @@ export function setSessionCookie(res, token) {
     'SameSite=Lax',
     `Max-Age=${config.sessionDays * 86_400}`,
   ];
-  if (config.trustProxy) parts.push('Secure');
+  // Secure auch im direkten HTTPS-Betrieb (ENABLE_HTTPS=true ohne Proxy), nicht
+  // nur hinter einem TLS-Proxy. Im reinen HTTP-LAN-Betrieb bleibt es aus.
+  if (config.trustProxy || config.https) parts.push('Secure');
 
   res.setHeader('Set-Cookie', parts.join('; '));
 }

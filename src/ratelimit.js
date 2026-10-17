@@ -90,10 +90,14 @@ function absender(req) {
   if (config.trustProxy) {
     const forwarded = req.headers['x-forwarded-for'];
 
-    // Der Header kann eine Kette sein ("client, proxy1"); der erste Eintrag
-    // ist der ursprüngliche Client.
+    // Der Header kann eine Kette sein ("client, proxy1, proxy2"). Der LINKE
+    // Eintrag wird vom Client gesendet und ist fälschbar – wer ihn glaubt,
+    // kann die Bremse mit zufälligen Werten pro Versuch umgehen. Unser eigener
+    // Reverse Proxy hängt die tatsächlich verbindende Adresse RECHTS an
+    // (z. B. nginx $proxy_add_x_forwarded_for), deshalb der letzte Eintrag.
     if (typeof forwarded === 'string' && forwarded.trim()) {
-      return forwarded.split(',')[0].trim();
+      const kette = forwarded.split(',').map((t) => t.trim()).filter(Boolean);
+      if (kette.length > 0) return kette[kette.length - 1];
     }
   }
 
