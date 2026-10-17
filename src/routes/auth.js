@@ -139,9 +139,13 @@ const router = express.Router();
 function clientIp(req) {
   if (config.trustProxy) {
     const forwarded = req.headers['x-forwarded-for'];
-    // Der Header kann eine Kette sein ("client, proxy1, proxy2") – der erste
-    // Eintrag ist der ursprüngliche Client.
-    if (typeof forwarded === 'string') return forwarded.split(',')[0].trim();
+    // Kette ("client, proxy1, proxy2"): der LINKE Eintrag ist client-gesetzt
+    // und fälschbar. Unser Proxy hängt die echte Adresse RECHTS an, daher der
+    // letzte Eintrag (konsistent mit src/ratelimit.js).
+    if (typeof forwarded === 'string' && forwarded.trim()) {
+      const kette = forwarded.split(',').map((t) => t.trim()).filter(Boolean);
+      if (kette.length > 0) return kette[kette.length - 1];
+    }
   }
   return req.socket?.remoteAddress ?? null;
 }
@@ -562,7 +566,8 @@ function setFlowCookie(res, flowId) {
     'SameSite=Lax',
     'Max-Age=120',
   ];
-  if (config.trustProxy) parts.push('Secure');
+  // Secure auch im direkten HTTPS-Betrieb, konsistent mit setSessionCookie().
+  if (config.trustProxy || config.https) parts.push('Secure');
 
   // append statt setHeader: Bei der Anmeldung wird gleich danach auch das
   // Session-Cookie gesetzt – setHeader würde es überschreiben.

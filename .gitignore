@@ -16,3 +16,6 @@ dist/
 
 # Die gebaute Webseite (node site/build.mjs) – GitHub Pages baut sie selbst.
 _site/
+
+# Interner Test-/Scratch-Ordner (enthielt u.a. secret.key) – nie committen
+/x/
