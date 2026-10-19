@@ -529,7 +529,8 @@ Streamo/
 │       ├── theme.js        Accent colour and base tone
 │       ├── provider-links.js  Direct links to the providers
 │       ├── router.js       Routing via the address bar
-│       ├── app.js          Entry point, global state
+│       ├── session.js      Who is signed in, plus the header bar
+│       ├── app.js          Entry point, route table
 │       └── views/          One file per view
 ├── desktop/                The Windows app (Electron)
 ├── scripts/

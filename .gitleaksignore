@@ -1,0 +1,13 @@
+# ---------------------------------------------------------------------------
+# .gitleaksignore – geprüfte Fehlalarme des Geheimnis-Scanners (Gitleaks)
+# ---------------------------------------------------------------------------
+# Jede Zeile ist der Fingerabdruck genau EINES Fundes: Commit, Datei, Regel,
+# Zeile. Ein neuer Fund an anderer Stelle – auch in derselben Datei – wird
+# weiterhin gemeldet. Gelesen vom Repo-Check
+# (.github/workflows/vibeworks-check.yml).
+# ---------------------------------------------------------------------------
+
+# tests/totp.test.mjs:105 – das Testgeheimnis aus RFC 6238, Anhang B
+# ("12345678901234567890", hier in Base32). Es steht öffentlich in der Norm
+# und taugt nur dazu, die dort abgedruckten Codes nachzurechnen.
+963382239d85ca28b86d551d269edb3c84d12f0b:tests/totp.test.mjs:generic-api-key:105

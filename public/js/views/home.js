@@ -131,7 +131,7 @@ async function loadForYou(slot) {
  * Zeichnet die Startseite.
  * @param {HTMLElement} container
  */
-export async function render_(container) {
+async function render_(container) {
   // Drei unabhängige Abfragen parallel – so ist die Seite nach der langsamsten
   // da statt nach der Summe aller drei.
   const [watchingResult, providersResult] = await Promise.all([

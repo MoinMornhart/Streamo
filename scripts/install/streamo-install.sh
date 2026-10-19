@@ -378,7 +378,12 @@ if [[ -f "$APP_DIR/scripts/install/install-commands.sh" ]]; then
   # Ohne ">/dev/null": Ein Fehler soll sichtbar sein und nicht in der
   # Dunkelheit verschwinden. "|| true" verhindert, dass die gesamte
   # Installation daran scheitert – der Notfallbefehl von oben bleibt ja.
-  if APP_DIR="$APP_DIR" bash "$APP_DIR/scripts/install/install-commands.sh" >/tmp/streamo-commands.log 2>&1; then
+  #
+  # install-commands.sh liest APP_DIR aus der Umgebung, deshalb "export".
+  # Die Kurzform "APP_DIR=… bash …" tat dasselbe, las sich aber, als würde
+  # das "$APP_DIR" im Pfad schon den neuen Wert sehen (ShellCheck SC2097).
+  export APP_DIR
+  if bash "$APP_DIR/scripts/install/install-commands.sh" >/tmp/streamo-commands.log 2>&1; then
     msg_ok "Konsolenbefehle eingerichtet (update, streamo)"
   else
     msg_error "Die Konsolenbefehle konnten nicht vollständig eingerichtet werden."

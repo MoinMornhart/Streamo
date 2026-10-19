@@ -244,8 +244,6 @@ ask_settings() {
   RAM_SIZE="$var_ram"
   BRIDGE="vmbr0"
   NET_CONFIG="dhcp"
-  DNS_SERVER=""
-  START_AFTER_CREATE="1"
   ENABLE_SSH="0"
   ROOT_PASSWORD=""
 
@@ -428,6 +426,9 @@ create_container() {
     msg_error "Der Container ${CTID} lässt sich nicht starten."
     echo ""
     echo -e " ${DGN}Meldung von Proxmox:${CL}"
+    # Jede Zeile einrücken. ShellCheck schlägt ${start_output//…} vor – das
+    # trifft aber nur Zeilenumbrüche, nicht den Anfang der ersten Zeile.
+    # shellcheck disable=SC2001
     echo "$start_output" | sed 's/^/   /'
     echo ""
     echo -e " ${YW}So kommst du weiter${CL}"

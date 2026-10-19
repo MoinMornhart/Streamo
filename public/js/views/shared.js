@@ -118,7 +118,7 @@ function itemRow(item, index) {
  * @param {HTMLElement} container
  * @param {{token: string}} params
  */
-export async function render_(container, params) {
+async function render_(container, params) {
   let collection;
 
   try {

@@ -21,7 +21,7 @@ import { api } from '../api.js';
 // Ohne Anmeldung merkt ihn sich nur der Browser; nach der Anmeldung gilt die
 // am Konto hinterlegte Sprache, sobald eine eingestellt ist.
 import { el, render, toast, errorBox, languageSwitch } from '../ui.js';
-import { state, refreshStatus } from '../app.js';
+import { state, refreshStatus } from '../session.js';
 import { startRouter, navigateTo } from '../router.js';
 import { isSupported, hasPlatformAuthenticator, usePasskey } from '../passkey.js';
 // Übersetzt Texte, die am Baustein el() vorbei direkt ins DOM geschrieben werden.
@@ -64,7 +64,7 @@ const LANGUAGES = [
  * @param {'login'|'setup'} [options.mode]
  * @param {object} [options.defaults] Vorbelegung aus /api/auth/status
  */
-export function render_(container, options = {}) {
+function render_(container, options = {}) {
   const mode = options.mode || 'login';
   const defaults = options.defaults || { region: 'DE', language: 'de-DE' };
 

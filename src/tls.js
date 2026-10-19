@@ -145,23 +145,3 @@ export function getTlsOptions() {
     selfSigned: true,
   };
 }
-
-/**
- * Löscht ein selbst erzeugtes Zertifikat, damit beim nächsten Start ein neues
- * entsteht. Nötig, wenn sich der Hostname geändert hat – ein Zertifikat für
- * den falschen Namen weist der Browser ab.
- *
- * @returns {boolean} true, wenn etwas gelöscht wurde
- */
-export function resetSelfSignedCertificate() {
-  let removed = false;
-
-  for (const file of [CERT_FILE, KEY_FILE]) {
-    if (fs.existsSync(file)) {
-      fs.unlinkSync(file);
-      removed = true;
-    }
-  }
-
-  return removed;
-}

@@ -29,7 +29,7 @@ import { get, run, all, getSetting } from './db.js';
 // --------------------------------------------------------------------------
 
 /** Name des Cookies, in dem der Session-Token steckt. */
-export const SESSION_COOKIE = 'streamo_session';
+const SESSION_COOKIE = 'streamo_session';
 
 /** Länge des Zufalls-Salts je Passwort in Bytes. */
 const SALT_BYTES = 16;
@@ -295,7 +295,7 @@ export function createSession(userId, meta = {}) {
  * @param {string} token
  * @returns {object|undefined} Benutzer ohne Hash, oder undefined
  */
-export function getUserBySession(token) {
+function getUserBySession(token) {
   if (!token) return undefined;
 
   return get(

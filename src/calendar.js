@@ -346,7 +346,7 @@ export function collectEvents(userId, region) {
  * @param {number} minutes Dauer
  * @returns {object} {} ohne Uhrzeit, sonst { time, minutes, endDate, endTime }
  */
-export function zeitraum(date, time, minutes) {
+function zeitraum(date, time, minutes) {
   if (!time || !(minutes > 0)) return {};
 
   const ende = new Date(new Date(`${date}T${time}:00Z`).getTime() + minutes * 60_000);

@@ -160,10 +160,3 @@ export function limitFailures({ name, max, windowMs, message }) {
     next();
   };
 }
-
-/**
- * Leert alle Zähler. Nur für Tests.
- */
-export function resetLimits() {
-  buckets.clear();
-}

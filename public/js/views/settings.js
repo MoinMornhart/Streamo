@@ -31,7 +31,7 @@ import {
   askConfirm,
   shareSheet,
 } from '../ui.js';
-import { refreshStatus } from '../app.js';
+import { refreshStatus } from '../session.js';
 import { isSupported, hasPlatformAuthenticator, createPasskey } from '../passkey.js';
 // Farbschema: anwenden, merken, auswaehlen. Siehe public/js/theme.js.
 import {
@@ -87,7 +87,7 @@ function select(id, entries, selected) {
  * Zeichnet die Einstellungsseite.
  * @param {HTMLElement} container
  */
-export async function render_(container) {
+async function render_(container) {
   const data = await api.settings.get();
 
   // ========================================================================

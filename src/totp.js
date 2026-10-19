@@ -131,7 +131,7 @@ export function base32Decode(text) {
 export const TIME_STEP_SECONDS = 30;
 
 /** Wie viele Stellen der Code hat. */
-export const DIGITS = 6;
+const DIGITS = 6;
 
 /**
  * Erzeugt ein neues Geheimnis.

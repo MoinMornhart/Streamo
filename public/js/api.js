@@ -21,7 +21,7 @@
  * Fehler eines API-Aufrufs. Trägt den HTTP-Status mit, damit Views z. B.
  * "412 = kein API-Key" gezielt abfangen können.
  */
-export class ApiError extends Error {
+class ApiError extends Error {
   /**
    * @param {string} message Meldung vom Server (bereits auf Deutsch)
    * @param {number} status  HTTP-Status
@@ -462,5 +462,3 @@ export const api = {
     check: () => request('/api/achievements/check', { method: 'POST' }),
   },
 };
-
-export default api;

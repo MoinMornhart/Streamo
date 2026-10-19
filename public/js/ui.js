@@ -109,7 +109,7 @@ export const viewRoot = () => document.getElementById('view');
  * Der Umschalter Deutsch / English.
  *
  * Steht an zwei Stellen: in der Kopfzeile neben dem Kontokreis (angemeldet,
- * eingesetzt von public/js/app.js -> updateChrome) und oben rechts auf den
+ * eingesetzt von public/js/session.js -> updateChrome) und oben rechts auf den
  * Anmelde-Bildschirmen (public/js/views/auth.js). Nach der Anmeldung gab es
  * ihn früher nur als Auswahlfeld tief in den Einstellungen – zu versteckt für
  * eine Einstellung, nach der man ausgerechnet dann sucht, wenn man die
@@ -720,7 +720,7 @@ export function formatRuntime(minutes) {
  * @param {string} iso "YYYY-MM-DD"
  * @returns {string}
  */
-export function plannedLabel(iso, time = null) {
+function plannedLabel(iso, time = null) {
   const target = new Date(`${iso}T00:00:00`);
 
   const today = new Date();

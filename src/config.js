@@ -32,7 +32,7 @@ import { fileURLToPath } from 'node:url';
 // --------------------------------------------------------------------------
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-export const ROOT_DIR = path.resolve(__dirname, '..');
+const ROOT_DIR = path.resolve(__dirname, '..');
 
 /**
  * Minimaler .env-Parser.
@@ -184,7 +184,7 @@ function resolveSessionSecret() {
  * gewinnt zur Laufzeit; die Werte hier sind nur die Startvorgaben. Diese
  * Auflösung passiert in src/tmdb.js -> getRuntimeSettings().
  */
-export const config = Object.freeze({
+const config = Object.freeze({
   // --- Netzwerk -----------------------------------------------------------
   /** TCP-Port des HTTP-Servers (src/server.js) */
   port: envNumber('PORT', 3000),

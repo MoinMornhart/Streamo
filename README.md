@@ -528,7 +528,8 @@ Streamo/
 │       ├── theme.js        Akzentfarbe und Grundton
 │       ├── provider-links.js  Direktlinks zu den Anbietern
 │       ├── router.js       Routing über die Adressleiste
-│       ├── app.js          Einstiegspunkt, globaler Zustand
+│       ├── session.js      Wer angemeldet ist, dazu die Kopfzeile
+│       ├── app.js          Einstiegspunkt, Routentabelle
 │       └── views/          Eine Datei je Ansicht
 ├── desktop/                Die Windows-App (Electron)
 ├── scripts/

@@ -236,6 +236,7 @@ function computeAssetVersion() {
   const files = [
     'css/styles.css',
     'js/app.js',
+    'js/session.js',
     'js/api.js',
     'js/ui.js',
     'js/router.js',

@@ -30,7 +30,7 @@
  */
 
 import crypto from 'node:crypto';
-import { get, all, run } from './db.js';
+import { get, run } from './db.js';
 import {
   generateSecret,
   verifyCode,
@@ -169,7 +169,7 @@ export function completePendingLogin(token, code) {
  *
  * @param {number} userId
  */
-export function clearPendingLogins(userId) {
+function clearPendingLogins(userId) {
   for (const [token, entry] of pendingLogins) {
     if (entry.userId === userId) pendingLogins.delete(token);
   }
@@ -339,7 +339,7 @@ export function replaceBackupCodes(userId) {
  * @param {string} code
  * @returns {{ok: boolean, usedBackupCode?: boolean}}
  */
-export function verifyForUser(userId, code) {
+function verifyForUser(userId, code) {
   const user = get('SELECT totp_secret, totp_enabled FROM users WHERE id = ?', userId);
 
   // Ohne eingeschalteten zweiten Faktor gibt es nichts zu prüfen. Das mit
@@ -379,21 +379,4 @@ export function verifyForUser(userId, code) {
 export function requiresTwoFactor(userId) {
   const user = get('SELECT totp_enabled, totp_secret FROM users WHERE id = ?', userId);
   return Boolean(user?.totp_enabled && user.totp_secret);
-}
-
-/**
- * Listet die Ersatzcodes eines Benutzers – nur Zustand, nie im Klartext.
- *
- * Gedacht für die Einstellungsseite: "7 von 10 noch nutzbar".
- *
- * @param {number} userId
- * @returns {{total: number, left: number}}
- */
-export function getBackupCodeState(userId) {
-  const rows = all('SELECT used_at FROM totp_backup_codes WHERE user_id = ?', userId);
-
-  return {
-    total: rows.length,
-    left: rows.filter((row) => row.used_at === null).length,
-  };
 }

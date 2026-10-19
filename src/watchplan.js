@@ -152,7 +152,7 @@ export function normalizeTime(value) {
  * @param {string} time
  * @returns {number}
  */
-export function toMinutes(time) {
+function toMinutes(time) {
   const [stunden, minuten] = String(time).split(':').map(Number);
   return stunden * 60 + minuten;
 }
@@ -268,33 +268,6 @@ export function deletePlan(userId, showId) {
   );
 
   return result.changes > 0;
-}
-
-/**
- * Alle Pläne eines Kontos, für die Übersicht.
- *
- * @param {number} userId
- * @returns {object[]}
- */
-export function listPlans(userId) {
-  return all(
-    `SELECT p.*, s.title, s.poster_path, s.media_type
-       FROM watch_plans p
-       JOIN shows s ON s.id = p.show_id
-      WHERE p.user_id = ?
-      ORDER BY s.title COLLATE NOCASE`,
-    userId,
-  ).map((row) => ({
-    showId: row.show_id,
-    title: row.title,
-    posterPath: row.poster_path,
-    mediaType: row.media_type,
-    weekdays: parseWeekdays(row.weekdays),
-    episodesPerRun: row.episodes_per_run,
-    time: row.watch_time ?? null,
-    active: Boolean(row.active),
-    lastRunOn: row.last_run_on,
-  }));
 }
 
 // ===========================================================================

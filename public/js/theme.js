@@ -30,7 +30,7 @@
  *
  * Verknüpfungen:
  *   - public/css/styles.css       -> die Variablen, die hier gesetzt werden
- *   - public/js/app.js            -> wendet das Thema beim Start an
+ *   - public/js/session.js        -> wendet das Thema vom Konto an
  *   - public/js/views/settings.js -> die Auswahl in der Oberfläche
  *   - src/routes/settings.js      -> speichert es am Konto (Spalte users.theme)
  * ---------------------------------------------------------------------------
@@ -124,7 +124,7 @@ function lighten(hex, amount) {
  * @param {string} value
  * @returns {boolean}
  */
-export function isValidColor(value) {
+function isValidColor(value) {
   return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(String(value || '').trim());
 }
 
@@ -134,7 +134,7 @@ export function isValidColor(value) {
  * @param {object} [theme]
  * @returns {{accent: string, base: string}}
  */
-export function normalizeTheme(theme) {
+function normalizeTheme(theme) {
   const accent = isValidColor(theme?.accent) ? theme.accent.toLowerCase() : DEFAULT_THEME.accent;
 
   const base = BASE_PRESETS.some(([value]) => value === theme?.base)
@@ -200,13 +200,4 @@ export function saveTheme(theme) {
   } catch {
     /* nicht schreibbar – dann gilt es nur für diese Sitzung */
   }
-}
-
-/**
- * Wendet das gemerkte Thema an. Wird ganz früh beim Start aufgerufen.
- *
- * @returns {{accent: string, base: string}}
- */
-export function initTheme() {
-  return applyTheme(loadTheme());
 }

@@ -13,6 +13,18 @@
 # Kleine Updates (Patch/Minor) kommen je Stelle gebündelt in EINEM Pull-Request,
 # damit nicht jede Woche fünf einzelne auflaufen. Hauptversionen kommen einzeln:
 # Die können etwas ändern und wollen für sich angeschaut werden.
+#
+# Eine Woche Wartezeit (cooldown): Eine neue Version wird erst vorgeschlagen,
+# wenn sie sieben Tage alt ist. Bei untergeschobenen Paketen – ein gekapertes
+# Konto veröffentlicht eine Version mit Schadcode – vergehen bis zur Entdeckung
+# meist nur Stunden oder wenige Tage; wer nicht am ersten Tag aktualisiert,
+# bekommt sie gar nicht erst. Sicherheitsupdates warten nicht: Für die gilt
+# die Wartezeit nicht.
+#
+# Die Actions in den Workflows stehen auf festen Commit-Kennungen statt auf
+# "@v7" (die Version dahinter als Kommentar). Ein Tag lässt sich nachträglich
+# auf anderen Code umbiegen, eine Kennung nicht. Dependabot versteht diese
+# Schreibweise und hebt Kennung und Kommentar gemeinsam an.
 # ---------------------------------------------------------------------------
 version: 2
 updates:
@@ -21,6 +33,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     commit-message:
       prefix: 'Abhängigkeiten (Server)'
@@ -33,6 +47,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     commit-message:
       prefix: 'Abhängigkeiten (Desktop)'
@@ -45,6 +61,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: 'Abhängigkeiten (Actions)'
     groups:

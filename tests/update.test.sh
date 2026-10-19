@@ -102,11 +102,13 @@ export STUB_LOG="$LAB/stub.log"
 # ---------------------------------------------------------------------------
 REMOTE="$LAB/remote"
 mkdir -p "$REMOTE/scripts"
-cd "$REMOTE"
+cd "$REMOTE" || exit 1
 git init -q -b main
 git config user.email t@t.de; git config user.name Test
 # Fuer den Test wird NUR der root-Check deaktiviert - Git Bash laeuft nicht
 # als root. Der Check selbst wird in Test 0 am Originalskript geprueft.
+# Ersetzt wird der Text "$EUID" im Skript, deshalb einfache Anfuehrungszeichen.
+# shellcheck disable=SC2016
 sed 's|if \[\[ "$EUID" -ne 0 \]\]; then|if false; then|' \
   "$SRC/scripts/streamo-update.sh" > scripts/streamo-update.sh
 mkdir -p scripts/install
@@ -208,10 +210,10 @@ check "Originalskript ist nicht leer" "1" "$([[ "$size_after" -gt 100 ]] && echo
 
 echo ""
 echo "Test 7: Es bleiben keine Kopien in /tmp liegen"
-before="$(ls /tmp/streamo-update-* 2>/dev/null | wc -l)"
+before="$(find /tmp -maxdepth 1 -name 'streamo-update-*' 2>/dev/null | wc -l)"
 setup_install
 run_update --check >/dev/null
-after="$(ls /tmp/streamo-update-* 2>/dev/null | wc -l)"
+after="$(find /tmp -maxdepth 1 -name 'streamo-update-*' 2>/dev/null | wc -l)"
 check "keine Restdateien" "$before" "$after"
 
 echo ""

@@ -33,7 +33,7 @@ export default {
   // Kurz gehalten: Die englische Navigation ist breiter, und bei 1360 Pixeln
   // bleibt der Suche neben der mittigen Navigation nur wenig Platz.
   'Serie oder Film suchen …': 'Search shows & films …',
-  // Kurzfassung für die Kopfzeile auf dem Telefon (public/js/app.js).
+  // Kurzfassung für die Kopfzeile auf dem Telefon (public/js/session.js).
   'Suchen …': 'Search …',
   'Streamo startet …': 'Streamo is starting …',
   '· Daten von': '· Data from',
@@ -42,7 +42,7 @@ export default {
     'This product uses the TMDB API but is not endorsed or certified by TMDB.',
   'Region {0}': 'Region {0}',
 
-  // --- app.js ------------------------------------------------------------------
+  // --- app.js und session.js ---------------------------------------------------
   'Es ist kein TMDB-API-Key hinterlegt. Ohne ihn bleiben Suche und Streaming-Anbieter leer.':
     'No TMDB API key has been set. Without it, search and streaming providers stay empty.',
   'Jetzt eintragen': 'Add it now',

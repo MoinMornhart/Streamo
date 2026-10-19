@@ -73,7 +73,7 @@ function barChart(rows, emptyText) {
  * Zeichnet die Statistikseite.
  * @param {HTMLElement} container
  */
-export async function render_(container) {
+async function render_(container) {
   const data = await api.stats.get();
 
   if (data.total === 0) {

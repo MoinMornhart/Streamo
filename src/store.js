@@ -34,7 +34,7 @@ import { mergeProviders, mergeOffers } from './providers-canonical.js';
  * Verknüpfung: Diese Strings sind exakt die im CHECK-Constraint von
  * availability.offer_type erlaubten Werte (src/db.js).
  */
-export const OFFER_TYPES = ['flatrate', 'free', 'ads', 'rent', 'buy'];
+const OFFER_TYPES = ['flatrate', 'free', 'ads', 'rent', 'buy'];
 
 /**
  * Wie lange gelten zwischengespeicherte Daten als "frisch"?
@@ -256,7 +256,7 @@ export function saveAvailability(showId, region, regionData) {
  * @returns {object[]} Zeilen aus `availability`, sortiert nach Angebotsart
  *   (Abo zuerst) und dann nach Anbieter-Popularität
  */
-export function getAvailability(showId, region) {
+function getAvailability(showId, region) {
   return all(
     `SELECT provider_id, offer_type, name, logo_path, display_priority, link, updated_at
        FROM availability
