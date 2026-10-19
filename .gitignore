@@ -16,3 +16,7 @@ dist/
 
 # Die gebaute Webseite (node site/build.mjs) – GitHub Pages baut sie selbst.
 _site/
+
+# Versehentlich erzeugtes Datenverzeichnis (DATA_DIR=x) – enthält secret.key
+/x/
+**/secret.key
