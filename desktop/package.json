@@ -18,11 +18,11 @@
     "build:mac": "electron-builder --mac --publish never"
   },
   "dependencies": {
-    "electron-updater": "^6.3.9"
+    "electron-updater": "^6.8.11"
   },
   "devDependencies": {
     "electron": "^44.3.0",
-    "electron-builder": "^26.15.3"
+    "electron-builder": "^26.18.0"
   },
   "build": {
     "appId": "de.mornhart.streamo",
