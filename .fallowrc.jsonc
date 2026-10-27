@@ -29,10 +29,11 @@
     "site/static/site.js",
     "site/static/style.css",
 
-    // Konsolenbefehle "streamo admin" und "streamo registration", aufgerufen
-    // aus scripts/install/install-commands.sh.
+    // Konsolenbefehle "streamo admin", "streamo registration" und
+    // "streamo domain", aufgerufen aus scripts/install/install-commands.sh.
     "scripts/make-admin.mjs",
-    "scripts/registration.mjs"
+    "scripts/registration.mjs",
+    "scripts/domain.mjs"
   ],
 
   "ignoreExports": [

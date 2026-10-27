@@ -4,11 +4,12 @@
  * ---------------------------------------------------------------------------
  * Adresse: /settings
  *
- * Vier Bereiche:
+ * Die wichtigsten Bereiche:
  *   1. Konto        – Anzeigename, Region, Sprache, Passwort
  *   2. TMDB         – der API-Key (nur für Administratoren)
- *   3. Abgleich     – Hintergrundsynchronisation starten und beobachten
- *   4. Daten        – Export und Import der Bibliothek
+ *   3. Adresse      – Domain und Reverse Proxy (nur für Administratoren)
+ *   4. Abgleich     – Hintergrundsynchronisation starten und beobachten
+ *   5. Daten        – Export und Import der Bibliothek
  *
  * Verknüpfungen:
  *   - api.settings.*      -> src/routes/settings.js
@@ -30,6 +31,7 @@ import {
   askText,
   askConfirm,
   shareSheet,
+  modal,
 } from '../ui.js';
 import { refreshStatus } from '../session.js';
 import { isSupported, hasPlatformAuthenticator, createPasskey } from '../passkey.js';
@@ -1319,6 +1321,201 @@ async function render_(container) {
     ]);
 
   // ========================================================================
+  // 3b. Adresse & Domain (nur Administratoren)
+  // ========================================================================
+  // Nach einem Umzug auf eine neue Domain musste man bisher auf den Server
+  // ("streamo domain" oder die .env). Jetzt genügt dieses eine Feld; was
+  // alles daran hängt, steht in src/address.js.
+  const addressBody = el('div', {}, [el('p.muted.small', { text: 'Lädt …' })]);
+
+  const addressCard =
+    data.user.isAdmin &&
+    el('div.card', { style: { marginBottom: '20px' } }, [
+      el('h2', { text: 'Adresse & Domain' }),
+      el('p.muted.small', {
+        text: 'Unter dieser Adresse ist Streamo von außen erreichbar. Sie gilt für Passkeys, für die Links in Kalender-Abo, Einladungen und geteilten Listen und – wenn Streamo selbst HTTPS macht – für das Zertifikat. Nach einem Umzug auf eine neue Domain genügt es, sie hier einzutragen.',
+      }),
+      addressBody,
+    ]);
+
+  /** Woher die gerade geltende Adresse kommt – als Satz. */
+  const ADDRESS_SOURCE = {
+    einstellungen: 'Hier eingetragen.',
+    '.env': 'Aus der .env (WEBAUTHN_ORIGIN). Sobald du hier speicherst, gilt deine Eingabe.',
+    automatisch: 'Es ist keine Domain eingetragen – Streamo nimmt die Adresse, unter der es gerade aufgerufen wird.',
+  };
+
+  /**
+   * Fragt vor dem Speichern, wenn es Folgen hat, die man nicht sofort sieht.
+   *
+   * Der Server rechnet aus, was passieren würde (POST /api/settings/address/check);
+   * hier wird daraus eine Rückfrage. Ohne Folgen wird ohne Rückfrage gespeichert.
+   *
+   * @param {{passkeys: object|null, insecureLogin: boolean, plainHttp: boolean}} check
+   * @returns {Promise<boolean>} true = speichern
+   */
+  const confirmAddressChange = async (check) => {
+    const points = [];
+
+    if (check.passkeys) {
+      const { count, users, from, to } = check.passkeys;
+      points.push(
+        count === 1
+          ? `Ein Passkey ist für ${from} angelegt und funktioniert unter ${to} nicht mehr.`
+          : users === 1
+            ? `${count} Passkeys sind für ${from} angelegt und funktionieren unter ${to} nicht mehr.`
+            : `${count} Passkeys von ${users} Personen sind für ${from} angelegt und funktionieren unter ${to} nicht mehr.`,
+        'Anmelden mit Passwort geht weiter. Die Passkeys lassen sich danach unter der neuen Adresse neu anlegen; die alten kann jede Person unter Passkeys löschen.',
+      );
+    }
+
+    if (check.insecureLogin) {
+      points.push(
+        'Du bist gerade nicht über https:// hier. Mit dem Proxy-Schalter kommt das Anmelde-Cookie nur noch über https:// an – anmelden klappt danach nur noch über die Domain mit https.',
+      );
+    }
+
+    if (check.plainHttp) {
+      points.push('Die Adresse beginnt mit http://. Links funktionieren damit, Passkeys nicht – die brauchen https.');
+    }
+
+    if (points.length === 0) return true;
+
+    const answer = await modal({
+      title: 'Domain wirklich ändern?',
+      body: (close) => [
+        ...points.map((text) => el('p', { style: { margin: '0 0 12px' }, text })),
+        el('div.modal-actions', {}, [
+          el('button.btn.btn-ghost', { text: 'Abbrechen', onClick: () => close(false) }),
+          el('button.btn.btn-danger', { text: 'Trotzdem speichern', onClick: () => close(true) }),
+        ]),
+      ],
+    });
+
+    return answer === true;
+  };
+
+  /** Lädt den Stand und zeichnet die Karte neu – auch nach dem Speichern. */
+  const drawAddress = async () => {
+    let state;
+    try {
+      state = await api.settings.address();
+    } catch (error) {
+      render(addressBody, errorBox(error.message));
+      return;
+    }
+
+    const domainInput = el('input', {
+      id: 'address-domain',
+      type: 'text',
+      value: state.domain,
+      placeholder: 'streamo.deine-domain.de',
+      autocomplete: 'off',
+      spellcheck: 'false',
+    });
+
+    const proxyInput = el('input', {
+      id: 'address-proxy',
+      type: 'checkbox',
+      checked: state.trustProxy,
+    });
+
+    // Was das Zertifikat angeht, gibt es drei Lagen: kein eigenes HTTPS
+    // (dann kümmert sich der Proxy), ein eigenes Zertifikat (das tauscht
+    // Streamo nicht selbst aus) oder ein selbst erzeugtes (das schon).
+    const certificateHint = !state.https
+      ? null
+      : state.ownCertificate
+        ? 'Streamo nutzt ein eigenes Zertifikat (TLS_CERT_FILE). Für eine neue Domain musst du es selbst austauschen.'
+        : `Streamo macht selbst HTTPS mit einem selbst erzeugten Zertifikat für ${state.certificateHostname}. Bei einer neuen Domain wird es beim Speichern sofort neu ausgestellt.`;
+
+    const saveButton = el('button.btn.btn-primary', {
+      text: 'Domain speichern',
+      onClick: async () => {
+        const body = { domain: domainInput.value.trim(), trustProxy: proxyInput.checked };
+
+        saveButton.disabled = true;
+        try {
+          // Erst fragen, was passieren würde – eine unbrauchbare Eingabe
+          // fällt dabei schon mit einer verständlichen Meldung auf.
+          const check = await api.settings.checkAddress(body);
+          if (!(await confirmAddressChange(check))) return;
+
+          const result = await api.settings.updateAddress(body);
+
+          toast(result.domain ? 'Domain gespeichert.' : 'Es ist keine Domain mehr eingetragen.', 'success');
+
+          if (result.certificate?.renewed) {
+            toast(`Das Zertifikat wurde für ${result.certificate.hostname} neu ausgestellt.`, 'success');
+          } else if (result.certificate?.error) {
+            toast(result.certificate.error, 'error');
+          }
+
+          // Die Passkey-Karte hängt an derselben Adresse – neu prüfen.
+          drawAddress();
+          drawPasskeys();
+        } catch (error) {
+          toast(error.message, 'error');
+        } finally {
+          saveButton.disabled = false;
+        }
+      },
+    });
+
+    render(
+      addressBody,
+
+      // --- Was gerade gilt und woher -------------------------------------
+      el('p', { style: { margin: '0 0 2px' } }, [el('strong', { text: state.effective })]),
+      el('p.hint', { style: { margin: '0 0 2px' }, text: ADDRESS_SOURCE[state.source] }),
+      // Dieselbe Auskunft wie bei den Passkeys: Bei einem Proxy-Problem ist
+      // das die Information, die zur Lösung führt.
+      el('p.hint', {
+        style: { margin: '0 0 16px' },
+        text: `Streamo nimmt die Adresse "${state.detected}" wahr` + (state.viaProxy ? ' (über einen Reverse Proxy).' : '.'),
+      }),
+
+      el('div.field', {}, [
+        el('label', { for: 'address-domain', text: 'Domain' }),
+        domainInput,
+        el('div.hint', {
+          text: 'Ohne https:// davor ist https gemeint. Leer lassen, um nichts fest einzutragen – dann gilt die Adresse, unter der Streamo gerade aufgerufen wird.',
+        }),
+      ]),
+
+      el('label.toggle-row', { style: { marginBottom: '14px' } }, [
+        proxyInput,
+        el('span', {}, [
+          el('strong', { text: 'Streamo steht hinter einem Reverse Proxy' }),
+          el('div.hint', {
+            style: { marginTop: '2px' },
+            text: 'Etwa Nginx Proxy Manager, Traefik oder Caddy. Dann glaubt Streamo dessen Weiterleitungs-Kopfzeilen: echte Absenderadresse für die Anmeldebremse, HTTPS-Erkennung, sichere Cookies. Ohne Proxy davor bitte aus lassen – sonst könnte jeder seine Herkunft vortäuschen.',
+          }),
+          state.trustProxySource === '.env' &&
+            el('div.hint', {
+              style: { marginTop: '4px' },
+              text: 'Zurzeit gilt die Vorgabe aus der .env (TRUST_PROXY). Sobald du hier speicherst, gilt deine Einstellung.',
+            }),
+          state.viaProxy &&
+            !state.trustProxy &&
+            el('div.hint', {
+              style: { marginTop: '4px', color: 'var(--warning)' },
+              text: 'Diese Seite kam über einen Reverse Proxy – der Schalter gehört vermutlich an.',
+            }),
+        ]),
+      ]),
+
+      certificateHint && el('p.hint', { style: { margin: '0 0 14px' }, text: certificateHint }),
+
+      el('div', { style: { display: 'flex', gap: '9px' } }, [saveButton]),
+    );
+  };
+
+  if (data.user.isAdmin) {
+    drawAddress().catch(() => {});
+  }
+
+  // ========================================================================
   // 4. Abgleich
   // ========================================================================
   const syncStatusLine = el('p.muted.small', {
@@ -1513,6 +1710,7 @@ async function render_(container) {
     // komme ich sicher in mein Konto.
     twoFactorCard,
     tmdbCard,
+    addressCard,
     syncCard,
     passwordCard,
     dataCard,

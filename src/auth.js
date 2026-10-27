@@ -23,6 +23,8 @@
 import crypto from 'node:crypto';
 import config from './config.js';
 import { get, run, all, getSetting } from './db.js';
+// Proxy-Schalter: entscheidet über das Secure-Merkmal am Cookie.
+import { trustsProxy } from './address.js';
 
 // --------------------------------------------------------------------------
 // Konstanten für das Passwort-Hashing.
@@ -395,8 +397,9 @@ export function parseCookies(header) {
  *              kann eine XSS-Lücke die Session nicht stehlen.
  *   SameSite=Lax – das Cookie wird bei fremden POST-Requests nicht
  *              mitgeschickt; das ist der CSRF-Schutz dieser Anwendung.
- *   Secure   – nur über HTTPS senden. Automatisch aktiv, wenn TRUST_PROXY=true
- *              gesetzt ist, denn dann steht ein TLS-Proxy davor. Im nackten
+ *   Secure   – nur über HTTPS senden. Automatisch aktiv, wenn Streamo hinter
+ *              einem Reverse Proxy steht (Einstellungen -> Adresse & Domain
+ *              oder TRUST_PROXY=true), denn dann ist das ein TLS-Proxy. Im nackten
  *              LAN-Betrieb ohne HTTPS würde das Flag das Login unmöglich machen.
  *   Max-Age  – Lebensdauer in Sekunden, passend zu sessions.expires_at.
  *
@@ -411,7 +414,7 @@ export function setSessionCookie(res, token) {
     'SameSite=Lax',
     `Max-Age=${config.sessionDays * 86_400}`,
   ];
-  if (config.trustProxy) parts.push('Secure');
+  if (trustsProxy()) parts.push('Secure');
 
   res.setHeader('Set-Cookie', parts.join('; '));
 }

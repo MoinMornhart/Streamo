@@ -11,7 +11,9 @@
  * Verknüpfungen zu anderen Dateien:
  *   - .env / .env.example  -> liefert die Rohwerte (siehe loadDotEnv unten)
  *   - src/db.js            -> nutzt config.dataDir für den Speicherort der DB
- *   - src/auth.js          -> nutzt config.sessionSecret + config.trustProxy
+ *   - src/auth.js          -> nutzt config.sessionSecret
+ *   - src/address.js       -> trustProxy, webauthnRpId/-Origin, tlsHostname als
+ *                             Vorgabe, solange in den Einstellungen nichts steht
  *   - src/tmdb.js          -> nutzt config.tmdbApiKey, region, language
  *   - src/sync.js          -> nutzt config.syncIntervalHours
  *   - src/server.js        -> nutzt config.host / config.port zum Binden
@@ -274,7 +276,7 @@ const config = Object.freeze({
 
   // --- Metadaten ----------------------------------------------------------
   /** Version, wird im UI-Footer und unter /api/health angezeigt */
-  version: '1.4.1',
+  version: '1.5.0',
 });
 
 export default config;

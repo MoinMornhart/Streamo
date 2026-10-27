@@ -329,6 +329,14 @@ export const api = {
      */
     deleteUser: (id, confirm) =>
       request(`/api/settings/users/${id}`, { method: 'DELETE', body: { confirm } }),
+
+    // --- Adresse & Domain (nur Administratoren) -------------------------
+    /** Eingetragene Domain, Proxy-Schalter und was der Server gerade sieht. */
+    address: () => request('/api/settings/address'),
+    /** Was ein Speichern auslösen würde – ohne zu speichern. */
+    checkAddress: (body) => request('/api/settings/address/check', { method: 'POST', body }),
+    /** Domain und Proxy-Schalter speichern; domain leer = nichts fest eintragen. */
+    updateAddress: (body) => request('/api/settings/address', { method: 'PUT', body }),
     testKey: (apiKey) =>
       request('/api/settings/test-key', { method: 'POST', body: { apiKey } }),
     startSync: (kind = 'availability') =>

@@ -22,7 +22,8 @@
  */
 
 import express from 'express';
-import config from '../config.js';
+// Unter welcher Adresse Streamo von außen erreichbar ist (src/address.js).
+import { publicBaseUrl } from '../address.js';
 import { getSharedCollection } from '../collections.js';
 // Der Kalender zum Abonnieren - siehe src/calendar.js.
 import { findUserByCalendarToken, collectEvents, buildIcs } from '../calendar.js';
@@ -87,18 +88,12 @@ router.get('/calendar/:token.ics', (req, res) => {
 
   const name = `Streamo – ${user.display_name || user.username}`;
 
-  // Die Adresse, unter der Streamo von außen erreichbar ist. Hinter einem
-  // Proxy weiß das nur die Anfrage selbst; ohne TRUST_PROXY dürfen die
-  // Weiterleitungs-Kopfzeilen nicht geglaubt werden, weil sie jeder setzen kann.
-  const forwardedProto = config.trustProxy ? req.headers['x-forwarded-proto'] : null;
-  const protocol = String(forwardedProto || req.protocol || 'http').split(',')[0].trim();
-
-  const forwardedHost = config.trustProxy ? req.headers['x-forwarded-host'] : null;
-  const host = String(forwardedHost || req.headers.host || '').split(',')[0].trim();
-
+  // Die Adresse, unter der Streamo von außen erreichbar ist: die unter
+  // Einstellungen -> Adresse & Domain eingetragene, sonst die aus der Anfrage
+  // (src/address.js).
   const ics = buildIcs(events, {
     name,
-    baseUrl: `${protocol}://${host}`,
+    baseUrl: publicBaseUrl(req),
     // Die Sprache der Oberfläche des Kontos (Migration 14); ohne Angabe Deutsch.
     lang: user.ui_language || 'de',
   });

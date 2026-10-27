@@ -85,7 +85,7 @@ streamo status             # läuft der Dienst?
 streamo logs               # Protokoll live mitlesen
 streamo restart            # neu starten
 streamo config             # .env bearbeiten, startet danach neu
-streamo domain <d>         # Domain eintragen – nötig für Passkeys
+streamo domain <d>         # Domain eintragen – wie Einstellungen → Adresse & Domain
 streamo admin <name>       # Adminrechte vergeben
 streamo registration offen # Konto ohne Einladung erlauben
 streamo backup             # Datenbank und Konfiguration sichern
@@ -138,13 +138,13 @@ Nach der Installation kann sie wieder kleiner werden – im Betrieb braucht Stre
 
 Nur nötig, wenn du Streamo unterwegs benutzen oder Freunde einladen willst. **Passkeys brauchen es zwingend**: Sie funktionieren ausschließlich über HTTPS mit einem echten Hostnamen, nie über eine IP-Adresse.
 
-Der übliche Weg ist ein Reverse Proxy mit Let's-Encrypt-Zertifikat – Nginx Proxy Manager, Caddy oder Traefik – der auf `http://<pi-adresse>:3000` zeigt. Danach im Pi **einen Befehl**:
+Der übliche Weg ist ein Reverse Proxy mit Let's-Encrypt-Zertifikat – Nginx Proxy Manager, Caddy oder Traefik – der auf `http://<pi-adresse>:3000` zeigt. Danach in Streamo unter **Einstellungen → Adresse & Domain** die Domain eintragen und „Streamo steht hinter einem Reverse Proxy“ einschalten. Oder im Pi **ein Befehl**:
 
 ```bash
 sudo streamo domain streamo.deine-domain.de
 ```
 
-Der trägt `TRUST_PROXY`, `WEBAUTHN_RP_ID` und `WEBAUTHN_ORIGIN` ein und startet den Dienst neu. Nötig ist er, weil viele Proxys den `Host`-Header nicht durchreichen: Streamo sähe sonst eine IP statt deiner Domain und würde Passkeys ablehnen.
+Beides landet an derselben Stelle und gilt sofort. Nötig ist es, weil viele Proxys den `Host`-Header nicht durchreichen: Streamo sähe sonst eine IP statt deiner Domain und würde Passkeys ablehnen.
 
 > Der Port 3000 gehört **nicht** direkt ins Internet weitergeleitet. Ohne HTTPS davor gehen Passwort und Sitzung im Klartext über die Leitung.
 

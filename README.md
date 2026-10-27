@@ -309,18 +309,18 @@ Zwei Regeln setzt der Browser, an denen sich nichts ändern lässt:
 
 Sind sie nicht erfüllt, blendet Streamo den Passkey-Knopf aus und nennt auf der Einstellungsseite den Grund. Der Passwortweg bleibt in jedem Fall.
 
-**Mit Reverse Proxy und eigener Domain** (empfohlen): Nginx Proxy Manager, Traefik o. Ä. mit Let's-Encrypt-Zertifikat, Ziel `http://<container-ip>:3000`. Danach im Container **einen Befehl**:
+**Mit Reverse Proxy und eigener Domain** (empfohlen): Nginx Proxy Manager, Traefik o. Ä. mit Let's-Encrypt-Zertifikat, Ziel `http://<container-ip>:3000`. Danach in Streamo unter **Einstellungen → Adresse & Domain** die Domain eintragen und „Streamo steht hinter einem Reverse Proxy“ einschalten. Oder im Container **ein Befehl**:
 
 ```bash
 streamo domain streamo.deine-domain.de
 ```
 
-Der trägt `TRUST_PROXY`, `WEBAUTHN_RP_ID` und `WEBAUTHN_ORIGIN` ein und startet den Dienst neu. Nötig ist er, weil viele Proxys den `Host`-Header nicht durchreichen, sondern ihre eigene Adresse schicken – Streamo sähe dann eine IP statt deiner Domain und würde Passkeys ablehnen. Die Einstellungsseite zeigt dir unter *Passkeys*, welche Adresse Streamo tatsächlich wahrnimmt.
+Beides landet an derselben Stelle und gilt sofort, ohne Neustart. Nötig ist es, weil viele Proxys den `Host`-Header nicht durchreichen, sondern ihre eigene Adresse schicken – Streamo sähe dann eine IP statt deiner Domain und würde Passkeys ablehnen. Die eingetragene Domain gilt außerdem für alle Links, die Streamo verschickt (Kalender-Abo, Einladungen, geteilte Listen), auch wenn du selbst gerade über die IP im Heimnetz angemeldet bist. Die Karte zeigt dir, welche Adresse Streamo tatsächlich wahrnimmt.
 
-**Ohne Proxy, mit eigenem HTTPS**: `ENABLE_HTTPS=true` und `TLS_HOSTNAME=streamo.local` in der `.env`. Streamo erzeugt dann ein selbstsigniertes Zertifikat, und der HTTP-Port leitet auf HTTPS um. Im Browser musst du das Zertifikat einmal bestätigen – die Desktop-App akzeptiert es auf Wunsch ohne Rückfrage.
+**Ohne Proxy, mit eigenem HTTPS**: `ENABLE_HTTPS=true` und `TLS_HOSTNAME=streamo.local` in der `.env`. Streamo erzeugt dann ein selbstsigniertes Zertifikat, und der HTTP-Port leitet auf HTTPS um. Im Browser musst du das Zertifikat einmal bestätigen – die Desktop-App akzeptiert es auf Wunsch ohne Rückfrage. Trägst du später unter *Adresse & Domain* eine andere Domain ein, stellt Streamo das Zertifikat sofort für sie neu aus.
 
 > [!CAUTION]
-> Ziehst du Streamo später auf eine andere Domain um, werden alle Passkeys ungültig. Das ist kein Fehler, sondern genau der Mechanismus, der Passkeys phishing-sicher macht: Sie sind fest an eine Domain gebunden. Das Passwort funktioniert weiterhin.
+> Ziehst du Streamo später auf eine andere Domain um, werden alle Passkeys ungültig. Das ist kein Fehler, sondern genau der Mechanismus, der Passkeys phishing-sicher macht: Sie sind fest an eine Domain gebunden. Das Passwort funktioniert weiterhin. *Adresse & Domain* sagt dir vor dem Speichern, wie viele Passkeys betroffen sind.
 
 </details>
 
@@ -341,7 +341,7 @@ Alle Werte stehen in `.env` (Vorlage: [`.env.example`](.env.example)). Jeder hat
 | `STREAMO_LANGUAGE` | `de-DE` | Sprache von Titeln und Beschreibungen |
 | `SYNC_INTERVAL_HOURS` | `1` | Startvorgabe für den Abgleichstakt in Stunden; `0` = aus. In der Oberfläche änderbar, der dort gesetzte Wert gewinnt. |
 | `ALLOW_REGISTRATION` | `false` | Dürfen sich weitere Personen ohne Einladung registrieren? |
-| `TRUST_PROXY` | `false` | `true`, wenn ein HTTPS-Proxy davorsteht |
+| `TRUST_PROXY` | `false` | `true`, wenn ein HTTPS-Proxy davorsteht (auch unter *Einstellungen → Adresse & Domain*) |
 
 Nach Änderungen: `systemctl restart streamo`
 
@@ -397,7 +397,7 @@ streamo status             # Läuft der Dienst?
 streamo logs               # Protokoll live mitlesen
 streamo restart            # Neu starten
 streamo config             # .env bearbeiten, startet danach automatisch neu
-streamo domain <d>         # Domain eintragen – nötig für Passkeys hinter einem Proxy
+streamo domain <d>         # Domain eintragen – wie Einstellungen → Adresse & Domain
 streamo admin <name>       # Adminrechte vergeben (ohne Namen: alle Konten auflisten)
 streamo registration offen # Konto ohne Einladung erlauben (oder: zu)
 streamo backup             # Datenbank und Konfiguration sichern

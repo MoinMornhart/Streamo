@@ -81,6 +81,8 @@ import { run, get } from '../db.js';
 // Bremse gegen Durchprobieren. Haengt gezielt an den Endpunkten, an denen
 // Geheimnisse geprueft werden - siehe src/ratelimit.js.
 import { limitFailures } from '../ratelimit.js';
+// Proxy-Schalter: Absender-IP und Secure-Merkmal am Cookie.
+import { trustsProxy } from '../address.js';
 
 /**
  * Die Bremse fuer die Anmeldung.
@@ -130,14 +132,14 @@ const router = express.Router();
 
 /**
  * Ermittelt die IP des Aufrufers für das Session-Protokoll.
- * Hinter einem Reverse Proxy steht die echte IP in X-Forwarded-For; ohne
- * TRUST_PROXY darf dieser Header nicht geglaubt werden, weil ihn jeder Client
+ * Hinter einem Reverse Proxy steht die echte IP in X-Forwarded-For; ohne den
+ * Proxy-Schalter (src/address.js) darf dieser Header nicht geglaubt werden, weil ihn jeder Client
  * frei setzen kann.
  * @param {import('express').Request} req
  * @returns {string|null}
  */
 function clientIp(req) {
-  if (config.trustProxy) {
+  if (trustsProxy()) {
     const forwarded = req.headers['x-forwarded-for'];
     // Der Header kann eine Kette sein ("client, proxy1, proxy2") – der erste
     // Eintrag ist der ursprüngliche Client.
@@ -562,7 +564,7 @@ function setFlowCookie(res, flowId) {
     'SameSite=Lax',
     'Max-Age=120',
   ];
-  if (config.trustProxy) parts.push('Secure');
+  if (trustsProxy()) parts.push('Secure');
 
   // append statt setHeader: Bei der Anmeldung wird gleich danach auch das
   // Session-Cookie gesetzt – setHeader würde es überschreiben.

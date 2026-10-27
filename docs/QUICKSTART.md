@@ -179,7 +179,7 @@ streamo status             # Läuft der Dienst?
 streamo logs               # Protokoll live mitlesen
 streamo restart            # Neu starten
 streamo config             # .env bearbeiten, startet danach automatisch neu
-streamo domain <d>         # Domain eintragen – nötig für Passkeys hinter einem Proxy
+streamo domain <d>         # Domain eintragen – wie Einstellungen → Adresse & Domain
 streamo admin <name>       # Adminrechte vergeben (ohne Namen: alle Konten auflisten)
 streamo registration offen # Konto ohne Einladung erlauben (oder: zu)
 streamo backup             # Datenbank und Konfiguration sichern
@@ -232,14 +232,13 @@ Wenn Streamo über eine eigene Domain erreichbar sein soll, etwa mit dem Nginx P
 
 1. Im Proxy einen Host anlegen, Ziel `http://<container-ip>:3000`, Websockets nicht nötig
 2. Zertifikat über Let's Encrypt ausstellen
-3. Im Container `TRUST_PROXY=true` setzen:
+3. In Streamo unter **Einstellungen → Adresse & Domain** die Domain eintragen und „Streamo steht hinter einem Reverse Proxy“ einschalten – oder vom Proxmox-Host aus:
 
 ```bash
-pct exec <CTID> -- sed -i 's/^TRUST_PROXY=.*/TRUST_PROXY=true/' /opt/streamo/.env
-pct exec <CTID> -- systemctl restart streamo
+pct exec <CTID> -- streamo domain streamo.deine-domain.de
 ```
 
-Das bewirkt zweierlei: Session-Cookies werden als `Secure` markiert (nur noch über HTTPS übertragen), und die echte Client-IP wird aus `X-Forwarded-For` gelesen statt der Proxy-Adresse.
+Der Proxy-Schalter bewirkt zweierlei: Session-Cookies werden als `Secure` markiert (nur noch über HTTPS übertragen), und die echte Client-IP wird aus `X-Forwarded-For` gelesen statt der Proxy-Adresse.
 
 > Streamo direkt ins Internet zu stellen, ohne HTTPS davor, ist keine gute Idee – dann liefen Passwort und Session-Cookie im Klartext über die Leitung.
 

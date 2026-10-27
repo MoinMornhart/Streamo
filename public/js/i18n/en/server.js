@@ -49,8 +49,22 @@ export default {
   'Die Adresse konnte nicht bestimmt werden.': 'The address could not be determined.',
   'Passkeys funktionieren nicht über eine IP-Adresse. Richte einen Hostnamen ein, zum Beispiel streamo.deine-domain.de.':
     "Passkeys don't work via an IP address. Set up a host name, for example streamo.your-domain.com.",
-  'Streamo hält die Verbindung für unverschlüsselt. Wenn dein Reverse Proxy HTTPS ausliefert, setze in der .env TRUST_PROXY=true.':
-    'Streamo considers the connection unencrypted. If your reverse proxy serves HTTPS, set TRUST_PROXY=true in the .env.',
+  'Streamo hält die Verbindung für unverschlüsselt. Wenn dein Reverse Proxy HTTPS ausliefert, schalte unter Einstellungen → Adresse & Domain „Streamo steht hinter einem Reverse Proxy“ ein.':
+    'Streamo considers the connection unencrypted. If your reverse proxy serves HTTPS, turn on "Streamo runs behind a reverse proxy" under Settings → Address & domain.',
+  'Passkeys funktionieren nicht über eine IP-Adresse. Trag unter Einstellungen → Adresse & Domain einen Hostnamen ein, zum Beispiel streamo.deine-domain.de.':
+    "Passkeys don't work via an IP address. Enter a host name under Settings → Address & domain, for example streamo.your-domain.com.",
+  'Streamo sieht als Adresse "{0}" statt deiner Domain. Dein Reverse Proxy reicht den Host-Header nicht durch. Trag deine Domain unter Einstellungen → Adresse & Domain ein.':
+    'Streamo sees "{0}" as the address instead of your domain. Your reverse proxy does not pass on the Host header. Enter your domain under Settings → Address & domain.',
+  'Passkeys brauchen HTTPS, die eingetragene Adresse beginnt aber mit http://. Trag sie unter Einstellungen → Adresse & Domain mit https:// ein.':
+    'Passkeys need HTTPS, but the address that is set starts with http://. Enter it with https:// under Settings → Address & domain.',
+  'Passkeys gelten für {0}, du bist aber über {1} hier. Ruf Streamo unter {2} auf.':
+    'Passkeys apply to {0}, but you are here via {1}. Open Streamo at {2}.',
+  // --- Adresse & Domain (src/address.js) ---
+  '„{0}“ ist keine gültige Adresse.': '"{0}" is not a valid address.',
+  'Die Adresse muss mit https:// oder http:// beginnen.': 'The address must start with https:// or http://.',
+  'Zugangsdaten gehören nicht in die Adresse.': 'Credentials do not belong in the address.',
+  'Bitte nur die Domain eintragen, ohne Pfad – etwa streamo.example.de.':
+    'Please enter only the domain, without a path – such as streamo.example.com.',
   'Passkeys brauchen HTTPS. Stelle einen Reverse Proxy mit Zertifikat davor oder aktiviere HTTPS in Streamo (ENABLE_HTTPS=true).':
     'Passkeys need HTTPS. Put a reverse proxy with a certificate in front or enable HTTPS in Streamo (ENABLE_HTTPS=true).',
   'Der Vorgang ist abgelaufen. Bitte versuche es noch einmal.': 'The operation has expired. Please try again.',

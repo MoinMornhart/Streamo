@@ -51,6 +51,9 @@ jobs:
       - name: Einladungen testen
         run: npm run test:invites
 
+      - name: Adresse und Domain testen
+        run: npm run test:address
+
       - name: Serverstart prüfen
         # Startet den Server im Hintergrund und fragt /api/health ab. Damit ist
         # sichergestellt, dass alle Module fehlerfrei laden und das Schema
