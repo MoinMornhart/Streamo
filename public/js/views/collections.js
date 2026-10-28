@@ -702,7 +702,7 @@ async function renderDetail(container, id) {
  * @param {HTMLElement} container
  * @param {{id?: string}} params
  */
-export async function render_(container, params) {
+async function render_(container, params) {
   try {
     if (params?.id) {
       await renderDetail(container, params.id);

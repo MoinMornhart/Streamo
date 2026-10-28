@@ -310,18 +310,18 @@ The browser enforces two rules that can't be changed:
 
 If they aren't met, Streamo hides the passkey button and states the reason on the settings page. The password route always remains.
 
-**With a reverse proxy and your own domain** (recommended): Nginx Proxy Manager, Traefik or similar with a Let's Encrypt certificate, target `http://<container-ip>:3000`. Then **one command** in the container:
+**With a reverse proxy and your own domain** (recommended): Nginx Proxy Manager, Traefik or similar with a Let's Encrypt certificate, target `http://<container-ip>:3000`. Then enter the domain in Streamo under **Settings → Address & domain** and turn on "Streamo runs behind a reverse proxy". Or **one command** in the container:
 
 ```bash
 streamo domain streamo.your-domain.com
 ```
 
-It sets `TRUST_PROXY`, `WEBAUTHN_RP_ID` and `WEBAUTHN_ORIGIN` and restarts the service. It's needed because many proxies don't pass on the `Host` header but send their own address – Streamo would then see an IP instead of your domain and reject passkeys. Under *Passkeys* the settings page shows which address Streamo actually sees.
+Both end up in the same place and apply right away, without a restart. It's needed because many proxies don't pass on the `Host` header but send their own address – Streamo would then see an IP instead of your domain and reject passkeys. The domain you enter also applies to every link Streamo sends out (calendar subscription, invitations, shared lists), even while you're signed in via the IP on your home network. The card shows which address Streamo actually sees.
 
-**Without a proxy, with Streamo's own HTTPS**: `ENABLE_HTTPS=true` and `TLS_HOSTNAME=streamo.local` in the `.env`. Streamo then creates a self-signed certificate, and the HTTP port redirects to HTTPS. You have to accept the certificate once in the browser – the desktop app can accept it without asking.
+**Without a proxy, with Streamo's own HTTPS**: `ENABLE_HTTPS=true` and `TLS_HOSTNAME=streamo.local` in the `.env`. Streamo then creates a self-signed certificate, and the HTTP port redirects to HTTPS. You have to accept the certificate once in the browser – the desktop app can accept it without asking. If you later enter a different domain under *Address & domain*, Streamo reissues the certificate for it right away.
 
 > [!CAUTION]
-> If you later move Streamo to a different domain, all passkeys become invalid. That's not a bug but exactly the mechanism that makes passkeys phishing-proof: they are bound to one domain. The password keeps working.
+> If you later move Streamo to a different domain, all passkeys become invalid. That's not a bug but exactly the mechanism that makes passkeys phishing-proof: they are bound to one domain. The password keeps working. *Address & domain* tells you before saving how many passkeys are affected.
 
 </details>
 
@@ -342,7 +342,7 @@ All values live in `.env` (template: [`.env.example`](.env.example)). Each has a
 | `STREAMO_LANGUAGE` | `de-DE` | Language of titles and descriptions |
 | `SYNC_INTERVAL_HOURS` | `1` | Initial sync interval in hours; `0` = off. Can be changed in the interface, the value set there wins. |
 | `ALLOW_REGISTRATION` | `false` | May other people register without an invitation? |
-| `TRUST_PROXY` | `false` | `true` if an HTTPS proxy sits in front |
+| `TRUST_PROXY` | `false` | `true` if an HTTPS proxy sits in front (also under *Settings → Address & domain*) |
 
 After changes: `systemctl restart streamo`
 
@@ -398,7 +398,7 @@ streamo status             # Is the service running?
 streamo logs               # Follow the log live
 streamo restart            # Restart
 streamo config             # Edit .env, restarts automatically afterwards
-streamo domain <d>         # Set the domain – needed for passkeys behind a proxy
+streamo domain <d>         # Set the domain – same as Settings → Address & domain
 streamo admin <name>       # Grant admin rights (without a name: list all accounts)
 streamo registration offen # Allow accounts without invitation (or: zu)
 streamo backup             # Back up database and configuration
@@ -529,7 +529,8 @@ Streamo/
 │       ├── theme.js        Accent colour and base tone
 │       ├── provider-links.js  Direct links to the providers
 │       ├── router.js       Routing via the address bar
-│       ├── app.js          Entry point, global state
+│       ├── session.js      Who is signed in, plus the header bar
+│       ├── app.js          Entry point, route table
 │       └── views/          One file per view
 ├── desktop/                The Windows app (Electron)
 ├── scripts/

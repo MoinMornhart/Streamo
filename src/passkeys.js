@@ -32,6 +32,7 @@
  *
  * Verknüpfungen zu anderen Dateien:
  *   - src/db.js            -> Tabelle `credentials` (die öffentlichen Schlüssel)
+ *   - src/address.js       -> unter welcher Domain die Passkeys gelten
  *   - src/auth.js          -> createSession() nach erfolgreicher Prüfung
  *   - src/routes/auth.js   -> die HTTP-Endpunkte, die diese Funktionen nutzen
  *   - public/js/views/auth.js -> der "Mit Passkey anmelden"-Knopf
@@ -46,8 +47,9 @@ import {
   verifyAuthenticationResponse,
 } from '@simplewebauthn/server';
 
-import config from './config.js';
 import { all, get, run } from './db.js';
+// Unter welcher Adresse Streamo erreichbar ist – eingetragen oder gesehen.
+import { configuredAddress, requestAddress, rpIdOf } from './address.js';
 
 /** Anzeigename der Anwendung im Systemdialog ("… möchte einen Passkey anlegen"). */
 const RP_NAME = 'Streamo';
@@ -128,7 +130,8 @@ function takeChallenge(flowId) {
  * Die "Relying Party ID" (rpID) ist die Domain, an die ein Passkey gebunden
  * wird. Sie muss exakt zur aufgerufenen Adresse passen, sonst weigert sich der
  * Browser. Deshalb wird sie standardmäßig aus der Anfrage abgeleitet und ist
- * per WEBAUTHN_RP_ID fest einstellbar.
+ * fest einstellbar – unter Einstellungen -> Adresse & Domain oder per
+ * WEBAUTHN_RP_ID in der .env (siehe src/address.js).
  *
  * Achtung bei einem Wechsel: Passkeys sind an die rpID gebunden. Zieht Streamo
  * auf eine andere Domain um, müssen alle Passkeys neu angelegt werden. Das ist
@@ -138,60 +141,71 @@ function takeChallenge(flowId) {
  * @returns {{rpID: string, origin: string, available: boolean, reason: string|null}}
  */
 export function getWebAuthnContext(req) {
-  // Hinter einem Reverse Proxy steht das echte Schema in X-Forwarded-Proto.
-  // Ohne TRUST_PROXY darf dieser Header nicht geglaubt werden.
-  const forwardedProto = config.trustProxy ? req.headers['x-forwarded-proto'] : null;
-  const protocol = String(forwardedProto || req.protocol || 'http').split(',')[0].trim();
+  // Was die Anfrage sagt: Schema und Host, hinter einem Proxy aus dessen
+  // Kopfzeilen – sofern Streamo ihm glauben darf (siehe src/address.js).
+  const seen = requestAddress(req);
+  const protocol = seen.protocol;
+  const hostHeader = seen.host;
 
-  // Der Host inklusive Port, z. B. "streamo.example.com" oder "localhost:3000".
-  const forwardedHost = config.trustProxy ? req.headers['x-forwarded-host'] : null;
-  const hostHeader = String(forwardedHost || req.headers.host || '').split(',')[0].trim();
-
-  // Die rpID ist der Hostname OHNE Port.
-  // Bei IPv6 in eckigen Klammern ("[::1]:3000") würde ein simples split(':')
-  // scheitern, deshalb die Fallunterscheidung.
-  let hostname;
-  if (hostHeader.startsWith('[')) {
-    hostname = hostHeader.slice(0, hostHeader.indexOf(']') + 1);
-  } else {
-    hostname = hostHeader.split(':')[0];
-  }
-
-  const rpID = config.webauthnRpId || hostname;
-  const origin = config.webauthnOrigin || `${protocol}://${hostHeader}`;
+  // Eine fest eingetragene Domain (Einstellungen oder .env) geht vor. Sie ist
+  // genau für den Fall da, dass die Anfrage etwas anderes erzählt – etwa weil
+  // der Proxy seine eigene Adresse statt der Domain schickt.
+  const fixed = configuredAddress();
+  const rpID = rpIdOf(fixed, seen);
+  const origin = fixed?.origin || `${protocol}://${hostHeader}`;
 
   // --- Prüfen, ob der Browser hier überhaupt mitspielt --------------------
-  const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+  // Geprüft wird die Adresse, unter der die Passkeys gelten: die
+  // eingetragene, sonst die gesehene. Früher immer die gesehene – dann hieß
+  // es "nicht verfügbar", obwohl die Domain längst fest eingetragen war und
+  // nur der Proxy den Host-Header verschluckte.
+  const hostname = fixed ? fixed.hostname : seen.hostname;
+  const scheme = fixed ? fixed.protocol : protocol;
+
+  const isLocalhost = (name) => name === 'localhost' || name === '127.0.0.1' || name === '[::1]';
 
   // Eine IP-Adresse ist als rpID nicht zulässig. Der Test deckt IPv4 und die
   // eckige-Klammer-Schreibweise von IPv6 ab.
-  const isIpAddress = /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname) || hostname.startsWith('[');
+  const isIpAddress = (name) => /^\d{1,3}(\.\d{1,3}){3}$/.test(name) || name.startsWith('[');
 
   // Kommt die Anfrage erkennbar über einen Reverse Proxy? Dann liegt bei
   // einem Problem fast immer eine Fehlkonfiguration vor und nicht ein
   // grundsätzlich ungeeigneter Zugang – die Hinweise unten unterscheiden das.
-  const behindProxy = Boolean(
-    req.headers['x-forwarded-for'] || req.headers['x-forwarded-proto'] || req.headers['x-forwarded-host'],
-  );
+  const behindProxy = seen.viaProxy;
 
   let reason = null;
 
-  if (!hostHeader) {
+  if (!hostHeader && !fixed) {
     reason = 'Die Adresse konnte nicht bestimmt werden.';
-  } else if (isIpAddress) {
+  } else if (isIpAddress(hostname)) {
     // Der häufigste Fall in der Praxis: Ein Reverse Proxy leitet zwar von
     // einer Domain weiter, schickt aber seine eigene Adresse im Host-Header.
     // Streamo sieht dann eine IP, obwohl der Browser eine Domain aufgerufen
     // hat. Der alte Hinweis "richte einen Hostnamen ein" führte hier in die
     // Irre – der Hostname existiert ja bereits.
-    reason = behindProxy
-      ? `Streamo sieht als Adresse "${hostname}" statt deiner Domain. Dein Reverse Proxy reicht den Host-Header nicht durch. ` +
-        'Setze in der .env TRUST_PROXY=true und zusätzlich WEBAUTHN_RP_ID sowie WEBAUTHN_ORIGIN auf deine Domain.'
-      : 'Passkeys funktionieren nicht über eine IP-Adresse. Richte einen Hostnamen ein, zum Beispiel streamo.deine-domain.de.';
-  } else if (protocol !== 'https' && !isLocalhost) {
-    reason = behindProxy
-      ? 'Streamo hält die Verbindung für unverschlüsselt. Wenn dein Reverse Proxy HTTPS ausliefert, setze in der .env TRUST_PROXY=true.'
-      : 'Passkeys brauchen HTTPS. Stelle einen Reverse Proxy mit Zertifikat davor oder aktiviere HTTPS in Streamo (ENABLE_HTTPS=true).';
+    reason = fixed
+      ? 'Passkeys funktionieren nicht über eine IP-Adresse. Trag unter Einstellungen → Adresse & Domain einen Hostnamen ein, zum Beispiel streamo.deine-domain.de.'
+      : behindProxy
+        ? `Streamo sieht als Adresse "${hostname}" statt deiner Domain. Dein Reverse Proxy reicht den Host-Header nicht durch. ` +
+          'Trag deine Domain unter Einstellungen → Adresse & Domain ein.'
+        : 'Passkeys funktionieren nicht über eine IP-Adresse. Richte einen Hostnamen ein, zum Beispiel streamo.deine-domain.de.';
+  } else if (scheme !== 'https' && !isLocalhost(hostname)) {
+    reason = fixed
+      ? 'Passkeys brauchen HTTPS, die eingetragene Adresse beginnt aber mit http://. Trag sie unter Einstellungen → Adresse & Domain mit https:// ein.'
+      : behindProxy
+        ? 'Streamo hält die Verbindung für unverschlüsselt. Wenn dein Reverse Proxy HTTPS ausliefert, schalte unter Einstellungen → Adresse & Domain „Streamo steht hinter einem Reverse Proxy“ ein.'
+        : 'Passkeys brauchen HTTPS. Stelle einen Reverse Proxy mit Zertifikat davor oder aktiviere HTTPS in Streamo (ENABLE_HTTPS=true).';
+  } else if (
+    fixed &&
+    seen.hostname !== fixed.hostname &&
+    // Eine IP hinter einem Proxy heißt nur: Der Proxy verschluckt den Host.
+    // Aufgerufen wurde dann sehr wahrscheinlich doch die Domain.
+    !(isIpAddress(seen.hostname) && behindProxy)
+  ) {
+    // Nach einem Domainwechsel der typische Fall: Man ist noch unter der
+    // alten Adresse oder über die IP im Heimnetz unterwegs. Der Browser
+    // würde den Passkey hier mit einer nichtssagenden Meldung abweisen.
+    reason = `Passkeys gelten für ${fixed.origin}, du bist aber über ${protocol}://${hostHeader} hier. Ruf Streamo unter ${fixed.origin} auf.`;
   }
 
   return {

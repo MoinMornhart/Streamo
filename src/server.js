@@ -39,7 +39,9 @@ import { startSyncScheduler, stopSyncScheduler } from './sync.js';
 // Sehplaene: hakt an den eingestellten Tagen die naechsten Folgen ab.
 import { runDuePlans } from './watchplan.js';
 // Nur gebraucht, wenn ENABLE_HTTPS gesetzt ist – siehe startServer() unten.
-import { getTlsOptions } from './tls.js';
+import { getTlsOptions, registerHttpsServer } from './tls.js';
+// Domain und Proxy-Schalter – einstellbar unter Einstellungen -> Adresse & Domain.
+import { trustsProxy, configuredAddress, certificateHostname } from './address.js';
 
 // Routen-Module. Jedes bringt einen eigenen express.Router mit.
 import authRoutes from './routes/auth.js';
@@ -61,11 +63,16 @@ const app = express();
 
 // --------------------------------------------------------------------------
 // 0. Reverse-Proxy-Unterstützung
-// Nur wenn TRUST_PROXY=true gesetzt ist, glaubt Express den X-Forwarded-*-
-// Headern. Ohne Proxy davor wäre das eine Sicherheitslücke, weil jeder Client
-// seine Herkunft frei behaupten könnte.
+// Nur wenn Streamo hinter einem Reverse Proxy steht, glaubt Express den
+// X-Forwarded-*-Headern. Ohne Proxy davor wäre das eine Sicherheitslücke, weil
+// jeder Client seine Herkunft frei behaupten könnte.
+//
+// Eine Funktion statt eines festen Werts: Der Schalter lässt sich unter
+// Einstellungen -> Adresse & Domain umlegen und soll ohne Neustart gelten.
+// Express fragt die Funktion bei jeder Anfrage; "hop < 1" heißt wie früher
+// die 1: Nur dem einen Proxy direkt davor wird geglaubt.
 // --------------------------------------------------------------------------
-if (config.trustProxy) app.set('trust proxy', 1);
+app.set('trust proxy', (address, hop) => hop < 1 && trustsProxy());
 
 // Express verrät sonst per X-Powered-By, womit der Dienst läuft. Kein echtes
 // Risiko, aber es gibt keinen Grund, es zu erzählen.
@@ -123,7 +130,7 @@ app.use((req, res, next) => {
   // Nur setzen, wenn die Verbindung auch wirklich verschlüsselt ist: Auf
   // einer reinen HTTP-Installation im Heimnetz würde der Header die Seite
   // dauerhaft unerreichbar machen.
-  if (config.https || (config.trustProxy && req.headers['x-forwarded-proto'] === 'https')) {
+  if (config.https || (trustsProxy() && req.headers['x-forwarded-proto'] === 'https')) {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
 
@@ -236,6 +243,7 @@ function computeAssetVersion() {
   const files = [
     'css/styles.css',
     'js/app.js',
+    'js/session.js',
     'js/api.js',
     'js/ui.js',
     'js/router.js',
@@ -447,6 +455,10 @@ function startServer() {
   const httpsServer = https.createServer({ cert: tls.cert, key: tls.key }, app);
   httpsServer.listen(config.httpsPort, config.host, onListening);
 
+  // Damit ein neues Zertifikat nach einem Domainwechsel sofort gilt, ohne
+  // Neustart – siehe renewCertificateIfNeeded() in src/tls.js.
+  registerHttpsServer(httpsServer);
+
   // Der HTTP-Port leitet auf HTTPS um – ein eigener, winziger Server, der die
   // Express-Anwendung gar nicht erst zu sehen bekommt.
   http
@@ -454,7 +466,7 @@ function startServer() {
       // Den Host aus der Anfrage übernehmen, aber den Port ersetzen. So
       // funktioniert die Umleitung unabhängig davon, unter welchem Namen
       // Streamo aufgerufen wurde.
-      const host = String(req.headers.host || config.tlsHostname).split(':')[0];
+      const host = String(req.headers.host || certificateHostname()).split(':')[0];
 
       res.writeHead(301, {
         Location: `https://${host}:${config.httpsPort}${req.url}`,
@@ -491,7 +503,7 @@ function onListening() {
   // nicht abdecken.
   const scheme = config.https ? 'https' : 'http';
   const shownHost = config.https
-    ? config.tlsHostname
+    ? certificateHostname()
     : config.host === '0.0.0.0'
       ? 'localhost'
       : config.host;
@@ -499,11 +511,15 @@ function onListening() {
 
   console.log(`  Version   ${config.version}`);
   console.log(`  Adresse   ${scheme}://${shownHost}:${shownPort}`);
+  // Die eingetragene Domain, falls es eine gibt – das ist die Adresse, die
+  // in Links und für Passkeys gilt.
+  const fixed = configuredAddress();
+  if (fixed) console.log(`  Domain    ${fixed.origin}   (aus ${fixed.source === '.env' ? 'der .env' : 'den Einstellungen'})`);
   console.log(`  Daten     ${config.dataDir}`);
   console.log(`  Region    ${config.region}   Sprache ${config.language}`);
   console.log(`  TMDB-Key  ${hasApiKey() ? 'hinterlegt' : 'FEHLT – im Setup eintragen'}`);
   console.log(
-    `  Passkeys  ${config.https || config.trustProxy ? 'möglich' : 'erst mit HTTPS und einem Hostnamen'}`,
+    `  Passkeys  ${config.https || trustsProxy() || fixed?.protocol === 'https' ? 'möglich' : 'erst mit HTTPS und einem Hostnamen'}`,
   );
   console.log('');
 

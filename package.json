@@ -1,6 +1,6 @@
 {
   "name": "streamo",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "description": "Self-hosted series tracker that links all your streaming subscriptions and always tells you where you can watch.",
   "type": "module",
   "license": "MIT",
@@ -35,11 +35,12 @@
     "test:watchplan": "node tests/watchplan.test.mjs",
     "test:links": "node tests/provider-links.test.mjs",
     "test:i18n": "node tests/i18n.test.mjs",
-    "test:all": "npm test && npm run test:migration && npm run test:achievements && npm run test:collections && npm run test:friends && npm run test:invites && npm run test:fuzzy && npm run test:recommend && npm run test:totp && npm run test:until && npm run test:calendar && npm run test:watchplan && npm run test:links && npm run test:i18n && npm run test:template && npm run test:arch && npm run test:update"
+    "test:address": "node tests/address.test.mjs",
+    "test:all": "npm test && npm run test:migration && npm run test:achievements && npm run test:collections && npm run test:friends && npm run test:invites && npm run test:fuzzy && npm run test:recommend && npm run test:totp && npm run test:until && npm run test:calendar && npm run test:watchplan && npm run test:links && npm run test:i18n && npm run test:address && npm run test:template && npm run test:arch && npm run test:update"
   },
   "dependencies": {
-    "@simplewebauthn/server": "^14.0.2",
-    "express": "^5.1.0"
+    "@simplewebauthn/server": "^14.0.3",
+    "express": "^5.3.0"
   },
   "keywords": [
     "streaming",

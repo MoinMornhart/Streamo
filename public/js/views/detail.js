@@ -394,7 +394,7 @@ function seasonsBlock(data, refs) {
  * @param {HTMLElement} container
  * @param {{mediaType: string, tmdbId: string}} params aus der Adresse
  */
-export async function render_(container, params) {
+async function render_(container, params) {
   const data = await api.shows.detail(params.mediaType, params.tmdbId);
   const show = data.show;
 

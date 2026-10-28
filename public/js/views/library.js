@@ -259,7 +259,7 @@ function collectionSection(group, expanded, actions) {
  * @param {object} _params
  * @param {URLSearchParams} query Die aktiven Filter
  */
-export async function render_(container, _params, query) {
+async function render_(container, _params, query) {
   // ------------------------------------------------------------------------
   // Die zuletzt benutzten Filter wiederherstellen
   // ------------------------------------------------------------------------

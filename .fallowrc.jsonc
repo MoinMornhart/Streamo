@@ -1,0 +1,55 @@
+// ---------------------------------------------------------------------------
+// .fallowrc.jsonc – Einstiegspunkte für fallow (ungenutzter Code, Zyklen)
+// ---------------------------------------------------------------------------
+// fallow verfolgt Importe ab den Einstiegspunkten, die es selbst findet – bei
+// Streamo sind das nur die Skripte aus package.json (Server und Tests). Alles,
+// was auf anderem Weg geladen wird, hielt es deshalb für ungenutzt: die ganze
+// Oberfläche, die Windows-App, die Webseite und die Konsolenbefehle.
+//
+// Diese Datei nennt die fehlenden Einstiegspunkte. Gelesen wird sie vom
+// Repo-Check (.github/workflows/vibeworks-check.yml) und von einem lokalen
+// "npx fallow dead-code".
+// ---------------------------------------------------------------------------
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "entry": [
+    // Die Oberfläche: index.html lädt app.js per <script type="module">,
+    // app.js holt sich alles Weitere über import.
+    "public/js/app.js",
+    "public/css/styles.css",
+
+    // Die Windows-App: main.js steht in desktop/package.json, preload.js
+    // lädt Electron über webPreferences.preload. make-icons.mjs ruft man von
+    // Hand auf, wenn sich das Logo ändert (siehe desktop/README.md).
+    "desktop/main.js",
+    "desktop/preload.js",
+    "desktop/tools/make-icons.mjs",
+
+    // Die Webseite: site/layout.html bindet Skript und Stil ein.
+    "site/static/site.js",
+    "site/static/style.css",
+
+    // Konsolenbefehle "streamo admin", "streamo registration" und
+    // "streamo domain", aufgerufen aus scripts/install/install-commands.sh.
+    "scripts/make-admin.mjs",
+    "scripts/registration.mjs",
+    "scripts/domain.mjs"
+  ],
+
+  "ignoreExports": [
+    // Jede Ansicht exportiert render(). app.js lädt sie über eine Hülle –
+    // view(() => import('./views/home.js')) – und ruft erst darin
+    // mod.render() auf. Diesen Umweg verfolgt fallow nicht.
+    { "file": "public/js/views/*.js", "exports": ["render"] },
+
+    // tests/migration.test.mjs lädt db.js mit angehängter Kennung
+    // (db.js?migrated=…), um eine frische Datenbank zu bekommen – eine
+    // Adresse, die fallow nicht auflöst.
+    { "file": "src/db.js", "exports": ["SCHEMA_VERSION"] },
+
+    // Gleiche Namen, verschiedene Dinge: tmdb.js fragt TMDB, collections.js
+    // und friends.js lesen die eigene Datenbank. Wer beides braucht, holt
+    // tmdb.js ohnehin als Ganzes (import * as tmdb).
+    { "file": "src/tmdb.js", "exports": ["getCollection", "getRecommendations"] }
+  ]
+}

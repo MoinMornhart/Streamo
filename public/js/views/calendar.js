@@ -109,7 +109,7 @@ function rasterTage(jahr, monat) {
  * Zeichnet den Kalender.
  * @param {HTMLElement} container
  */
-export async function render_(container) {
+async function render_(container) {
   const data = await api.calendar.get();
 
   // Termine nach Tag bündeln – einmal, nicht bei jedem Monatswechsel.

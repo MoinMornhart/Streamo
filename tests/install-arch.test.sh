@@ -75,6 +75,10 @@ entscheide() {
   ausgabe="$(
     # Die Attrappe ersetzt dpkg. Ohne "export -f" - siehe die Begruendung
     # weiter unten bei der Versionspruefung.
+    #
+    # Aufgerufen wird sie aus dem Code, den eval gleich hereinholt – das
+    # sieht ShellCheck nicht und hielte sie sonst fuer unbenutzt.
+    # shellcheck disable=SC2317,SC2329
     dpkg() { echo "${VORGETAEUSCHTE_ARCH}"; }
 
     # shellcheck disable=SC1090
@@ -106,6 +110,8 @@ echo "Die Abbruchmeldung"
 
 meldung="$(
   VORGETAEUSCHTE_ARCH="armel"
+  # Aufgerufen aus dem eval-Code, siehe oben.
+  # shellcheck disable=SC2317,SC2329
   dpkg() { echo "${VORGETAEUSCHTE_ARCH}"; }
   eval "$(extract_case)" 2>&1 || true
 )"
@@ -138,7 +144,10 @@ taugt() {
   VORGETAEUSCHTE_VERSION="$1"
 
   (
+    # Beide aufgerufen aus dem eval-Code (node_taugt), siehe oben.
+    # shellcheck disable=SC2317,SC2329
     node() { echo "v${VORGETAEUSCHTE_VERSION}"; }
+    # shellcheck disable=SC2317,SC2329
     command() { [[ "${2:-}" == "node" ]] && return 0; return 1; }
 
     eval "$(extract_taugt)"

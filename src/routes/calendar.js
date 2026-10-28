@@ -19,7 +19,8 @@
  */
 
 import express from 'express';
-import config from '../config.js';
+// Unter welcher Adresse Streamo von außen erreichbar ist (src/address.js).
+import { publicBaseUrl } from '../address.js';
 import { requireAuth } from '../auth.js';
 import { getRuntimeSettings } from '../tmdb.js';
 import { collectEvents, getCalendarToken, resetCalendarToken } from '../calendar.js';
@@ -30,24 +31,17 @@ router.use(requireAuth);
 /**
  * Baut die vollständige Abonnement-Adresse.
  *
- * Sie muss von außen erreichbar sein – deshalb kommt sie aus der Anfrage und
- * nicht aus der Konfiguration. Hinter einem Reverse Proxy weiß Streamo selbst
- * nicht, unter welchem Namen es angesprochen wird; ohne TRUST_PROXY dürfen die
- * Weiterleitungs-Kopfzeilen aber nicht geglaubt werden, weil sie jeder setzen
- * kann.
+ * Sie muss von außen erreichbar sein: Mit eingetragener Domain (Einstellungen
+ * -> Adresse & Domain) steht sie fest, sonst kommt sie aus der Anfrage. Die
+ * Einzelheiten – auch, wann die Kopfzeilen eines Proxys gelten – stehen in
+ * src/address.js.
  *
  * @param {import('express').Request} req
  * @param {string} token
  * @returns {string}
  */
 function buildFeedUrl(req, token) {
-  const forwardedProto = config.trustProxy ? req.headers['x-forwarded-proto'] : null;
-  const protocol = String(forwardedProto || req.protocol || 'http').split(',')[0].trim();
-
-  const forwardedHost = config.trustProxy ? req.headers['x-forwarded-host'] : null;
-  const host = String(forwardedHost || req.headers.host || '').split(',')[0].trim();
-
-  return `${protocol}://${host}/api/public/calendar/${token}.ics`;
+  return `${publicBaseUrl(req)}/api/public/calendar/${token}.ics`;
 }
 
 /**

@@ -21,7 +21,7 @@
  * Fehler eines API-Aufrufs. Trägt den HTTP-Status mit, damit Views z. B.
  * "412 = kein API-Key" gezielt abfangen können.
  */
-export class ApiError extends Error {
+class ApiError extends Error {
   /**
    * @param {string} message Meldung vom Server (bereits auf Deutsch)
    * @param {number} status  HTTP-Status
@@ -329,6 +329,14 @@ export const api = {
      */
     deleteUser: (id, confirm) =>
       request(`/api/settings/users/${id}`, { method: 'DELETE', body: { confirm } }),
+
+    // --- Adresse & Domain (nur Administratoren) -------------------------
+    /** Eingetragene Domain, Proxy-Schalter und was der Server gerade sieht. */
+    address: () => request('/api/settings/address'),
+    /** Was ein Speichern auslösen würde – ohne zu speichern. */
+    checkAddress: (body) => request('/api/settings/address/check', { method: 'POST', body }),
+    /** Domain und Proxy-Schalter speichern; domain leer = nichts fest eintragen. */
+    updateAddress: (body) => request('/api/settings/address', { method: 'PUT', body }),
     testKey: (apiKey) =>
       request('/api/settings/test-key', { method: 'POST', body: { apiKey } }),
     startSync: (kind = 'availability') =>
@@ -462,5 +470,3 @@ export const api = {
     check: () => request('/api/achievements/check', { method: 'POST' }),
   },
 };
-
-export default api;

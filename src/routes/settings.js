@@ -8,6 +8,9 @@
  *   GET    /api/settings           – aktuelle Einstellungen (Key maskiert)
  *   PUT    /api/settings           – Region/Sprache ändern (jeder für sich)
  *   PUT    /api/settings/global    – TMDB-Key & globale Defaults (nur Admin)
+ *   GET    /api/settings/address   – Domain und Proxy-Schalter (nur Admin)
+ *   POST   /api/settings/address/check – was ein Speichern auslösen würde
+ *   PUT    /api/settings/address   – Domain und Proxy-Schalter ändern
  *   POST   /api/settings/test-key  – API-Key prüfen, ohne ihn zu speichern
  *   POST   /api/settings/sync      – Abgleich sofort starten (nur Admin)
  *   GET    /api/settings/sync      – Protokoll der letzten Läufe
@@ -19,6 +22,8 @@
  *   - src/tmdb.js -> testApiKey()
  *   - src/sync.js -> runSync() für den manuellen Abgleich
  *   - src/auth.js -> listSessions / destroyAllSessions
+ *   - src/address.js -> Domain und Proxy-Schalter
+ *   - src/tls.js  -> stellt das eigene Zertifikat für eine neue Domain neu aus
  * ---------------------------------------------------------------------------
  */
 
@@ -38,6 +43,8 @@ import {
 import * as tmdb from '../tmdb.js';
 import { getRuntimeSettings } from '../tmdb.js';
 import { runSync, getSyncState, applySyncInterval, getSyncIntervalHours } from '../sync.js';
+import { getAddressState, previewAddressChange, saveAddress } from '../address.js';
+import { renewCertificateIfNeeded } from '../tls.js';
 
 const router = express.Router();
 router.use(requireAuth);
@@ -230,6 +237,67 @@ router.put('/global', requireAdmin, async (req, res, next) => {
     }
 
     res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// --------------------------------------------------------------------------
+// Adresse & Domain (nur Administratoren)
+// --------------------------------------------------------------------------
+// Bis hierher ging ein Domainwechsel nur auf dem Server: "streamo domain" in
+// der Konsole oder die .env von Hand. Die Einzelheiten – was alles an der
+// Domain hängt und was wovor gilt – stehen in src/address.js.
+
+/**
+ * GET /api/settings/address
+ * Eingetragene Domain, Proxy-Schalter und was Streamo bei dieser Anfrage sieht.
+ */
+router.get('/address', requireAdmin, (req, res) => {
+  res.json(getAddressState(req));
+});
+
+/**
+ * POST /api/settings/address/check
+ * Body: { domain, trustProxy }
+ *
+ * Sagt, was ein Speichern auslösen würde, ohne zu speichern: welche Passkeys
+ * danach nicht mehr gehen und ob die Anmeldung über http:// abreißt. Die
+ * Oberfläche macht daraus eine Rückfrage. Eine unbrauchbare Domain fällt
+ * schon hier mit 400 auf.
+ */
+router.post('/address/check', requireAdmin, (req, res, next) => {
+  try {
+    res.json(previewAddressChange(req, req.body ?? {}));
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PUT /api/settings/address
+ * Body: { domain, trustProxy } – domain leer = nichts mehr fest eintragen
+ *
+ * Wirkt sofort und ohne Neustart: Passkeys, Links und Proxy-Schalter lesen
+ * bei jeder Anfrage neu, und ein selbst erzeugtes Zertifikat wird gleich
+ * für die neue Domain ausgestellt.
+ */
+router.put('/address', requireAdmin, (req, res, next) => {
+  try {
+    saveAddress(req.body ?? {});
+
+    // Ein Fehler beim Zertifikat (etwa fehlendes openssl) darf das Speichern
+    // nicht ungeschehen machen – die Domain gilt für Links und Passkeys auch
+    // so. Die Oberfläche bekommt den Grund und zeigt ihn an.
+    let certificate;
+    try {
+      certificate = renewCertificateIfNeeded();
+    } catch (error) {
+      console.error('[tls] Zertifikat für die neue Domain:', error.message);
+      certificate = { renewed: false, error: error.message };
+    }
+
+    res.json({ ...getAddressState(req), certificate });
   } catch (error) {
     next(error);
   }

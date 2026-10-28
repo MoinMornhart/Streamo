@@ -49,7 +49,7 @@
  * Verknüpfungen:
  *   - public/js/i18n/en.js    -> das englische Wörterbuch
  *   - public/js/ui.js         -> el() übersetzt Texte und Attribute
- *   - public/js/app.js        -> setzt die Sprache beim Start
+ *   - public/js/session.js    -> setzt die Sprache beim Start
  *   - public/js/views/settings.js, views/auth.js -> die Umschalter
  *   - src/routes/public.js    -> Kalender-Feed in der Sprache des Kontos
  *   - tests/i18n.test.mjs     -> prüft Nachschlagen, Muster und Rückfall

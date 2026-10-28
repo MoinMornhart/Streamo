@@ -207,6 +207,48 @@ export default {
   'Schlüssel speichern': 'Save key',
   'Schlüssel gespeichert.': 'Key saved.',
 
+  // --- Adresse & Domain --------------------------------------------------------------------------
+  'Adresse & Domain': 'Address & domain',
+  'Unter dieser Adresse ist Streamo von außen erreichbar. Sie gilt für Passkeys, für die Links in Kalender-Abo, Einladungen und geteilten Listen und – wenn Streamo selbst HTTPS macht – für das Zertifikat. Nach einem Umzug auf eine neue Domain genügt es, sie hier einzutragen.':
+    'The address under which Streamo is reachable from outside. It applies to passkeys, to the links in calendar subscriptions, invitations and shared lists and – if Streamo serves HTTPS itself – to the certificate. After moving to a new domain, entering it here is all it takes.',
+  'Hier eingetragen.': 'Set here.',
+  'Aus der .env (WEBAUTHN_ORIGIN). Sobald du hier speicherst, gilt deine Eingabe.':
+    'From the .env (WEBAUTHN_ORIGIN). As soon as you save here, your entry applies.',
+  'Es ist keine Domain eingetragen – Streamo nimmt die Adresse, unter der es gerade aufgerufen wird.':
+    'No domain is set – Streamo uses the address it is currently being opened under.',
+  'Ein Passkey ist für {0} angelegt und funktioniert unter {1} nicht mehr.':
+    'One passkey was created for {0} and will no longer work under {1}.',
+  '{0} Passkeys sind für {1} angelegt und funktionieren unter {2} nicht mehr.':
+    '{0} passkeys were created for {1} and will no longer work under {2}.',
+  '{0} Passkeys von {1} Personen sind für {2} angelegt und funktionieren unter {3} nicht mehr.':
+    '{0} passkeys belonging to {1} people were created for {2} and will no longer work under {3}.',
+  'Anmelden mit Passwort geht weiter. Die Passkeys lassen sich danach unter der neuen Adresse neu anlegen; die alten kann jede Person unter Passkeys löschen.':
+    'Signing in with a password keeps working. Passkeys can then be created again under the new address; everyone can delete their old ones under Passkeys.',
+  'Du bist gerade nicht über https:// hier. Mit dem Proxy-Schalter kommt das Anmelde-Cookie nur noch über https:// an – anmelden klappt danach nur noch über die Domain mit https.':
+    'You are not connected via https:// right now. With the proxy switch on, the sign-in cookie only arrives over https:// – after that, signing in only works via the domain with https.',
+  'Die Adresse beginnt mit http://. Links funktionieren damit, Passkeys nicht – die brauchen https.':
+    'The address starts with http://. Links work with it, passkeys do not – they need https.',
+  'Domain wirklich ändern?': 'Really change the domain?',
+  'Trotzdem speichern': 'Save anyway',
+  'Streamo nutzt ein eigenes Zertifikat (TLS_CERT_FILE). Für eine neue Domain musst du es selbst austauschen.':
+    'Streamo uses its own certificate (TLS_CERT_FILE). For a new domain you have to replace it yourself.',
+  'Streamo macht selbst HTTPS mit einem selbst erzeugten Zertifikat für {0}. Bei einer neuen Domain wird es beim Speichern sofort neu ausgestellt.':
+    'Streamo serves HTTPS itself with a self-generated certificate for {0}. For a new domain it is reissued right away when you save.',
+  'Domain speichern': 'Save domain',
+  'Domain gespeichert.': 'Domain saved.',
+  'Es ist keine Domain mehr eingetragen.': 'No domain is set any more.',
+  'Das Zertifikat wurde für {0} neu ausgestellt.': 'The certificate was reissued for {0}.',
+  'streamo.deine-domain.de': 'streamo.your-domain.com',
+  'Ohne https:// davor ist https gemeint. Leer lassen, um nichts fest einzutragen – dann gilt die Adresse, unter der Streamo gerade aufgerufen wird.':
+    'Without https:// in front, https is assumed. Leave it empty to set nothing – then the address Streamo is currently opened under applies.',
+  'Streamo steht hinter einem Reverse Proxy': 'Streamo runs behind a reverse proxy',
+  'Etwa Nginx Proxy Manager, Traefik oder Caddy. Dann glaubt Streamo dessen Weiterleitungs-Kopfzeilen: echte Absenderadresse für die Anmeldebremse, HTTPS-Erkennung, sichere Cookies. Ohne Proxy davor bitte aus lassen – sonst könnte jeder seine Herkunft vortäuschen.':
+    'Such as Nginx Proxy Manager, Traefik or Caddy. Streamo then trusts its forwarding headers: the real sender address for the sign-in brake, HTTPS detection, secure cookies. Please leave it off without a proxy in front – otherwise anyone could fake where they come from.',
+  'Zurzeit gilt die Vorgabe aus der .env (TRUST_PROXY). Sobald du hier speicherst, gilt deine Einstellung.':
+    'The default from the .env (TRUST_PROXY) currently applies. As soon as you save here, your setting applies.',
+  'Diese Seite kam über einen Reverse Proxy – der Schalter gehört vermutlich an.':
+    'This page came through a reverse proxy – the switch should probably be on.',
+
   // --- Abgleich ----------------------------------------------------------------------------------
   // Ein Platzhalter statt "{0}{1}": Zwei aneinanderstoßende Platzhalter sind
   // mehrdeutig – "nie" wurde in "n" und "ie" zerschnitten.

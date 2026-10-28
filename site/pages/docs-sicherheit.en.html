@@ -21,10 +21,10 @@
   <p>The first account from the setup wizard becomes the administrator. Others join via invitation link – single-use or permanent for the whole family – and need no TMDB access of their own. Open registration is off on purpose: otherwise anyone who finds the address could create an account.</p>
 
   <h2>Passkeys need HTTPS and a host name</h2>
-  <p>The browser insists: no passkey over <code>http://</code> (except <code>localhost</code>) and none via a bare IP address. The easiest way is a reverse proxy with a Let's Encrypt certificate (Nginx Proxy Manager, Traefik, Caddy) in front of <code>http://&lt;container-ip&gt;:3000</code>, then in the container:</p>
+  <p>The browser insists: no passkey over <code>http://</code> (except <code>localhost</code>) and none via a bare IP address. The easiest way is a reverse proxy with a Let's Encrypt certificate (Nginx Proxy Manager, Traefik, Caddy) in front of <code>http://&lt;container-ip&gt;:3000</code>, then enter the domain in Streamo under <strong>Settings → Address &amp; domain</strong> and turn on "Streamo runs behind a reverse proxy". Or in the container:</p>
   <div class="code"><code id="c1">streamo domain streamo.your-domain.com</code><button class="copy" data-copy="#c1">Copy</button></div>
-  <p>The command sets <code>TRUST_PROXY</code>, <code>WEBAUTHN_RP_ID</code> and <code>WEBAUTHN_ORIGIN</code> and restarts. Without a proxy, <code>ENABLE_HTTPS=true</code> with a self-signed certificate works too.</p>
-  <p class="note">Passkeys are bound to one domain – that's what makes them phishing-proof. If you move to another domain you have to create them again; the password keeps working.</p>
+  <p>Both end up in the same place and apply right away. The domain also applies to every link Streamo sends out – calendar subscription, invitations, shared lists. Without a proxy, <code>ENABLE_HTTPS=true</code> with a self-signed certificate works too; Streamo reissues it by itself for a new domain.</p>
+  <p class="note">Passkeys are bound to one domain – that's what makes them phishing-proof. If you move to another domain you have to create them again; the password keeps working. The settings page tells you before saving how many passkeys are affected.</p>
 
   <h2>Under the hood</h2>
   <ul>

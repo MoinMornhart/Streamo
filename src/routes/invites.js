@@ -22,7 +22,8 @@
  */
 
 import express from 'express';
-import config from '../config.js';
+// Unter welcher Adresse Streamo von außen erreichbar ist (src/address.js).
+import { publicBaseUrl } from '../address.js';
 import { requireAdmin } from '../auth.js';
 import { createInvite, listInvites, revokeInvite, checkInvite, pruneInvites } from '../invites.js';
 
@@ -31,22 +32,15 @@ const router = express.Router();
 /**
  * Baut den vollständigen Einladungslink.
  *
- * Wie beim Teilen von Listen: Nur die Anfrage kennt die Adresse, unter der
- * Streamo von außen erreichbar ist. Ohne TRUST_PROXY werden die
- * Weiterleitungs-Kopfzeilen ignoriert, weil sie sich fälschen ließen.
+ * Wie beim Teilen von Listen: mit eingetragener Domain immer diese, sonst die
+ * Adresse aus der Anfrage – siehe src/address.js.
  *
  * @param {import('express').Request} req
  * @param {string} token
  * @returns {string}
  */
 function buildInviteUrl(req, token) {
-  const forwardedProto = config.trustProxy ? req.headers['x-forwarded-proto'] : null;
-  const protocol = String(forwardedProto || req.protocol || 'http').split(',')[0].trim();
-
-  const forwardedHost = config.trustProxy ? req.headers['x-forwarded-host'] : null;
-  const host = String(forwardedHost || req.headers.host || '').split(',')[0].trim();
-
-  return `${protocol}://${host}/einladung/${token}`;
+  return `${publicBaseUrl(req)}/einladung/${token}`;
 }
 
 /**

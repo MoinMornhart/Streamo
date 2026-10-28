@@ -32,7 +32,7 @@ import { tr } from '../i18n.js';
  * Zeichnet die Anbieter-Auswahl.
  * @param {HTMLElement} container
  */
-export async function render_(container) {
+async function render_(container) {
   const data = await api.providers.catalog();
 
   /**

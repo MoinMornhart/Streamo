@@ -78,7 +78,7 @@ function achievementCard(achievement, unlocked) {
  * Zeichnet die Erfolgsseite.
  * @param {HTMLElement} container
  */
-export async function render_(container) {
+async function render_(container) {
   const data = await api.achievements.list();
 
   const percent = data.total > 0 ? Math.round((data.earnedCount / data.total) * 100) : 0;

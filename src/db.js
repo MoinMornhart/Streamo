@@ -1151,4 +1151,3 @@ export function setSetting(key, value) {
   );
 }
 
-export default db;

@@ -33,7 +33,8 @@
  * ---------------------------------------------------------------------------
  */
 
-import config from './config.js';
+// Ob Streamo den Kopfzeilen eines Reverse Proxys glauben darf.
+import { trustsProxy } from './address.js';
 
 /**
  * Die Zähler.
@@ -80,14 +81,15 @@ function sweep(windowMs) {
  * Ermittelt den Absender einer Anfrage.
  *
  * Hinter einem Reverse Proxy steht die echte Adresse in X-Forwarded-For. Ohne
- * TRUST_PROXY darf dieser Header NICHT geglaubt werden – sonst setzt jeder
+ * den Proxy-Schalter (Einstellungen -> Adresse & Domain, früher nur
+ * TRUST_PROXY) darf dieser Header NICHT geglaubt werden – sonst setzt jeder
  * Angreifer bei jedem Versuch eine andere Adresse und die Bremse greift nie.
  *
  * @param {import('express').Request} req
  * @returns {string}
  */
 function absender(req) {
-  if (config.trustProxy) {
+  if (trustsProxy()) {
     const forwarded = req.headers['x-forwarded-for'];
 
     // Der Header kann eine Kette sein ("client, proxy1"); der erste Eintrag
@@ -159,11 +161,4 @@ export function limitFailures({ name, max, windowMs, message }) {
 
     next();
   };
-}
-
-/**
- * Leert alle Zähler. Nur für Tests.
- */
-export function resetLimits() {
-  buckets.clear();
 }

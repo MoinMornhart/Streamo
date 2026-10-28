@@ -74,6 +74,17 @@ Das Programmsymbol wird gerechnet, nicht gezeichnet:
 node tools/make-icons.mjs   # erzeugt assets/icon.png und assets/icon.ico
 ```
 
+<details>
+<summary><b>Warum in package.json ein „overrides“ steht</b></summary>
+
+<br>
+
+`electron-builder` lädt Electron über eine ältere Fassung von `@electron/get`, und die zieht `global-agent` 3 → `roarr` → `sprintf-js` nach. Für `sprintf-js` gibt es eine bekannte Lücke ([GHSA-hp3w-g68c-fv3c](https://github.com/advisories/GHSA-hp3w-g68c-fv3c)) und keine reparierte Version. `global-agent` 4 kommt ohne beides aus und bietet dieselbe Schnittstelle (`bootstrap()`), deshalb wird es per `overrides` vorgeschrieben.
+
+Betroffen war nur das Bauen des Installers, nie die App selbst. Sobald `electron-builder` von sich aus `@electron/get` 4 oder neuer mitbringt, kann der Eintrag wieder weg – `npm ls global-agent` zeigt dann kein „overridden“ mehr an der Stelle, oder `global-agent` fehlt ganz.
+
+</details>
+
 ---
 
 ## Aufbau

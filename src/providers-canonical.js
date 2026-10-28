@@ -275,7 +275,7 @@ export function mergeProviders(providers) {
  * @param {string} [name] Der Name hilft bei unbekannten Varianten
  * @returns {number}
  */
-export function canonicalProviderId(providerId, name) {
+function canonicalProviderId(providerId, name) {
   const known = VARIANT_TO_MAIN.get(providerId);
   if (known !== undefined) return known;
 

@@ -96,7 +96,6 @@ echo "Streamo – Auswahl des LXC-Templates"
 echo ""
 
 echo "Auf einem x86-Server (amd64)"
-FAKE_ARCH=amd64
 check "wählt das amd64-Template, nicht arm64" \
   "debian-13-standard_13.6-1_amd64.tar.zst" \
   "$(FAKE_ARCH=amd64 choose_template 13)"
@@ -123,6 +122,10 @@ echo ""
 echo "Das Skript selbst"
 # Sicherstellen, dass der Architekturfilter tatsächlich im Skript steht –
 # ohne ihn wäre der Test oben nur noch Selbstbestätigung.
+#
+# Gesucht wird der Text "${HOST_ARCH}" selbst, nicht sein Wert – daher die
+# einfachen Anführungszeichen.
+# shellcheck disable=SC2016
 if grep -q '_${HOST_ARCH}\\\.' "$SRC/scripts/streamo.sh"; then
   echo "  ok   scripts/streamo.sh filtert nach Host-Architektur"
   pass=$((pass + 1))

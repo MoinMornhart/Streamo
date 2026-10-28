@@ -29,7 +29,7 @@ import { tr } from '../i18n.js';
  * @param {object} _params ungenutzt (die Route hat keine Platzhalter)
  * @param {URLSearchParams} query enthält q und optional page
  */
-export async function render_(container, _params, query) {
+async function render_(container, _params, query) {
   const term = query.get('q') || '';
 
   // Die Suchleiste in der Kopfzeile mit dem Begriff füllen, damit sichtbar

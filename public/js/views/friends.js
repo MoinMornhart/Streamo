@@ -660,7 +660,7 @@ async function renderRecommendations(container) {
  * @param {HTMLElement} container
  * @param {{id?: string, sub?: string}} params
  */
-export async function render_(container, params) {
+async function render_(container, params) {
   try {
     if (params?.id === 'recommendations') {
       await renderRecommendations(container);

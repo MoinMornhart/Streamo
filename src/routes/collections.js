@@ -25,7 +25,8 @@
 
 import express from 'express';
 import { requireAuth } from '../auth.js';
-import config from '../config.js';
+// Unter welcher Adresse Streamo von außen erreichbar ist (src/address.js).
+import { publicBaseUrl } from '../address.js';
 import { getRuntimeSettings } from '../tmdb.js';
 import * as tmdb from '../tmdb.js';
 import { ensureShow, findShowById } from '../store.js';
@@ -55,23 +56,15 @@ router.use(requireAuth);
 /**
  * Baut den vollständigen Link zu einer geteilten Reihe.
  *
- * Die Adresse kommt aus der Anfrage, denn nur die kennt sie wirklich: Hinter
- * einem Reverse Proxy weiß Streamo selbst nicht, unter welchem Namen es von
- * außen erreichbar ist. Ohne TRUST_PROXY werden die Weiterleitungs-Kopfzeilen
- * ignoriert – sie ließen sich sonst fälschen.
+ * Mit eingetragener Domain (Einstellungen -> Adresse & Domain) immer diese,
+ * sonst die Adresse aus der Anfrage – siehe src/address.js.
  *
  * @param {import('express').Request} req
  * @param {string} token
  * @returns {string} z. B. "https://streamo.example.de/s/AbC123…"
  */
 function buildShareUrl(req, token) {
-  const forwardedProto = config.trustProxy ? req.headers['x-forwarded-proto'] : null;
-  const protocol = String(forwardedProto || req.protocol || 'http').split(',')[0].trim();
-
-  const forwardedHost = config.trustProxy ? req.headers['x-forwarded-host'] : null;
-  const host = String(forwardedHost || req.headers.host || '').split(',')[0].trim();
-
-  return `${protocol}://${host}/s/${token}`;
+  return `${publicBaseUrl(req)}/s/${token}`;
 }
 
 /**
